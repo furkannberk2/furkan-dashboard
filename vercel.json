@@ -1,0 +1,16 @@
+{
+  "experimentalServices": {
+    "frontend": {
+      "routePrefix": "/",
+      "framework": "vite",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist"
+    },
+    "backend": {
+      "routePrefix": "/api",
+      "framework": "express",
+      "buildCommand": "cd backend && npm install",
+      "startCommand": "node backend/index.js"
+    }
+  }
+}
