@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const BACKEND = 'http://localhost:3001'
+import { BACKEND } from '../config'
 
 function Home() {
   const [habits, setHabits] = useState([])

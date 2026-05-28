@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const BACKEND = 'http://localhost:3001'
+import { BACKEND } from '../config'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']

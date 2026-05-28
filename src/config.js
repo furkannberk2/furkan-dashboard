@@ -1,0 +1,1 @@
+export const BACKEND = import.meta.env.DEV ? 'http://localhost:3001' : ''
