@@ -7,9 +7,9 @@ function Stocks() {
   const [quotes, setQuotes] = useState({})
   const [loading, setLoading] = useState(true)
 
-  // Ekleme modal
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState('')
+  const [searchType, setSearchType] = useState('stock')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -42,7 +42,7 @@ function Stocks() {
     if (!search.trim()) return
     setSearching(true)
     try {
-      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(search)}`)
+      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(search)}&type=${searchType}`)
       const data = await res.json()
       setResults(data.results || [])
     } catch (err) {
@@ -70,7 +70,6 @@ function Stocks() {
     fetchHoldings()
   }
 
-  // Hesaplamalar
   let totalValue = 0, totalCost = 0
   holdings.forEach(h => {
     const price = parseFloat(quotes[h.symbol]?.close || 0)
@@ -90,7 +89,6 @@ function Stocks() {
         <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
       </div>
 
-      {/* Portföy özeti */}
       {holdings.length > 0 && (
         <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px', marginBottom: '24px', maxWidth: '760px' }}>
           <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>Toplam Portföy</div>
@@ -104,7 +102,6 @@ function Stocks() {
         </div>
       )}
 
-      {/* Holdings listesi */}
       <div style={{ maxWidth: '760px' }}>
         {holdings.map(h => {
           const q = quotes[h.symbol]
@@ -120,7 +117,7 @@ function Stocks() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '14px', fontWeight: '600' }}>{h.symbol}</span>
-                  <span style={{ fontSize: '11px', color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
+                  <span style={{ fontSize: '10px', background: '#222', borderRadius: '4px', padding: '2px 6px', color: '#888' }}>{h.type}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{h.quantity} adet · alış ${h.buy_price}</div>
               </div>
@@ -130,7 +127,7 @@ function Stocks() {
                 <div style={{ fontSize: '11px', color: change >= 0 ? '#6ee7b7' : '#f87171' }}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</div>
               </div>
 
-              <div style={{ textAlign: 'right', minWidth: '110px' }}>
+              <div style={{ textAlign: 'right', minWidth: '120px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '600' }}>${value.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</div>
                 <div style={{ fontSize: '11px', color: pl >= 0 ? '#6ee7b7' : '#f87171' }}>
                   {pl >= 0 ? '+' : ''}{pl.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} ({plPercent >= 0 ? '+' : ''}{plPercent.toFixed(1)}%)
@@ -144,15 +141,26 @@ function Stocks() {
         {holdings.length === 0 && <p style={{ color: '#555', fontSize: '14px' }}>Henüz varlık eklenmedi.</p>}
       </div>
 
-      {/* Ekleme Modal */}
       {showAdd && (
         <Modal onClose={() => { setShowAdd(false); setSelected(null) }}>
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Varlık Ekle</h3>
 
           {!selected ? (
             <>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                {[['stock', 'Hisse'], ['crypto', 'Kripto'], ['forex', 'Döviz/Altın']].map(([val, label]) => (
+                  <button key={val} onClick={() => { setSearchType(val); setResults([]) }} style={{
+                    padding: '5px 12px', borderRadius: '20px', border: '1px solid',
+                    borderColor: searchType === val ? '#6366f1' : '#2a2a2a',
+                    background: searchType === val ? '#6366f1' : 'transparent',
+                    color: searchType === val ? '#fff' : '#666', fontSize: '12px', cursor: 'pointer'
+                  }}>{label}</button>
+                ))}
+              </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchSymbol()} placeholder="Ara: Apple, BTC, EUR..." style={inputStyle} autoFocus />
+                <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchSymbol()}
+                  placeholder={searchType === 'crypto' ? 'BTC, ETH...' : searchType === 'forex' ? 'EUR, XAU (altın)...' : 'Apple, AAPL...'}
+                  style={inputStyle} autoFocus />
                 <button onClick={searchSymbol} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
               </div>
               <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
@@ -165,7 +173,11 @@ function Stocks() {
                     <div style={{ fontSize: '12px', color: '#666' }}>{r.instrument_name}</div>
                   </div>
                 ))}
-                {results.length === 0 && !searching && <p style={{ color: '#555', fontSize: '13px' }}>Arama yap (örn. AAPL, BTC/USD, EUR/USD, XAU/USD)</p>}
+                {results.length === 0 && !searching && (
+                  <p style={{ color: '#555', fontSize: '13px' }}>
+                    {searchType === 'crypto' ? 'Kripto ara (örn. BTC, ETH)' : searchType === 'forex' ? 'Döviz/altın ara (örn. EUR, GBP, XAU)' : 'Hisse ara (örn. AAPL, TSLA)'}
+                  </p>
+                )}
               </div>
             </>
           ) : (
