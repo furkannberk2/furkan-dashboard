@@ -122,10 +122,10 @@ function Calories() {
           const mealEntries = entries.filter(e => e.meal === meal)
           const mealTotal = mealEntries.reduce((s, e) => s + Number(e.calories), 0)
           return (
-            <div key={meal} style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+             <div key={meal} style={{ marginBottom: '14px', background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: mealEntries.length > 0 ? '12px' : '0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#ccc' }}>{meal}</span>
+                  <span style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>{meal}</span>
                   <span style={{ fontSize: '12px', color: '#555' }}>{mealTotal} kcal</span>
                 </div>
                 <button onClick={() => { setSelectedMeal(meal); setShowSearch(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
@@ -138,7 +138,7 @@ function Calories() {
                   <span onClick={() => deleteEntry(e.id)} style={{ color: '#444', cursor: 'pointer', fontSize: '13px' }}>✕</span>
                 </div>
               ))}
-              {mealEntries.length === 0 && <p style={{ color: '#444', fontSize: '13px' }}>Henüz bir şey eklenmedi.</p>}
+              {mealEntries.length === 0 && <p style={{ color: '#444', fontSize: '12px', margin: '8px 0 0' }}>Boş</p>}
             </div>
           )
         })}
