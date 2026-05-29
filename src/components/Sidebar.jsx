@@ -15,6 +15,7 @@ function Sidebar() {
       <NavLink to="/habits" style={navStyle}>✅ Alışkanlıklar</NavLink>
       <NavLink to="/tasks" style={navStyle}>📋 Görevler</NavLink>
       <NavLink to="/calories" style={navStyle}>🍎 Kalori</NavLink>
+      <NavLink to="/mail" style={navStyle}>📧 Mail Özeti</NavLink>
       <NavLink to="/projects" style={navStyle}>📁 Projeler</NavLink>
       <NavLink to="/finance" style={navStyle}>💸 Finans</NavLink>
     </nav>
