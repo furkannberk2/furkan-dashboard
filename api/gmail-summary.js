@@ -68,7 +68,7 @@ export default async function handler(req, res) {
 
     // Gemini ile özetle
     const mailText = allMails.map((m, i) => `${i + 1}. [${m.account}] ${m.from} — ${m.subject}: ${m.snippet}`).join('\n')
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const prompt = `Aşağıda bugün gelen e-postalar var. Bunları Türkçe, kısa ve öz şekilde özetle. Önemli olanları vurgula, spam/bülten gibi olanları grupla. Madde madde, sade bir dille yaz:\n\n${mailText}`
 
     const result = await model.generateContent(prompt)
