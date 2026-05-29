@@ -4,9 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
   const { code } = req.query
   if (!code) return res.status(400).send('Kod bulunamadı')
-
+    
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
