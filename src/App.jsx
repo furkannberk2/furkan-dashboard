@@ -7,6 +7,7 @@ import Finance from './pages/Finance'
 import Habits from './pages/Habits'
 import Calories from './pages/Calories'
 import Mail from './pages/Mail'
+import Stocks from './pages/Stocks'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/calories" element={<Calories />} />
           <Route path="/mail" element={<Mail />} />
+          <Route path="/stocks" element={<Stocks />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/finance" element={<Finance />} />
         </Routes>
