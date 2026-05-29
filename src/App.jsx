@@ -5,6 +5,7 @@ import Tasks from './pages/Tasks'
 import Projects from './pages/Projects'
 import Finance from './pages/Finance'
 import Habits from './pages/Habits'
+import Calories from './pages/Calories'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/habits" element={<Habits />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/calories" element={<Calories />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/finance" element={<Finance />} />
         </Routes>
