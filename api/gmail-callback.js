@@ -32,6 +32,7 @@ export default async function handler(req, res) {
     // Dashboard'a geri yönlendir
     res.redirect('/?gmail=connected')
   } catch (err) {
-    res.status(500).send('Hata: ' + err.message)
+console.error('CALLBACK ERROR:', err.response?.data || err.message)
+    res.status(500).send('Hata: ' + JSON.stringify(err.response?.data || err.message))
   }
 }
