@@ -21,13 +21,13 @@ export const themes = {
     '--pink': '#f472b6',
     '--purple': '#a78bfa',
   },
-  light: {
-    '--bg': '#f5f5f7',
+light: {
+    '--bg': '#eef1f6',
     '--bg-card': '#ffffff',
-    '--bg-item': '#fafafa',
+    '--bg-item': '#f4f6fa',
     '--bg-soft': '#eef2ff',
-    '--border': '#e5e5e7',
-    '--border-strong': '#d4d4d8',
+    '--border': '#dde1e8',
+    '--border-strong': '#cbd0d9',
     '--text': '#111',
     '--text-secondary': '#333',
     '--text-muted': '#555',

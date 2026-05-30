@@ -236,12 +236,11 @@ function Home() {
         <StatCard
           to="/finance"
           label="Portföy"
-          value={`₺${Math.round(portfolioTotal).toLocaleString('tr-TR')}`}
-          sub={portfolioChange !== null
-            ? <span style={{ color: portfolioChange >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                {portfolioChange >= 0 ? '+' : ''}{portfolioChange.toFixed(2)}% bugün
-              </span>
-            : `${investments.length} pozisyon`}
+          value={portfolioChange !== null
+            ? `${portfolioChange >= 0 ? '+' : ''}${portfolioChange.toFixed(2)}%`
+            : '—'}
+          valueColor={portfolioChange !== null ? (portfolioChange >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text)'}
+          sub={`₺${Math.round(portfolioTotal).toLocaleString('tr-TR')} toplam`}
         />
       </div>
 
@@ -320,7 +319,7 @@ function Home() {
   )
 }
 
-function StatCard({ to, label, value, sub, percent, color }) {
+function StatCard({ to, label, value, sub, percent, color, valueColor }) {
   return (
     <Link to={to || '/'} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
@@ -329,7 +328,7 @@ function StatCard({ to, label, value, sub, percent, color }) {
         transition: 'border-color 0.15s'
       }}>
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>{label}</div>
-        <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text)', marginBottom: '4px' }}>{value}</div>
+        <div style={{ fontSize: '22px', fontWeight: '700', color: valueColor || 'var(--text)', marginBottom: '4px' }}>{value}</div>
         <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: percent !== undefined ? '10px' : '0' }}>{sub}</div>
         {percent !== undefined && (
           <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '4px' }}>
