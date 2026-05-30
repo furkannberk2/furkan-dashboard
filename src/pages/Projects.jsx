@@ -4,7 +4,18 @@ import { supabase } from '../lib/supabase'
 const COLORS = ['#6366f1', '#f472b6', '#fb923c', '#60a5fa', '#a78bfa', '#6ee7b7', '#fbbf24', '#f87171']
 const FREQUENCIES = ['Her gün', 'Haftada 1', 'Haftada 2', 'Haftada 3', 'Ayda 1', 'Ayda 2']
 
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+  useEffect(() => {
+    const h = () => setM(window.innerWidth <= 768)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return m
+}
+
 function Projects() {
+  const isMobile = useIsMobile()
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
   const [tasks, setTasks] = useState([])
@@ -122,51 +133,51 @@ function Projects() {
   const completedTasks = tasks.filter(t => t.status === 'done').length
 
   return (
-    <div style={{ color: '#fff' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+    <div style={{ color: 'var(--text)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Projeler</h2>
         <button onClick={() => setShowAddProject(true)} style={buttonStyle}>+ Yeni Proje</button>
       </div>
 
       {/* Proje Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
         {projects.map(p => (
           <div key={p.id} onClick={() => { setSelectedProject(p); setTab('tasks') }} style={{
-            background: '#161616', border: '1px solid #222',
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
             borderTop: `3px solid ${p.color}`,
-            borderRadius: '12px', padding: '16px', cursor: 'pointer'
+            borderRadius: '12px', padding: '14px', cursor: 'pointer'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               {p.icon && <span style={{ fontSize: '18px' }}>{p.icon}</span>}
-              <span style={{ fontSize: '15px', fontWeight: '600', color: '#fff', flex: 1 }}>{p.name}</span>
-              <span style={{ fontSize: '10px', color: p.status === 'aktif' ? '#6ee7b7' : p.status === 'tamamlandı' ? '#6366f1' : '#555', background: '#1a1a1a', padding: '2px 6px', borderRadius: '4px' }}>{p.status}</span>
+              <span style={{ fontSize: '14.5px', fontWeight: '600', color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+              <span style={{ fontSize: '10px', color: p.status === 'aktif' ? 'var(--success)' : p.status === 'tamamlandı' ? 'var(--accent)' : 'var(--text-faint)', background: 'var(--bg-item)', padding: '2px 6px', borderRadius: '4px' }}>{p.status}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ flex: 1, background: '#222', borderRadius: '99px', height: '4px' }}>
+              <div style={{ flex: 1, background: 'var(--bg-item)', borderRadius: '99px', height: '4px' }}>
                 <div style={{ width: `${p.progress}%`, height: '4px', borderRadius: '99px', background: p.color }} />
               </div>
-              <span style={{ fontSize: '12px', color: '#555' }}>{p.progress}%</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{p.progress}%</span>
             </div>
           </div>
         ))}
       </div>
-      {projects.length === 0 && <p style={{ color: '#555', fontSize: '14px', marginTop: '16px' }}>Henüz proje yok.</p>}
+      {projects.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginTop: '16px' }}>Henüz proje yok.</p>}
 
       {/* Yeni Proje Modal */}
       {showAddProject && (
         <Modal onClose={() => setShowAddProject(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Yeni Proje</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '18px' }}>Yeni Proje</h3>
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Proje adı" style={{ ...inputStyle, marginBottom: '10px', width: '100%' }} />
           <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder="Emoji (örn. 🎬)" style={{ ...inputStyle, marginBottom: '12px', width: '100%' }} />
-          <div style={{ fontSize: '12px', color: '#555', marginBottom: '8px' }}>Renk</div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '8px' }}>Renk</div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
             {COLORS.map(c => (
-              <div key={c} onClick={() => setNewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, cursor: 'pointer', border: newColor === c ? '3px solid #fff' : '3px solid transparent' }} />
+              <div key={c} onClick={() => setNewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, cursor: 'pointer', border: newColor === c ? '3px solid var(--text)' : '3px solid transparent' }} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={addProject} style={{ ...buttonStyle, flex: 1 }}>Ekle</button>
-            <button onClick={() => setShowAddProject(false)} style={{ ...buttonStyle, background: '#333', flex: 1 }}>İptal</button>
+            <button onClick={() => setShowAddProject(false)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', flex: 1 }}>İptal</button>
           </div>
         </Modal>
       )}
@@ -174,69 +185,68 @@ function Projects() {
       {/* Proje Detay Modal */}
       {selectedProject && (
         <Modal onClose={() => setSelectedProject(null)} wide>
-          {/* Başlık */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            {selectedProject.icon && <span style={{ fontSize: '22px' }}>{selectedProject.icon}</span>}
-            <h3 style={{ fontSize: '20px', fontWeight: '700', flex: 1 }}>{selectedProject.name}</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input type="number" min="0" max="100" value={selectedProject.progress}
-                onChange={e => updateProject(selectedProject.id, { progress: Number(e.target.value) })}
-                style={{ ...inputStyle, width: '60px', flex: 0, fontSize: '13px', textAlign: 'center', padding: '5px 8px' }} />
-              <span style={{ fontSize: '12px', color: '#555' }}>%</span>
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              {selectedProject.icon && <span style={{ fontSize: '22px' }}>{selectedProject.icon}</span>}
+              <h3 style={{ fontSize: '20px', fontWeight: '700', flex: 1, minWidth: 0 }}>{selectedProject.name}</h3>
+              <button onClick={() => deleteProject(selectedProject.id)} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', padding: '6px 10px' }}>Sil</button>
             </div>
-            <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
-              <option value="aktif">Aktif</option>
-              <option value="beklemede">Beklemede</option>
-              <option value="tamamlandı">Tamamlandı</option>
-            </select>
-            <button onClick={() => deleteProject(selectedProject.id)} style={{ ...buttonStyle, background: '#2a1a1a', color: '#f87171', fontSize: '12px', padding: '6px 10px' }}>Sil</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input type="number" min="0" max="100" value={selectedProject.progress}
+                  onChange={e => updateProject(selectedProject.id, { progress: Number(e.target.value) })}
+                  style={{ ...inputStyle, width: '60px', flex: 0, fontSize: '13px', textAlign: 'center', padding: '5px 8px' }} />
+                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>%</span>
+              </div>
+              <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
+                <option value="aktif">Aktif</option>
+                <option value="beklemede">Beklemede</option>
+                <option value="tamamlandı">Tamamlandı</option>
+              </select>
+            </div>
           </div>
 
-          {/* Progress bar */}
-          <div style={{ background: '#222', borderRadius: '99px', height: '5px', marginBottom: '20px' }}>
+          <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '5px', marginBottom: '18px' }}>
             <div style={{ width: `${selectedProject.progress}%`, height: '5px', borderRadius: '99px', background: selectedProject.color, transition: 'width 0.3s' }} />
           </div>
 
-          {/* Tab */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
             {['tasks', 'routines'].map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
-                padding: '6px 16px', borderRadius: '20px', border: '1px solid',
-                borderColor: tab === t ? selectedProject.color : '#2a2a2a',
+                padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+                borderColor: tab === t ? selectedProject.color : 'var(--border-strong)',
                 background: tab === t ? selectedProject.color : 'transparent',
-                color: tab === t ? '#fff' : '#666', fontSize: '13px', cursor: 'pointer'
+                color: tab === t ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
               }}>
                 {t === 'tasks' ? `Görevler ${tasks.length > 0 ? `(${completedTasks}/${tasks.length})` : ''}` : 'Rutinler'}
               </button>
             ))}
           </div>
 
-          {/* Görevler */}
           {tab === 'tasks' && (
             <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                 <input value={newTask} onChange={e => setNewTask(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Görev ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
-                <input type="date" value={newTaskDate} onChange={e => setNewTaskDate(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
+                <input type="date" value={newTaskDate} onChange={e => setNewTaskDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
                 <button onClick={addTask} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>Ekle</button>
               </div>
               {tasks.map(t => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
-                  <div onClick={() => toggleTask(t.id, t.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: t.status === 'done' ? selectedProject.color : '#555', background: t.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
+                  <div onClick={() => toggleTask(t.id, t.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: t.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: t.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {t.status === 'done' && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </div>
-                  <span style={{ fontSize: '13px', color: t.status === 'done' ? '#555' : '#ccc', flex: 1, textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>{t.title}</span>
-                  {t.date && <span style={{ fontSize: '11px', color: t.date < today && t.status !== 'done' ? '#f87171' : '#555' }}>{formatDate(t.date)}</span>}
-                  <span onClick={() => deleteTask(t.id)} style={{ color: '#444', cursor: 'pointer', fontSize: '13px' }}>✕</span>
+                  <span style={{ fontSize: '13px', color: t.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>{t.title}</span>
+                  {t.date && <span style={{ fontSize: '11px', color: t.date < today && t.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.date)}</span>}
+                  <span onClick={() => deleteTask(t.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
                 </div>
               ))}
-              {tasks.length === 0 && <p style={{ color: '#555', fontSize: '13px' }}>Görev yok.</p>}
+              {tasks.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Görev yok.</p>}
             </div>
           )}
 
-          {/* Rutinler */}
           {tab === 'routines' && (
             <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                 <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
                 <select value={newFrequency} onChange={e => setNewFrequency(e.target.value)} style={{ ...selectStyle, fontSize: '13px' }}>
                   {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
@@ -246,20 +256,20 @@ function Projects() {
               {routines.map(r => {
                 const overdue = isRoutineOverdue(r)
                 return (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', border: `1px solid ${overdue ? '#f8717133' : '#222'}`, borderLeft: `3px solid ${overdue ? '#f87171' : '#333'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', color: '#ccc', marginBottom: '3px' }}>{r.title}</div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', background: '#222', borderRadius: '4px', padding: '2px 6px', color: '#666' }}>{r.frequency}</span>
-                        <span style={{ fontSize: '11px', color: overdue ? '#f87171' : '#555' }}>{getLastDoneLabel(r.last_done)}</span>
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: `1px solid ${overdue ? 'var(--danger)' : 'var(--border)'}`, borderLeft: `3px solid ${overdue ? 'var(--danger)' : 'var(--text-faded)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '3px' }}>{r.title}</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{r.frequency}</span>
+                        <span style={{ fontSize: '11px', color: overdue ? 'var(--danger)' : 'var(--text-faint)' }}>{getLastDoneLabel(r.last_done)}</span>
                       </div>
                     </div>
-                    <button onClick={() => markRoutineDone(r.id)} style={{ background: '#1e2e1e', border: '1px solid #6ee7b733', borderRadius: '6px', color: '#6ee7b7', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
-                    <span onClick={() => deleteRoutine(r.id)} style={{ color: '#444', cursor: 'pointer', fontSize: '13px' }}>✕</span>
+                    <button onClick={() => markRoutineDone(r.id)} style={{ background: 'transparent', border: '1px solid var(--success)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
+                    <span onClick={() => deleteRoutine(r.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>✕</span>
                   </div>
                 )
               })}
-              {routines.length === 0 && <p style={{ color: '#555', fontSize: '13px' }}>Rutin yok.</p>}
+              {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Rutin yok.</p>}
             </div>
           )}
         </Modal>
@@ -272,19 +282,19 @@ function Modal({ children, onClose, wide }) {
   return (
     <div onClick={onClose} style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.75)', zIndex: 1000,
+      background: 'rgba(0,0,0,0.65)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '20px'
+      padding: '16px'
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#161616', border: '1px solid #2a2a2a',
-        borderRadius: '16px', padding: '28px',
+        background: 'var(--bg-card)', border: '1px solid var(--border-strong)',
+        borderRadius: '16px', padding: '22px',
         width: wide ? '860px' : '420px',
         maxWidth: '95vw',
         maxHeight: '90vh',
         overflowY: 'auto', position: 'relative'
       }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#555', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} style={{ position: 'absolute', top: '14px', right: '14px', background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>✕</button>
         {children}
       </div>
     </div>
@@ -292,17 +302,17 @@ function Modal({ children, onClose, wide }) {
 }
 
 const inputStyle = {
-  flex: 1, padding: '9px 12px', background: '#1a1a1a',
-  border: '1px solid #2a2a2a', borderRadius: '8px',
-  color: '#fff', fontSize: '14px', outline: 'none'
+  flex: 1, padding: '9px 12px', background: 'var(--bg-item)',
+  border: '1px solid var(--border-strong)', borderRadius: '8px',
+  color: 'var(--text)', fontSize: '14px', outline: 'none'
 }
 const selectStyle = {
-  padding: '9px 12px', background: '#1a1a1a',
-  border: '1px solid #2a2a2a', borderRadius: '8px',
-  color: '#fff', fontSize: '14px', outline: 'none'
+  padding: '9px 12px', background: 'var(--bg-item)',
+  border: '1px solid var(--border-strong)', borderRadius: '8px',
+  color: 'var(--text)', fontSize: '14px', outline: 'none'
 }
 const buttonStyle = {
-  padding: '9px 18px', background: '#6366f1',
+  padding: '9px 16px', background: 'var(--accent)',
   border: 'none', borderRadius: '8px',
   color: '#fff', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap'
 }

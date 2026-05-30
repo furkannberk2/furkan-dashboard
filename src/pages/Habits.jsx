@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-
 import { BACKEND } from '../config'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -14,7 +13,6 @@ function Habits() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [initLoading, setInitLoading] = useState(false)
 
-  const currentDay = today.getMonth() === currentMonthIndex ? today.getDate() : new Date(today.getFullYear(), currentMonthIndex + 1, 0).getDate()
   const daysInMonth = new Date(today.getFullYear(), currentMonthIndex + 1, 0).getDate()
   const isCurrentMonth = currentMonthIndex === today.getMonth()
 
@@ -55,12 +53,11 @@ function Habits() {
   async function initMonth() {
     setInitLoading(true)
     try {
-      await fetch(`${BACKEND}/api/habits/init-month`, {
+      await fetch(`${BACKEND}/api/habits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           month: MONTHS[currentMonthIndex],
-          year: today.getFullYear(),
           days: daysInMonth
         })
       })
@@ -100,36 +97,35 @@ function Habits() {
   const maxDay = isCurrentMonth ? today.getDate() : daysInMonth
 
   return (
-    <div style={{ color: '#fff' }}>
-      {/* Başlık + ay navigasyonu */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+    <div style={{ color: 'var(--text)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Alışkanlıklar</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <button onClick={() => setCurrentMonthIndex(i => Math.max(0, i - 1))} style={navBtnStyle}>‹</button>
-          <span style={{ fontSize: '14px', color: '#ccc', minWidth: '80px', textAlign: 'center' }}>{MONTHS_TR[currentMonthIndex]}</span>
+          <span style={{ fontSize: '14px', color: 'var(--text-secondary)', minWidth: '80px', textAlign: 'center' }}>{MONTHS_TR[currentMonthIndex]}</span>
           <button onClick={() => setCurrentMonthIndex(i => Math.min(today.getMonth(), i + 1))} style={navBtnStyle} disabled={currentMonthIndex === today.getMonth()}>›</button>
         </div>
       </div>
 
       {loading ? (
-        <p style={{ color: '#555' }}>Yükleniyor...</p>
+        <p style={{ color: 'var(--text-faint)' }}>Yükleniyor...</p>
       ) : habits.length === 0 ? (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-          <p style={{ color: '#555', marginBottom: '16px' }}>{MONTHS_TR[currentMonthIndex]} için henüz veri yok.</p>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-faint)', marginBottom: '16px' }}>{MONTHS_TR[currentMonthIndex]} için henüz veri yok.</p>
           <button onClick={initMonth} disabled={initLoading} style={buttonStyle}>
             {initLoading ? 'Oluşturuluyor...' : `${MONTHS_TR[currentMonthIndex]} ayını başlat`}
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'flex-start' }}>
 
           {/* Sol: Takvim + Gün Detayı */}
-          <div style={{ minWidth: '300px', flex: 1 }}>
-            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
+          <div>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
                 {MONTHS_TR[currentMonthIndex]} {today.getFullYear()}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
                 {Array.from({ length: maxDay }, (_, i) => i + 1).map(day => {
                   const page = getPageForDay(day)
                   const total = habitNames.length
@@ -140,19 +136,19 @@ function Habits() {
 
                   return (
                     <div key={day} onClick={() => setSelectedDay(day === selectedDay ? null : day)} style={{
-                      width: '36px', height: '36px', borderRadius: '8px',
+                      aspectRatio: '1', borderRadius: '8px',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '13px', cursor: 'pointer',
-                      background: isSelected ? '#6366f1' : allDone ? '#1a2e1a' : '#1a1a1a',
-                      border: isToday ? '1px solid #6366f1' : isSelected ? '1px solid #6366f1' : '1px solid #222',
-                      color: isSelected ? '#fff' : isToday ? '#6366f1' : '#ccc',
+                      background: isSelected ? 'var(--accent)' : allDone ? 'var(--accent-soft)' : 'var(--bg-item)',
+                      border: isToday ? '1px solid var(--accent)' : isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      color: isSelected ? '#fff' : isToday ? 'var(--accent)' : 'var(--text-secondary)',
                       position: 'relative'
                     }}>
                       {day}
                       {done > 0 && !isSelected && (
                         <div style={{ position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '2px' }}>
                           {Array.from({ length: Math.min(done, 4) }).map((_, i) => (
-                            <div key={i} style={{ width: '3px', height: '3px', borderRadius: '50%', background: allDone ? '#6ee7b7' : '#fbbf24' }} />
+                            <div key={i} style={{ width: '3px', height: '3px', borderRadius: '50%', background: allDone ? 'var(--success)' : 'var(--warning)' }} />
                           ))}
                         </div>
                       )}
@@ -163,8 +159,8 @@ function Habits() {
             </div>
 
             {selectedDay && selectedPage && (
-              <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
                   {selectedDay} {MONTHS_TR[currentMonthIndex]}
                 </div>
                 {habitNames.map(name => {
@@ -172,45 +168,45 @@ function Habits() {
                   return (
                     <div key={name} onClick={() => toggleHabit(selectedPage.id, name, checked)} style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
-                      padding: '8px 0', cursor: 'pointer', borderBottom: '1px solid #1a1a1a'
+                      padding: '8px 0', cursor: 'pointer', borderBottom: '1px solid var(--border)'
                     }}>
                       <div style={{
                         width: '18px', height: '18px', borderRadius: '5px', border: '2px solid',
-                        borderColor: checked ? '#6ee7b7' : '#444',
-                        background: checked ? '#6ee7b7' : 'transparent',
+                        borderColor: checked ? 'var(--success)' : 'var(--text-faded)',
+                        background: checked ? 'var(--success)' : 'transparent',
                         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>
                         {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                       </div>
-                      <span style={{ fontSize: '14px', color: checked ? '#6ee7b7' : '#ccc', textDecoration: checked ? 'line-through' : 'none' }}>{name}</span>
+                      <span style={{ fontSize: '14px', color: checked ? 'var(--success)' : 'var(--text-secondary)', textDecoration: checked ? 'line-through' : 'none' }}>{name}</span>
                     </div>
                   )
                 })}
               </div>
             )}
             {selectedDay && !selectedPage && (
-              <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-                <p style={{ color: '#555', fontSize: '14px' }}>{selectedDay}. gün için veri bulunamadı.</p>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+                <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{selectedDay}. gün için veri bulunamadı.</p>
               </div>
             )}
           </div>
 
           {/* Sağ: Aylık Özet */}
-          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px', minWidth: '260px', flex: 1 }}>
-            <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '16px' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
               {MONTHS_TR[currentMonthIndex]} Özeti
             </div>
             {habitNames.map(name => {
               const stat = monthStats[name] || { done: 0, total: 0 }
               const percent = stat.total > 0 ? Math.round((stat.done / stat.total) * 100) : 0
-              const color = percent >= 80 ? '#6ee7b7' : percent >= 50 ? '#fbbf24' : '#f87171'
+              const color = percent >= 80 ? 'var(--success)' : percent >= 50 ? 'var(--warning)' : 'var(--danger)'
               return (
-                <div key={name} style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#ccc' }}>{name}</span>
-                    <span style={{ fontSize: '12px', color: '#555' }}>{stat.done}/{stat.total} — %{percent}</span>
+                <div key={name} style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{name}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{stat.done}/{stat.total} · %{percent}</span>
                   </div>
-                  <div style={{ background: '#222', borderRadius: '99px', height: '5px' }}>
+                  <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '5px' }}>
                     <div style={{ width: `${percent}%`, height: '5px', borderRadius: '99px', background: color, transition: 'width 0.3s' }} />
                   </div>
                 </div>
@@ -224,12 +220,12 @@ function Habits() {
 }
 
 const navBtnStyle = {
-  background: '#1a1a1a', border: '1px solid #222', borderRadius: '6px',
-  color: '#ccc', fontSize: '16px', padding: '4px 10px', cursor: 'pointer'
+  background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '6px',
+  color: 'var(--text-secondary)', fontSize: '16px', padding: '4px 10px', cursor: 'pointer'
 }
 
 const buttonStyle = {
-  padding: '9px 18px', background: '#6366f1', border: 'none',
+  padding: '9px 18px', background: 'var(--accent)', border: 'none',
   borderRadius: '8px', color: '#fff', fontSize: '14px', cursor: 'pointer'
 }
 

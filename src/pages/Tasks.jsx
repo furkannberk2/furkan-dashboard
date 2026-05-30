@@ -2,12 +2,23 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const PRIORITIES = {
-  high: { label: 'Yüksek', color: '#f87171' },
-  medium: { label: 'Orta', color: '#fbbf24' },
-  low: { label: 'Düşük', color: '#6ee7b7' }
+  high: { label: 'Yüksek', color: 'var(--danger)' },
+  medium: { label: 'Orta', color: 'var(--warning)' },
+  low: { label: 'Düşük', color: 'var(--success)' }
+}
+
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+  useEffect(() => {
+    const h = () => setM(window.innerWidth <= 768)
+    window.addEventListener('resize', h)
+    return () => window.removeEventListener('resize', h)
+  }, [])
+  return m
 }
 
 function Tasks() {
+  const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
   const [filter, setFilter] = useState('today')
   const [newTask, setNewTask] = useState('')
@@ -31,17 +42,12 @@ function Tasks() {
   async function addTask() {
     if (!newTask.trim()) return
     const { error } = await supabase.from('tasks').insert({
-      title: newTask,
-      type: 'todo',
-      day: newDeadline || today,
-      status: 'todo',
+      title: newTask, type: 'todo',
+      day: newDeadline || today, status: 'todo',
       note: newDetail || null,
     })
     if (!error) {
-      setNewTask('')
-      setNewDeadline('')
-      setNewDetail('')
-      setShowDetail(false)
+      setNewTask(''); setNewDeadline(''); setNewDetail(''); setShowDetail(false)
       fetchTasks()
     }
   }
@@ -94,11 +100,11 @@ function Tasks() {
   const grouped = (filter === 'week' || filter === 'month') ? groupByDay(tasks) : null
 
   return (
-    <div style={{ color: '#fff' }}>
-      <h2 style={{ marginBottom: '24px', fontSize: '22px', fontWeight: '700', textAlign: 'left' }}>Görevler</h2>
+    <div style={{ color: 'var(--text)' }}>
+      <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Görevler</h2>
 
       {/* Görev Ekleme */}
-      <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '24px', maxWidth: '680px' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '20px', maxWidth: '680px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <input
             value={newTask}
@@ -109,23 +115,23 @@ function Tasks() {
           />
           <button onClick={addTask} style={buttonStyle}>Ekle</button>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             type="date"
             value={newDeadline}
             onChange={e => setNewDeadline(e.target.value)}
-            style={{ ...inputStyle, flex: 0, width: '160px', fontSize: '13px' }}
+            style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
           />
-          <select value={newPriority} onChange={e => setNewPriority(e.target.value)} style={{ ...selectStyle, fontSize: '13px' }}>
+          <select value={newPriority} onChange={e => setNewPriority(e.target.value)} style={{ ...selectStyle, fontSize: '13px', flex: isMobile ? 1 : 0 }}>
             <option value="high">🔴 Yüksek</option>
             <option value="medium">🟡 Orta</option>
             <option value="low">🟢 Düşük</option>
           </select>
           <button
             onClick={() => setShowDetail(!showDetail)}
-            style={{ ...buttonStyle, background: 'transparent', border: '1px solid #2a2a2a', color: '#666', fontSize: '13px', padding: '6px 12px' }}
+            style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}
           >
-            {showDetail ? '− Detayı Gizle' : '+ Detay Ekle'}
+            {showDetail ? '− Detay' : '+ Detay'}
           </button>
         </div>
         {showDetail && (
@@ -140,13 +146,13 @@ function Tasks() {
       </div>
 
       {/* Filtre */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {['today', 'week', 'month', 'all'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '6px 16px', borderRadius: '20px', border: '1px solid',
-            borderColor: filter === f ? '#6366f1' : '#2a2a2a',
-            background: filter === f ? '#6366f1' : 'transparent',
-            color: filter === f ? '#fff' : '#666', fontSize: '13px', cursor: 'pointer'
+            padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+            borderColor: filter === f ? 'var(--accent)' : 'var(--border-strong)',
+            background: filter === f ? 'var(--accent)' : 'transparent',
+            color: filter === f ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
           }}>
             {f === 'today' ? 'Bugün' : f === 'week' ? 'Bu Hafta' : f === 'month' ? 'Bu Ay' : 'Tümü'}
           </button>
@@ -161,24 +167,24 @@ function Tasks() {
               onToggle={toggleTask} onDelete={deleteTask}
               formatDate={formatDate} isOverdue={isOverdue} />
           ))}
-          {tasks.length === 0 && <p style={{ color: '#555', fontSize: '14px' }}>Görev yok.</p>}
+          {tasks.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
         </div>
       )}
 
       {/* Hafta & Ay — sütunlar */}
       {grouped && (
-        <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', paddingBottom: '12px', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
           {Object.keys(grouped).sort().map(day => (
             <div key={day} style={{
-              minWidth: '260px', maxWidth: '260px',
-              background: '#161616',
-              border: day === today ? '1px solid #6366f1' : '1px solid #222',
-              borderRadius: '12px', padding: '16px'
+              minWidth: '240px', maxWidth: '240px',
+              background: 'var(--bg-card)',
+              border: day === today ? '1px solid var(--accent)' : '1px solid var(--border)',
+              borderRadius: '12px', padding: '14px'
             }}>
               <div style={{
-                fontSize: '12px',
-                color: day === today ? '#6366f1' : '#666',
-                marginBottom: '14px', fontWeight: '600',
+                fontSize: '11px',
+                color: day === today ? 'var(--accent)' : 'var(--text-dim)',
+                marginBottom: '12px', fontWeight: '600',
                 textTransform: 'uppercase', letterSpacing: '0.5px'
               }}>
                 {formatDate(day)}
@@ -190,7 +196,7 @@ function Tasks() {
               ))}
             </div>
           ))}
-          {Object.keys(grouped).length === 0 && <p style={{ color: '#555', fontSize: '14px' }}>Görev yok.</p>}
+          {Object.keys(grouped).length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
         </div>
       )}
     </div>
@@ -202,11 +208,11 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
   return (
     <div style={{
       marginBottom: '8px',
-      background: '#1a1a1a',
-      border: '1px solid #222',
+      background: 'var(--bg-item)',
+      border: '1px solid var(--border)',
       borderLeft: `3px solid ${p.color}`,
       borderRadius: '8px',
-      padding: compact ? '8px 10px' : '12px 14px'
+      padding: compact ? '8px 10px' : '11px 14px'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div
@@ -215,8 +221,8 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
             width: '18px', height: '18px',
             borderRadius: '5px',
             border: '2px solid',
-            borderColor: task.status === 'done' ? '#6366f1' : '#555',
-            background: task.status === 'done' ? '#6366f1' : 'transparent',
+            borderColor: task.status === 'done' ? 'var(--accent)' : 'var(--text-faint)',
+            background: task.status === 'done' ? 'var(--accent)' : 'transparent',
             cursor: 'pointer', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}
@@ -229,17 +235,16 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
         </div>
         <span style={{
           fontSize: '13px',
-          textAlign: 'left',
-          color: task.status === 'done' ? '#555' : '#ccc',
+          color: task.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)',
           textDecoration: task.status === 'done' ? 'line-through' : 'none',
-          flex: 1
+          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis'
         }}>
           {task.title}
         </span>
         {!compact && (
           <span style={{
             fontSize: '11px',
-            color: isOverdue(task.day) && task.status !== 'done' ? '#f87171' : '#555',
+            color: isOverdue(task.day) && task.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)',
             flexShrink: 0
           }}>
             {formatDate(task.day)}
@@ -247,14 +252,13 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
         )}
         <span
           onClick={() => onDelete(task.id)}
-          style={{ color: '#444', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
+          style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
         >✕</span>
       </div>
       {task.note && (
         <div style={{
           marginTop: '6px', paddingLeft: '28px',
-          fontSize: '12px', color: '#666', lineHeight: '1.6',
-          textAlign: 'left'
+          fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.6'
         }}>
           {task.note}
         </div>
@@ -264,17 +268,17 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
 }
 
 const inputStyle = {
-  flex: 1, padding: '9px 12px', background: '#1a1a1a',
-  border: '1px solid #2a2a2a', borderRadius: '8px',
-  color: '#fff', fontSize: '14px', outline: 'none'
+  flex: 1, padding: '9px 12px', background: 'var(--bg-item)',
+  border: '1px solid var(--border-strong)', borderRadius: '8px',
+  color: 'var(--text)', fontSize: '14px', outline: 'none'
 }
 const selectStyle = {
-  padding: '9px 12px', background: '#1a1a1a',
-  border: '1px solid #2a2a2a', borderRadius: '8px',
-  color: '#fff', fontSize: '14px', outline: 'none'
+  padding: '9px 12px', background: 'var(--bg-item)',
+  border: '1px solid var(--border-strong)', borderRadius: '8px',
+  color: 'var(--text)', fontSize: '14px', outline: 'none'
 }
 const buttonStyle = {
-  padding: '9px 18px', background: '#6366f1',
+  padding: '9px 16px', background: 'var(--accent)',
   border: 'none', borderRadius: '8px',
   color: '#fff', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap'
 }
