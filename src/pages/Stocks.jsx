@@ -200,4 +200,67 @@ function Stocks() {
               </div>
               <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
                 {results.map((r, i) => (
-                  <div key={i} onClick={() => setSelected(r)} style={{ background: 'var(--bg-item)', border: '1px solid var(--bord
+                  <div key={i} onClick={() => setSelected(r)} style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{r.symbol}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>{r.exchange || r.instrument_type}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{r.instrument_name}</div>
+                  </div>
+                ))}
+                {results.length === 0 && !searching && (
+                  <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>
+                    {searchType === 'crypto' ? 'Kripto ara (örn. BTC, ETH)' : searchType === 'forex' ? 'Döviz/altın ara (örn. EUR, XAU)' : 'Hisse ara (örn. AAPL, TSLA)'}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600' }}>{selected.symbol}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{selected.instrument_name}</div>
+                <button onClick={() => setSelected(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Adet</label>
+                  <input value={qty} onChange={e => setQty(e.target.value)} type="number" placeholder="10" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Alış Fiyatı ($)</label>
+                  <input value={buyPrice} onChange={e => setBuyPrice(e.target.value)} type="number" placeholder="150" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+              </div>
+              <button onClick={addHolding} style={{ ...buttonStyle, width: '100%' }}>Portföye Ekle</button>
+            </>
+          )}
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function Modal({ children, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '16px', padding: '20px', width: '480px', maxWidth: '95vw', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '14px', right: '14px', background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const inputStyle = {
+  flex: 1, padding: '9px 12px', background: 'var(--bg-item)',
+  border: '1px solid var(--border-strong)', borderRadius: '8px',
+  color: 'var(--text)', fontSize: '14px', outline: 'none'
+}
+const buttonStyle = {
+  padding: '9px 16px', background: 'var(--accent)',
+  border: 'none', borderRadius: '8px',
+  color: '#fff', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap'
+}
+
+export default Stocks
