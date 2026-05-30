@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { BACKEND } from '../config'
 
 const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
-const INVESTMENT_TYPES = ['Euro', 'Dolar', 'TL', 'Altın', 'Gümüş', 'Portföy', 'Midas']
+const LOCATIONS = ['Fiziksel', 'Vakıfbank', 'Yapı Kredi', 'Midas']
 
 function getRemainingDays() {
   const now = new Date()
@@ -31,6 +32,20 @@ function Finance() {
   const [editingId, setEditingId] = useState(null)
   const [editData, setEditData] = useState({})
 
+  // Yatırım canlı fiyatlar
+  const [usdTry, setUsdTry] = useState(null)
+  const [quotes, setQuotes] = useState({}) // { symbol: { close, percent_change } }
+
+  // Yatırım ekleme modal
+  const [showAddInv, setShowAddInv] = useState(false)
+  const [invSearchType, setInvSearchType] = useState('forex')
+  const [invSearch, setInvSearch] = useState('')
+  const [invResults, setInvResults] = useState([])
+  const [invSearching, setInvSearching] = useState(false)
+  const [invSelected, setInvSelected] = useState(null)
+  const [invQty, setInvQty] = useState('')
+  const [invLocation, setInvLocation] = useState('Fiziksel')
+
   const [newAmount, setNewAmount] = useState('')
   const [newCategory, setNewCategory] = useState('Market')
   const [newDesc, setNewDesc] = useState('')
@@ -41,8 +56,6 @@ function Finance() {
   const [rDueDay, setRDueDay] = useState('')
   const [vName, setVName] = useState('')
   const [vAmount, setVAmount] = useState('')
-  const [iType, setIType] = useState('Euro')
-  const [iAmount, setIAmount] = useState('')
   const [incomeInput, setIncomeInput] = useState('')
   const [balanceInput, setBalanceInput] = useState('')
   const [useBalance, setUseBalance] = useState(false)
@@ -52,6 +65,7 @@ function Finance() {
   const remainingDays = getRemainingDays()
 
   useEffect(() => { fetchAll() }, [])
+  useEffect(() => { if (investments.length > 0) fetchQuotes() }, [investments])
 
   async function fetchAll() {
     const [daily, recurring, variable, inv, inc] = await Promise.all([
@@ -72,11 +86,86 @@ function Finance() {
     }
   }
 
+  async function fetchQuotes() {
+    try {
+      // USD/TRY
+      const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
+      const d1 = await r1.json()
+      setUsdTry(d1.usdTry)
+
+      // Sembol fiyatları (TL varlıkları hariç)
+      const symbols = [...new Set(investments.filter(i => i.type !== 'TRY' && i.symbol).map(i => i.symbol))]
+      if (symbols.length > 0) {
+        const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols.join(','))}`)
+        const d2 = await r2.json()
+        setQuotes(d2)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  function getTRYValue(inv) {
+    if (inv.type === 'TRY') return Number(inv.quantity)
+    if (!usdTry) return 0
+    const q = quotes[inv.symbol]
+    const usdPrice = parseFloat(q?.close || 0)
+    if (!usdPrice) return 0
+
+    let qty = Number(inv.quantity)
+    // XAU/USD ve XAG/USD ons cinsinden — ekleme aşamasında zaten gram→ons çevirebiliriz
+    // ama temiz olsun: kullanıcı gram giriyor varsayalım, ons'a çevirelim
+    if (inv.symbol === 'XAU/USD' || inv.symbol === 'XAG/USD') {
+      qty = qty / 31.1035
+    }
+    return qty * usdPrice * usdTry
+  }
+
+  async function searchInvSymbol() {
+    if (!invSearch.trim()) return
+    setInvSearching(true)
+    try {
+      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${invSearchType}`)
+      const data = await res.json()
+      setInvResults(data.results || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setInvSearching(false)
+    }
+  }
+
+  async function addInvestment() {
+    if (invSearchType === 'try') {
+      if (!invQty) return
+      await supabase.from('investments').insert({
+        symbol: 'TRY', name: 'Türk Lirası', type: 'TRY',
+        quantity: Number(invQty), location: invLocation
+      })
+    } else {
+      if (!invSelected || !invQty) return
+      await supabase.from('investments').insert({
+        symbol: invSelected.symbol,
+        name: invSelected.instrument_name || invSelected.symbol,
+        type: invSearchType,
+        quantity: Number(invQty),
+        location: invLocation
+      })
+    }
+    setShowAddInv(false); setInvSelected(null); setInvSearch(''); setInvResults([]); setInvQty(''); setInvLocation('Fiziksel'); setInvSearchType('forex')
+    fetchAll()
+  }
+
+  async function deleteInvestment(id) {
+    await supabase.from('investments').delete().eq('id', id)
+    fetchAll()
+  }
+
   function startEdit(item, type) {
     setEditingId(item.id)
     if (type === 'recurring') setEditData({ name: item.name, category: item.category, amount: item.amount, due_day: item.due_day || '' })
     if (type === 'variable') setEditData({ name: item.name, amount: item.amount })
-    if (type === 'investment') setEditData({ amount: item.amount })
+    if (type === 'investment') setEditData({ quantity: item.quantity, location: item.location })
     if (type === 'daily') setEditData({ description: item.description || '', category: item.category, amount: item.amount, date: item.date })
   }
 
@@ -94,7 +183,7 @@ function Finance() {
     }
     if (type === 'investment') {
       await supabase.from('investments').update({
-        amount: Number(editData.amount), updated_at: new Date()
+        quantity: Number(editData.quantity), location: editData.location, updated_at: new Date()
       }).eq('id', editingId)
     }
     if (type === 'daily') {
@@ -121,7 +210,7 @@ function Finance() {
   async function addDailyExpense() {
     if (!newAmount) return
     await supabase.from('daily_expenses').insert({ date: newDate, category: newCategory, description: newDesc || null, amount: Number(newAmount) })
-    setNewAmount(''); setNewDesc(); fetchAll()
+    setNewAmount(''); setNewDesc(''); fetchAll()
   }
 
   async function addRecurring() {
@@ -134,14 +223,6 @@ function Finance() {
     if (!vAmount || !vName) return
     await supabase.from('variable_budgets').insert({ month: currentMonth, name: vName, amount: Number(vAmount) })
     setVName(''); setVAmount(''); fetchAll()
-  }
-
-  async function saveInvestment() {
-    if (!iAmount) return
-    const existing = investments.find(i => i.type === iType)
-    if (existing) { await supabase.from('investments').update({ amount: Number(iAmount), updated_at: new Date() }).eq('id', existing.id) }
-    else { await supabase.from('investments').insert({ type: iType, amount: Number(iAmount) }) }
-    setIAmount(''); fetchAll()
   }
 
   async function deleteDaily(id) { await supabase.from('daily_expenses').delete().eq('id', id); fetchAll() }
@@ -158,7 +239,20 @@ function Finance() {
   const todayTotal = dailyExpenses.filter(e => e.date === today).reduce((s, e) => s + Number(e.amount), 0)
   const monthTotal = dailyExpenses.filter(e => e.date.startsWith(currentMonth)).reduce((s, e) => s + Number(e.amount), 0)
   const limitPercent = dailyBudget > 0 ? Math.min((todayTotal / dailyBudget) * 100, 100) : 0
-  const investTotal = investments.reduce((s, i) => s + Number(i.amount), 0)
+
+  // Yatırım toplamı (canlı TL)
+  const investTotal = investments.reduce((s, i) => s + getTRYValue(i), 0)
+
+  // Varlığa göre grupla
+  const grouped = {}
+  investments.forEach(i => {
+    const key = i.symbol
+    if (!grouped[key]) grouped[key] = { symbol: i.symbol, name: i.name, type: i.type, items: [], totalQty: 0, totalTRY: 0 }
+    grouped[key].items.push(i)
+    grouped[key].totalQty += Number(i.quantity)
+    grouped[key].totalTRY += getTRYValue(i)
+  })
+
   const paidRecurring = recurringExpenses.filter(e => paidStatus[e.id])
   const unpaidRecurring = recurringExpenses.filter(e => !paidStatus[e.id])
   const monthlyFree = totalIncome - totalRecurringFull - totalVariable
@@ -171,7 +265,7 @@ function Finance() {
       <div style={{ display: 'flex', gap: '14px', marginBottom: '28px', flexWrap: 'wrap' }}>
         <SummaryCard title="Bugünkü Harcama" value={`₺${todayTotal.toLocaleString('tr-TR')}`} sub={`Günlük limit: ₺${dailyBudget.toLocaleString('tr-TR')} · ${remainingDays} gün kaldı`} percent={limitPercent} color={limitPercent > 80 ? '#f87171' : limitPercent > 50 ? '#fbbf24' : '#6ee7b7'} />
         <SummaryCard title="Bu Ay Harcama" value={`₺${monthTotal.toLocaleString('tr-TR')}`} sub={`Gelir: ₺${totalIncome.toLocaleString('tr-TR')}`} />
-        <SummaryCard title="Yatırım Portföyü" value={`₺${investTotal.toLocaleString('tr-TR')}`} sub={`${investments.length} enstrüman`} />
+        <SummaryCard title="Yatırım Portföyü" value={`₺${Math.round(investTotal).toLocaleString('tr-TR')}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -322,42 +416,71 @@ function Finance() {
         </div>
       )}
 
-      {/* Yatırımlar */}
+      {/* Yatırımlar — varlığa göre gruplu, canlı TL */}
       {tab === 'investments' && (
-        <div style={{ maxWidth: '680px' }}>
-          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select value={iType} onChange={e => setIType(e.target.value)} style={selectStyle}>
-                {INVESTMENT_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-              <input value={iAmount} onChange={e => setIAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={inputStyle} />
-              <button onClick={saveInvestment} style={buttonStyle}>Kaydet</button>
+        <div style={{ maxWidth: '780px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#555' }}>
+              {usdTry ? `Güncel kur: 1$ = ${usdTry.toFixed(2)}₺` : 'Kurlar yükleniyor...'}
             </div>
+            <button onClick={fetchQuotes} style={{ ...buttonStyle, background: '#222', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
+            <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>+ Ekle</button>
           </div>
 
-          {investments.map(i => editingId === i.id ? (
-            <div key={i.id} style={{ background: '#1e1e2e', border: '1px solid #6366f1', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: '#ccc', width: '80px' }}>{i.type}</span>
-                <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={inputStyle} />
-                <button onClick={() => saveEdit('investment')} style={buttonStyle}>Kaydet</button>
-                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: '#333' }}>İptal</button>
+          {Object.values(grouped).map(g => (
+            <div key={g.symbol} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '600' }}>{g.symbol === 'TRY' ? 'Türk Lirası (Nakit)' : g.name || g.symbol}</div>
+                  <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>
+                    {g.symbol === 'TRY' ? `Toplam ${g.totalQty.toLocaleString('tr-TR')} ₺` : `Toplam ${g.totalQty.toLocaleString('tr-TR', { maximumFractionDigits: 6 })} adet`}
+                    {g.symbol !== 'TRY' && quotes[g.symbol]?.percent_change && (
+                      <span style={{ marginLeft: '10px', color: parseFloat(quotes[g.symbol].percent_change) >= 0 ? '#6ee7b7' : '#f87171' }}>
+                        {parseFloat(quotes[g.symbol].percent_change) >= 0 ? '+' : ''}{parseFloat(quotes[g.symbol].percent_change).toFixed(2)}% (gün)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: '700' }}>₺{Math.round(g.totalTRY).toLocaleString('tr-TR')}</div>
               </div>
-            </div>
-          ) : (
-            <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#ccc', flex: 1 }}>{i.type}</span>
-              <span style={{ fontSize: '14px', color: '#fff', fontWeight: '600' }}>₺{Number(i.amount).toLocaleString('tr-TR')}</span>
-              <span onClick={() => startEdit(i, 'investment')} style={{ color: '#666', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
+
+              {g.items.map(i => editingId === i.id ? (
+                <div key={i.id} style={{ background: '#1e1e2e', border: '1px solid #6366f1', borderRadius: '8px', padding: '10px', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input value={editData.quantity} onChange={ev => setEditData(d => ({ ...d, quantity: ev.target.value }))} type="number" step="0.000001" style={{ ...inputStyle, flex: 1 }} />
+                    <select value={editData.location} onChange={ev => setEditData(d => ({ ...d, location: ev.target.value }))} style={selectStyle}>
+                      {LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                    </select>
+                    <button onClick={() => saveEdit('investment')} style={buttonStyle}>Kaydet</button>
+                    <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: '#333' }}>İptal</button>
+                  </div>
+                </div>
+              ) : (
+                <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', background: '#222', borderRadius: '6px', padding: '3px 8px', color: '#888', flexShrink: 0 }}>{i.location}</span>
+                  <span style={{ fontSize: '13px', color: '#ccc', flex: 1 }}>
+                    {g.symbol === 'TRY' ? `${Number(i.quantity).toLocaleString('tr-TR')} ₺` : `${Number(i.quantity).toLocaleString('tr-TR', { maximumFractionDigits: 6 })} adet`}
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#888' }}>₺{Math.round(getTRYValue(i)).toLocaleString('tr-TR')}</span>
+                  <span onClick={() => startEdit(i, 'investment')} style={{ color: '#666', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
+                  <span onClick={() => deleteInvestment(i.id)} style={{ color: '#444', cursor: 'pointer', fontSize: '13px' }}>✕</span>
+                </div>
+              ))}
             </div>
           ))}
-          <div style={{ marginTop: '16px', padding: '14px', background: '#161616', border: '1px solid #222', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#666', fontSize: '13px' }}>Toplam Portföy</span>
-              <span style={{ color: '#fff', fontWeight: '700', fontSize: '16px' }}>₺{investTotal.toLocaleString('tr-TR')}</span>
+
+          {investments.length === 0 && (
+            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+              <p style={{ color: '#555', fontSize: '14px' }}>Henüz yatırım eklenmedi.</p>
             </div>
-          </div>
-          {investments.length === 0 && <p style={{ color: '#555', fontSize: '14px' }}>Yatırım yok.</p>}
+          )}
+
+          {investments.length > 0 && (
+            <div style={{ marginTop: '16px', padding: '14px', background: '#1a1a2e', border: '1px solid #6366f1', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#ccc', fontSize: '13px', fontWeight: '600' }}>Toplam Portföy</span>
+              <span style={{ color: '#fff', fontWeight: '700', fontSize: '18px' }}>₺{Math.round(investTotal).toLocaleString('tr-TR')}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -443,6 +566,86 @@ function Finance() {
           )}
         </div>
       )}
+
+      {/* Yatırım ekleme modal */}
+      {showAddInv && (
+        <Modal onClose={() => { setShowAddInv(false); setInvSelected(null) }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Yatırım Ekle</h3>
+
+          {!invSelected && invSearchType !== 'try' ? (
+            <>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                {[['forex', 'Döviz/Altın'], ['crypto', 'Kripto'], ['stock', 'Hisse'], ['try', 'TL Nakit']].map(([val, label]) => (
+                  <button key={val} onClick={() => { setInvSearchType(val); setInvResults([]); setInvSearch('') }} style={{
+                    padding: '5px 12px', borderRadius: '20px', border: '1px solid',
+                    borderColor: invSearchType === val ? '#6366f1' : '#2a2a2a',
+                    background: invSearchType === val ? '#6366f1' : 'transparent',
+                    color: invSearchType === val ? '#fff' : '#666', fontSize: '12px', cursor: 'pointer'
+                  }}>{label}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <input value={invSearch} onChange={e => setInvSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchInvSymbol()}
+                  placeholder={invSearchType === 'crypto' ? 'BTC, ETH, SOL...' : invSearchType === 'forex' ? 'EUR, USD, XAU (altın), XAG (gümüş)...' : 'Apple, AAPL...'}
+                  style={inputStyle} autoFocus />
+                <button onClick={searchInvSymbol} style={buttonStyle}>{invSearching ? '...' : 'Ara'}</button>
+              </div>
+              <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                {invResults.map((r, i) => (
+                  <div key={i} onClick={() => setInvSelected(r)} style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{r.symbol}</span>
+                      <span style={{ fontSize: '11px', color: '#555' }}>{r.exchange || r.instrument_type}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>{r.instrument_name}</div>
+                  </div>
+                ))}
+                {invResults.length === 0 && !invSearching && <p style={{ color: '#555', fontSize: '13px' }}>Aramak için yukarıya yazın.</p>}
+              </div>
+            </>
+          ) : (
+            <>
+              {invSearchType === 'try' ? (
+                <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Türk Lirası (Nakit)</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>Banka hesabı veya elindeki nakit</div>
+                  <button onClick={() => { setInvSearchType('forex'); setInvSelected(null) }} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Tür değiştir</button>
+                </div>
+              ) : (
+                <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>{invSelected.symbol}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>{invSelected.instrument_name}</div>
+                  <button onClick={() => setInvSelected(null)} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+                </div>
+              )}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '12px', color: '#555', display: 'block', marginBottom: '4px' }}>
+                  {invSearchType === 'try' ? 'Tutar (₺)' : invSelected?.symbol === 'XAU/USD' ? 'Gram' : invSelected?.symbol === 'XAG/USD' ? 'Gram' : 'Adet'}
+                </label>
+                <input value={invQty} onChange={e => setInvQty(e.target.value)} type="number" step="0.000001" placeholder="0" style={{ ...inputStyle, width: '100%' }} autoFocus />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '12px', color: '#555', display: 'block', marginBottom: '4px' }}>Konum</label>
+                <select value={invLocation} onChange={e => setInvLocation(e.target.value)} style={{ ...selectStyle, width: '100%' }}>
+                  {LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+              <button onClick={addInvestment} style={{ ...buttonStyle, width: '100%' }}>Portföye Ekle</button>
+            </>
+          )}
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function Modal({ children, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: '16px', padding: '24px', width: '480px', maxWidth: '95vw', maxHeight: '85vh', overflowY: 'auto', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#555', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+        {children}
+      </div>
     </div>
   )
 }
