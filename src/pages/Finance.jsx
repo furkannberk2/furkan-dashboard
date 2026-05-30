@@ -6,6 +6,24 @@ const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sa�
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
 const LOCATIONS = ['Fiziksel', 'Vakıfbank', 'Yapı Kredi', 'Midas']
 
+// Sabit varlık türleri — her biri için: assetKey, name, unit, ve hesaplama mantığı
+const ASSET_TYPES = [
+  { key: 'TRY', name: 'TL Nakit', unit: '₺', category: 'Para' },
+  { key: 'USD', name: 'Dolar', unit: '$', category: 'Para' },
+  { key: 'EUR', name: 'Euro', unit: '€', category: 'Para' },
+  { key: 'GBP', name: 'Sterlin', unit: '£', category: 'Para' },
+  { key: 'GOLD_GRAM', name: 'Gram Altın', unit: 'gr', category: 'Altın' },
+  { key: 'GOLD_QUARTER', name: 'Çeyrek Altın', unit: 'adet', category: 'Altın' },
+  { key: 'GOLD_HALF', name: 'Yarım Altın', unit: 'adet', category: 'Altın' },
+  { key: 'GOLD_FULL', name: 'Tam Altın', unit: 'adet', category: 'Altın' },
+  { key: 'SILVER_GRAM', name: 'Gram Gümüş', unit: 'gr', category: 'Gümüş' },
+  { key: 'CRYPTO', name: 'Kripto', unit: 'adet', category: 'Kripto', needsSymbol: true },
+  { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
+]
+
+// Çeyrek/Yarım/Tam altın → kaç gram (saf altın değil, piyasa karşılığı)
+const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
+
 function getRemainingDays() {
   const now = new Date()
   const currentDay = now.getDate()
@@ -32,17 +50,17 @@ function Finance() {
   const [editingId, setEditingId] = useState(null)
   const [editData, setEditData] = useState({})
 
-  // Yatırım canlı fiyatlar
-  const [usdTry, setUsdTry] = useState(null)
-  const [quotes, setQuotes] = useState({}) // { symbol: { close, percent_change } }
+  // Canlı fiyatlar
+  const [rates, setRates] = useState({}) // ExchangeRate-API
+  const [quotes, setQuotes] = useState({}) // Twelve Data
 
-  // Yatırım ekleme modal
+  // Yatırım ekleme
   const [showAddInv, setShowAddInv] = useState(false)
-  const [invSearchType, setInvSearchType] = useState('forex')
+  const [invAssetType, setInvAssetType] = useState(null) // ASSET_TYPES'tan biri
   const [invSearch, setInvSearch] = useState('')
   const [invResults, setInvResults] = useState([])
   const [invSearching, setInvSearching] = useState(false)
-  const [invSelected, setInvSelected] = useState(null)
+  const [invSelectedSymbol, setInvSelectedSymbol] = useState(null) // {symbol, name} (kripto/hisse için)
   const [invQty, setInvQty] = useState('')
   const [invLocation, setInvLocation] = useState('Fiziksel')
 
@@ -65,7 +83,7 @@ function Finance() {
   const remainingDays = getRemainingDays()
 
   useEffect(() => { fetchAll() }, [])
-  useEffect(() => { if (investments.length > 0) fetchQuotes() }, [investments])
+  useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
 
   async function fetchAll() {
     const [daily, recurring, variable, inv, inc] = await Promise.all([
@@ -86,17 +104,27 @@ function Finance() {
     }
   }
 
-  async function fetchQuotes() {
+  async function fetchPrices() {
     try {
-      // USD/TRY
+      // 1) ExchangeRate-API (TRY ve diğer dövizler)
       const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
       const d1 = await r1.json()
-      setUsdTry(d1.usdTry)
+      setRates(d1.rates || {})
 
-      // Sembol fiyatları (TL varlıkları hariç)
-      const symbols = [...new Set(investments.filter(i => i.type !== 'TRY' && i.symbol).map(i => i.symbol))]
-      if (symbols.length > 0) {
-        const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols.join(','))}`)
+      // 2) Twelve Data — altın, gümüş + kripto/hisse sembolleri
+      const symbols = new Set()
+      // Altın ve gümüş her zaman gerekli (ekli ise)
+      const hasGold = investments.some(i => i.type?.startsWith('GOLD_'))
+      const hasSilver = investments.some(i => i.type === 'SILVER_GRAM')
+      if (hasGold) symbols.add('XAU/USD')
+      if (hasSilver) symbols.add('XAG/USD')
+      // Kripto ve hisse — her birinin sembolü
+      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK').forEach(i => {
+        if (i.symbol) symbols.add(i.symbol)
+      })
+
+      if (symbols.size > 0) {
+        const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
         const d2 = await r2.json()
         setQuotes(d2)
       }
@@ -105,51 +133,49 @@ function Finance() {
     }
   }
 
- function getTRYValue(inv) {
-    if (inv.type === 'TRY') return Number(inv.quantity)
-    if (!usdTry) return 0
+  function getTRYValue(inv) {
     const qty = Number(inv.quantity)
+    const usdTry = rates.TRY || 0
 
-    // Döviz çiftleri (EUR/USD, USD/TRY vb.)
-    // Bizim için temel mantık: kullanıcı "1 adet Euro" girer, EUR/USD fiyatından TL'ye çeviririz
-    if (inv.symbol.includes('/')) {
-      const [base, quote] = inv.symbol.split('/')
+    if (inv.type === 'TRY') return qty
+    if (inv.type === 'USD') return qty * usdTry
+    if (inv.type === 'EUR') return rates.EUR ? qty * (usdTry / rates.EUR) : 0
+    if (inv.type === 'GBP') return rates.GBP ? qty * (usdTry / rates.GBP) : 0
 
-      // Base = TRY ise (mümkün değil ama güvenli)
-      if (base === 'TRY') return qty
-
-      // Base = USD → doğrudan USD/TRY
-      if (base === 'USD') return qty * usdTry
-
-      // Base = altın/gümüş ons → gram ise zaten kullanıcı gram girdi, ons'a çevir
-      if (base === 'XAU' || base === 'XAG') {
-        const q = quotes[inv.symbol]
-        const usdPerOunce = parseFloat(q?.close || 0)
-        const ounce = qty / 31.1035 // kullanıcı gram girdi
-        return ounce * usdPerOunce * usdTry
-      }
-
-      // Diğer dövizler (EUR/USD, GBP/USD vb.) — quote=USD olmalı
-      // base = EUR → 1 EUR kaç USD → kaç TL
-      const q = quotes[inv.symbol]
-      const baseInUsd = parseFloat(q?.close || 0)
-      if (quote === 'USD') return qty * baseInUsd * usdTry
-      if (quote === 'TRY') return qty * baseInUsd // zaten TL bazında
-      // Diğer durumlar — quote farklı para birimi
-      return qty * baseInUsd * usdTry
+    if (inv.type === 'SILVER_GRAM') {
+      const xag = parseFloat(quotes['XAG/USD']?.close || 0)
+      return (qty / 31.1035) * xag * usdTry
     }
 
-    // Hisse, ETF (USD bazlı tek sembol, örn. AAPL)
-    const q = quotes[inv.symbol]
-    const usdPrice = parseFloat(q?.close || 0)
-    return qty * usdPrice * usdTry
+    if (inv.type?.startsWith('GOLD_')) {
+      const xau = parseFloat(quotes['XAU/USD']?.close || 0)
+      const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
+      return (grams / 31.1035) * xau * usdTry
+    }
+
+    if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
+      const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
+      return qty * usdPrice * usdTry
+    }
+
+    return 0
+  }
+
+  function getDailyChange(inv) {
+    if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
+      return parseFloat(quotes[inv.symbol]?.percent_change || 0)
+    }
+    if (inv.type === 'SILVER_GRAM') return parseFloat(quotes['XAG/USD']?.percent_change || 0)
+    if (inv.type?.startsWith('GOLD_')) return parseFloat(quotes['XAU/USD']?.percent_change || 0)
+    return null
   }
 
   async function searchInvSymbol() {
-    if (!invSearch.trim()) return
+    if (!invSearch.trim() || !invAssetType?.needsSymbol) return
     setInvSearching(true)
     try {
-      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${invSearchType}`)
+      const apiType = invAssetType.key === 'CRYPTO' ? 'crypto' : 'stock'
+      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${apiType}`)
       const data = await res.json()
       setInvResults(data.results || [])
     } catch (err) {
@@ -160,23 +186,26 @@ function Finance() {
   }
 
   async function addInvestment() {
-    if (invSearchType === 'try') {
-      if (!invQty) return
-      await supabase.from('investments').insert({
-        symbol: 'TRY', name: 'Türk Lirası', type: 'TRY',
-        quantity: Number(invQty), location: invLocation
-      })
+    if (!invAssetType || !invQty) return
+
+    let symbol, name
+    if (invAssetType.needsSymbol) {
+      if (!invSelectedSymbol) return
+      symbol = invSelectedSymbol.symbol
+      name = invSelectedSymbol.instrument_name || invSelectedSymbol.symbol
     } else {
-      if (!invSelected || !invQty) return
-      await supabase.from('investments').insert({
-        symbol: invSelected.symbol,
-        name: invSelected.instrument_name || invSelected.symbol,
-        type: invSearchType,
-        quantity: Number(invQty),
-        location: invLocation
-      })
+      symbol = invAssetType.key
+      name = invAssetType.name
     }
-    setShowAddInv(false); setInvSelected(null); setInvSearch(''); setInvResults([]); setInvQty(''); setInvLocation('Fiziksel'); setInvSearchType('forex')
+
+    await supabase.from('investments').insert({
+      symbol, name, type: invAssetType.key,
+      quantity: Number(invQty), location: invLocation
+    })
+
+    setShowAddInv(false)
+    setInvAssetType(null); setInvSelectedSymbol(null); setInvSearch(''); setInvResults([])
+    setInvQty(''); setInvLocation('Fiziksel')
     fetchAll()
   }
 
@@ -264,19 +293,28 @@ function Finance() {
   const monthTotal = dailyExpenses.filter(e => e.date.startsWith(currentMonth)).reduce((s, e) => s + Number(e.amount), 0)
   const limitPercent = dailyBudget > 0 ? Math.min((todayTotal / dailyBudget) * 100, 100) : 0
 
-  // Yatırım toplamı (canlı TL)
   const investTotal = investments.reduce((s, i) => s + getTRYValue(i), 0)
 
-  // Varlığa göre grupla
+  // Varlığa göre grupla — TRY hariç (TRY tek grup), altın altları da kendi türlerinde grup
   const grouped = {}
   investments.forEach(i => {
-    const key = i.symbol
-    if (!grouped[key]) grouped[key] = { symbol: i.symbol, name: i.name, type: i.type, items: [], totalQty: 0, totalTRY: 0 }
+    const key = i.type === 'CRYPTO' || i.type === 'STOCK' ? i.symbol : i.type
+    if (!grouped[key]) {
+      const at = ASSET_TYPES.find(a => a.key === i.type)
+      grouped[key] = {
+        key, type: i.type, symbol: i.symbol, name: i.name,
+        displayName: at ? at.name : i.name,
+        unit: at?.unit || 'adet',
+        items: [], totalQty: 0, totalTRY: 0,
+        dailyChange: getDailyChange(i)
+      }
+    }
     grouped[key].items.push(i)
     grouped[key].totalQty += Number(i.quantity)
     grouped[key].totalTRY += getTRYValue(i)
   })
 
+  const usdTry = rates.TRY || 0
   const paidRecurring = recurringExpenses.filter(e => paidStatus[e.id])
   const unpaidRecurring = recurringExpenses.filter(e => !paidStatus[e.id])
   const monthlyFree = totalIncome - totalRecurringFull - totalVariable
@@ -321,7 +359,6 @@ function Finance() {
               <button onClick={addDailyExpense} style={buttonStyle}>Ekle</button>
             </div>
           </div>
-
           {dailyExpenses.map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: '#1e1e2e', border: '1px solid #6366f1', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -367,7 +404,6 @@ function Finance() {
               <button onClick={addRecurring} style={buttonStyle}>Ekle</button>
             </div>
           </div>
-
           {[...unpaidRecurring, ...paidRecurring].map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: '#1e1e2e', border: '1px solid #6366f1', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -410,7 +446,6 @@ function Finance() {
               <button onClick={addVariableBudget} style={buttonStyle}>Ekle</button>
             </div>
           </div>
-
           {variableBudgets.map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: '#1e1e2e', border: '1px solid #6366f1', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -440,27 +475,27 @@ function Finance() {
         </div>
       )}
 
-      {/* Yatırımlar — varlığa göre gruplu, canlı TL */}
+      {/* Yatırımlar */}
       {tab === 'investments' && (
         <div style={{ maxWidth: '780px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <div style={{ fontSize: '12px', color: '#555' }}>
-              {usdTry ? `Güncel kur: 1$ = ${usdTry.toFixed(2)}₺` : 'Kurlar yükleniyor...'}
+              {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : 'Kurlar yükleniyor...'}
             </div>
-            <button onClick={fetchQuotes} style={{ ...buttonStyle, background: '#222', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
+            <button onClick={fetchPrices} style={{ ...buttonStyle, background: '#222', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>+ Ekle</button>
           </div>
 
           {Object.values(grouped).map(g => (
-            <div key={g.symbol} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+            <div key={g.key} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '15px', fontWeight: '600' }}>{g.symbol === 'TRY' ? 'Türk Lirası (Nakit)' : g.name || g.symbol}</div>
+                  <div style={{ fontSize: '15px', fontWeight: '600' }}>{g.displayName}</div>
                   <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>
-                    {g.symbol === 'TRY' ? `Toplam ${g.totalQty.toLocaleString('tr-TR')} ₺` : `Toplam ${g.totalQty.toLocaleString('tr-TR', { maximumFractionDigits: 6 })} adet`}
-                    {g.symbol !== 'TRY' && quotes[g.symbol]?.percent_change && (
-                      <span style={{ marginLeft: '10px', color: parseFloat(quotes[g.symbol].percent_change) >= 0 ? '#6ee7b7' : '#f87171' }}>
-                        {parseFloat(quotes[g.symbol].percent_change) >= 0 ? '+' : ''}{parseFloat(quotes[g.symbol].percent_change).toFixed(2)}% (gün)
+                    Toplam {g.totalQty.toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {g.unit}
+                    {g.dailyChange !== null && !isNaN(g.dailyChange) && (
+                      <span style={{ marginLeft: '10px', color: g.dailyChange >= 0 ? '#6ee7b7' : '#f87171' }}>
+                        {g.dailyChange >= 0 ? '+' : ''}{g.dailyChange.toFixed(2)}% (gün)
                       </span>
                     )}
                   </div>
@@ -483,7 +518,7 @@ function Finance() {
                 <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
                   <span style={{ fontSize: '11px', background: '#222', borderRadius: '6px', padding: '3px 8px', color: '#888', flexShrink: 0 }}>{i.location}</span>
                   <span style={{ fontSize: '13px', color: '#ccc', flex: 1 }}>
-                    {g.symbol === 'TRY' ? `${Number(i.quantity).toLocaleString('tr-TR')} ₺` : `${Number(i.quantity).toLocaleString('tr-TR', { maximumFractionDigits: 6 })} adet`}
+                    {Number(i.quantity).toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {g.unit}
                   </span>
                   <span style={{ fontSize: '13px', color: '#888' }}>₺{Math.round(getTRYValue(i)).toLocaleString('tr-TR')}</span>
                   <span onClick={() => startEdit(i, 'investment')} style={{ color: '#666', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
@@ -593,30 +628,39 @@ function Finance() {
 
       {/* Yatırım ekleme modal */}
       {showAddInv && (
-        <Modal onClose={() => { setShowAddInv(false); setInvSelected(null) }}>
+        <Modal onClose={() => { setShowAddInv(false); setInvAssetType(null); setInvSelectedSymbol(null) }}>
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Yatırım Ekle</h3>
 
-          {!invSelected && invSearchType !== 'try' ? (
+          {!invAssetType ? (
             <>
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                {[['forex', 'Döviz/Altın'], ['crypto', 'Kripto'], ['stock', 'Hisse'], ['try', 'TL Nakit']].map(([val, label]) => (
-                  <button key={val} onClick={() => { setInvSearchType(val); setInvResults([]); setInvSearch('') }} style={{
-                    padding: '5px 12px', borderRadius: '20px', border: '1px solid',
-                    borderColor: invSearchType === val ? '#6366f1' : '#2a2a2a',
-                    background: invSearchType === val ? '#6366f1' : 'transparent',
-                    color: invSearchType === val ? '#fff' : '#666', fontSize: '12px', cursor: 'pointer'
-                  }}>{label}</button>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>Ne eklemek istiyorsun?</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {ASSET_TYPES.map(at => (
+                  <button key={at.key} onClick={() => setInvAssetType(at)} style={{
+                    padding: '12px', background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px',
+                    color: '#fff', textAlign: 'left', cursor: 'pointer'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600' }}>{at.name}</div>
+                    <div style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{at.category}</div>
+                  </button>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            </>
+          ) : invAssetType.needsSymbol && !invSelectedSymbol ? (
+            <>
+              <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>{invAssetType.name}</div>
+                <button onClick={() => setInvAssetType(null)} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Geri</button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <input value={invSearch} onChange={e => setInvSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchInvSymbol()}
-                  placeholder={invSearchType === 'crypto' ? 'BTC, ETH, SOL...' : invSearchType === 'forex' ? 'EUR, USD, XAU (altın), XAG (gümüş)...' : 'Apple, AAPL...'}
+                  placeholder={invAssetType.key === 'CRYPTO' ? 'BTC, ETH, SOL...' : 'Apple, AAPL, TSLA...'}
                   style={inputStyle} autoFocus />
                 <button onClick={searchInvSymbol} style={buttonStyle}>{invSearching ? '...' : 'Ara'}</button>
               </div>
               <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
                 {invResults.map((r, i) => (
-                  <div key={i} onClick={() => setInvSelected(r)} style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' }}>
+                  <div key={i} onClick={() => setInvSelectedSymbol(r)} style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', fontWeight: '600' }}>{r.symbol}</span>
                       <span style={{ fontSize: '11px', color: '#555' }}>{r.exchange || r.instrument_type}</span>
@@ -629,22 +673,26 @@ function Finance() {
             </>
           ) : (
             <>
-              {invSearchType === 'try' ? (
-                <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Türk Lirası (Nakit)</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>Banka hesabı veya elindeki nakit</div>
-                  <button onClick={() => { setInvSearchType('forex'); setInvSelected(null) }} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Tür değiştir</button>
+              <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                  {invAssetType.needsSymbol ? invSelectedSymbol.symbol : invAssetType.name}
                 </div>
-              ) : (
-                <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600' }}>{invSelected.symbol}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{invSelected.instrument_name}</div>
-                  <button onClick={() => setInvSelected(null)} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+                <div style={{ fontSize: '12px', color: '#666' }}>
+                  {invAssetType.needsSymbol ? invSelectedSymbol.instrument_name : `Birim: ${invAssetType.unit}`}
                 </div>
-              )}
+                <button onClick={() => { if (invAssetType.needsSymbol) setInvSelectedSymbol(null); else setInvAssetType(null) }} style={{ background: 'transparent', border: 'none', color: '#6366f1', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+              </div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: '#555', display: 'block', marginBottom: '4px' }}>
-                  {invSearchType === 'try' ? 'Tutar (₺)' : invSelected?.symbol === 'XAU/USD' ? 'Gram' : invSelected?.symbol === 'XAG/USD' ? 'Gram' : 'Adet'}
+                  {invAssetType.key === 'TRY' ? 'Tutar (₺)' :
+                   invAssetType.key === 'GOLD_GRAM' || invAssetType.key === 'SILVER_GRAM' ? 'Gram' :
+                   invAssetType.key === 'GOLD_QUARTER' ? 'Çeyrek altın adedi' :
+                   invAssetType.key === 'GOLD_HALF' ? 'Yarım altın adedi' :
+                   invAssetType.key === 'GOLD_FULL' ? 'Tam altın adedi' :
+                   invAssetType.key === 'USD' ? 'Dolar miktarı ($)' :
+                   invAssetType.key === 'EUR' ? 'Euro miktarı (€)' :
+                   invAssetType.key === 'GBP' ? 'Sterlin miktarı (£)' :
+                   'Adet'}
                 </label>
                 <input value={invQty} onChange={e => setInvQty(e.target.value)} type="number" step="0.000001" placeholder="0" style={{ ...inputStyle, width: '100%' }} autoFocus />
               </div>
