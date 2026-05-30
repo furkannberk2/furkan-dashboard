@@ -105,19 +105,43 @@ function Finance() {
     }
   }
 
-  function getTRYValue(inv) {
+ function getTRYValue(inv) {
     if (inv.type === 'TRY') return Number(inv.quantity)
     if (!usdTry) return 0
+    const qty = Number(inv.quantity)
+
+    // Döviz çiftleri (EUR/USD, USD/TRY vb.)
+    // Bizim için temel mantık: kullanıcı "1 adet Euro" girer, EUR/USD fiyatından TL'ye çeviririz
+    if (inv.symbol.includes('/')) {
+      const [base, quote] = inv.symbol.split('/')
+
+      // Base = TRY ise (mümkün değil ama güvenli)
+      if (base === 'TRY') return qty
+
+      // Base = USD → doğrudan USD/TRY
+      if (base === 'USD') return qty * usdTry
+
+      // Base = altın/gümüş ons → gram ise zaten kullanıcı gram girdi, ons'a çevir
+      if (base === 'XAU' || base === 'XAG') {
+        const q = quotes[inv.symbol]
+        const usdPerOunce = parseFloat(q?.close || 0)
+        const ounce = qty / 31.1035 // kullanıcı gram girdi
+        return ounce * usdPerOunce * usdTry
+      }
+
+      // Diğer dövizler (EUR/USD, GBP/USD vb.) — quote=USD olmalı
+      // base = EUR → 1 EUR kaç USD → kaç TL
+      const q = quotes[inv.symbol]
+      const baseInUsd = parseFloat(q?.close || 0)
+      if (quote === 'USD') return qty * baseInUsd * usdTry
+      if (quote === 'TRY') return qty * baseInUsd // zaten TL bazında
+      // Diğer durumlar — quote farklı para birimi
+      return qty * baseInUsd * usdTry
+    }
+
+    // Hisse, ETF (USD bazlı tek sembol, örn. AAPL)
     const q = quotes[inv.symbol]
     const usdPrice = parseFloat(q?.close || 0)
-    if (!usdPrice) return 0
-
-    let qty = Number(inv.quantity)
-    // XAU/USD ve XAG/USD ons cinsinden — ekleme aşamasında zaten gram→ons çevirebiliriz
-    // ama temiz olsun: kullanıcı gram giriyor varsayalım, ons'a çevirelim
-    if (inv.symbol === 'XAU/USD' || inv.symbol === 'XAG/USD') {
-      qty = qty / 31.1035
-    }
     return qty * usdPrice * usdTry
   }
 
