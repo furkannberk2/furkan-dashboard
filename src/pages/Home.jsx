@@ -202,14 +202,6 @@ function Home() {
       {/* Üst sıra — 5 küçük kart */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         <StatCard
-          to="/finance"
-          label="Bugünkü Harcama"
-          value={`₺${todayExp.toLocaleString('tr-TR')}`}
-          sub={`/ ₺${dailyBudget.toLocaleString('tr-TR')} limit`}
-          percent={expPercent}
-          color={expPercent > 80 ? 'var(--danger)' : expPercent > 50 ? 'var(--warning)' : 'var(--success)'}
-        />
-        <StatCard
           to="/tasks"
           label="Bugünkü Görevler"
           value={`${todayTasksDone}/${todayTasksTotal}`}
@@ -232,6 +224,14 @@ function Home() {
           sub={`/ ${calGoal} kcal`}
           percent={calPercent}
           color={calPercent > 100 ? 'var(--danger)' : calPercent > 85 ? 'var(--warning)' : 'var(--success)'}
+        />
+        <StatCard
+          to="/finance"
+          label="Bugünkü Harcama"
+          value={`₺${todayExp.toLocaleString('tr-TR')}`}
+          sub={`/ ₺${dailyBudget.toLocaleString('tr-TR')} limit`}
+          percent={expPercent}
+          color={expPercent > 80 ? 'var(--danger)' : expPercent > 50 ? 'var(--warning)' : 'var(--success)'}
         />
         <StatCard
           to="/finance"

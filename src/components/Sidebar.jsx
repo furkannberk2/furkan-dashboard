@@ -6,12 +6,12 @@ import { applyTheme, getInitialTheme } from '../theme'
 const ALL_ITEMS = [
   { to: '/', label: 'Ana Sayfa', icon: Home, end: true },
   { to: '/tasks', label: 'Görevler', icon: ListTodo },
+  { to: '/habits', label: 'Alışkanlıklar', icon: CheckSquare },
+  { to: '/finance', label: 'Finans', icon: Wallet },
   { to: '/calories', label: 'Kalori', icon: Apple },
   { to: '/stocks', label: 'Borsa', icon: TrendingUp },
-  { to: '/habits', label: 'Alışkanlıklar', icon: CheckSquare },
   { to: '/mail', label: 'Mail Özeti', icon: Mail },
   { to: '/projects', label: 'Projeler', icon: FolderKanban },
-  { to: '/finance', label: 'Finans', icon: Wallet },
 ]
 
 // Bottom nav: ilk 4 + Daha
