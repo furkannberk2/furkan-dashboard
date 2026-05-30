@@ -18,6 +18,9 @@ const ASSET_TYPES = [
   { key: 'SILVER_GRAM', name: 'Gram Gümüş', unit: 'gr', category: 'Gümüş' },
   { key: 'CRYPTO', name: 'Kripto', unit: 'adet', category: 'Kripto', needsSymbol: true },
   { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
+  { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
+  { key: 'BIST', name: 'BIST Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
+
 ]
 const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
 
@@ -118,7 +121,7 @@ function Finance() {
       const symbols = new Set()
       if (investments.some(i => i.type?.startsWith('GOLD_'))) symbols.add('XAU/USD')
       if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
-      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK').forEach(i => i.symbol && symbols.add(i.symbol))
+      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
       if (symbols.size > 0) {
         const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
         const d2 = await r2.json()
@@ -143,6 +146,11 @@ function Finance() {
       const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
       return (grams / 31.1035) * xau * usdTry
     }
+    if (inv.type === 'BIST') {
+      // BIST fiyatı zaten TRY cinsinden, USD çarpımına gerek yok
+      const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
+      return qty * tryPrice
+    }
     if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
       const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
       return qty * usdPrice * usdTry
@@ -151,7 +159,7 @@ function Finance() {
   }
 
   function getDailyChange(inv) {
-    if (inv.type === 'CRYPTO' || inv.type === 'STOCK') return parseFloat(quotes[inv.symbol]?.percent_change || 0)
+    if (inv.type === 'CRYPTO' || inv.type === 'STOCK' || inv.type === 'BIST') return parseFloat(quotes[inv.symbol]?.percent_change || 0)
     if (inv.type === 'SILVER_GRAM') return parseFloat(quotes['XAG/USD']?.percent_change || 0)
     if (inv.type?.startsWith('GOLD_')) return parseFloat(quotes['XAU/USD']?.percent_change || 0)
     return null
@@ -161,7 +169,7 @@ function Finance() {
     if (!invSearch.trim() || !invAssetType?.needsSymbol) return
     setInvSearching(true)
     try {
-      const apiType = invAssetType.key === 'CRYPTO' ? 'crypto' : 'stock'
+      const apiType = invAssetType.key === 'CRYPTO' ? 'crypto' : invAssetType.key === 'BIST' ? 'bist' : 'stock'
       const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${apiType}`)
       const data = await res.json()
       setInvResults(data.results || [])
@@ -270,7 +278,7 @@ function Finance() {
 
   const grouped = {}
   investments.forEach(i => {
-    const key = i.type === 'CRYPTO' || i.type === 'STOCK' ? i.symbol : i.type
+    const key = i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST' ? i.symbol : i.type
     if (!grouped[key]) {
       const at = ASSET_TYPES.find(a => a.key === i.type)
       grouped[key] = {

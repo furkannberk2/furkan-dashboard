@@ -18,13 +18,19 @@ export default async function handler(req, res) {
       exchange: d.exchange || d.country || ''
     }))
 
-    // Türe göre filtrele
     if (type === 'crypto') {
       all = all.filter(d => /crypto|digital/i.test(d.instrument_type))
     } else if (type === 'forex') {
       all = all.filter(d => /currency|forex/i.test(d.instrument_type))
+    } else if (type === 'bist') {
+      // Sadece BIST hisseleri
+      all = all.filter(d => d.exchange === 'BIST')
     } else {
-      all = all.filter(d => /stock|equity|common|etf|fund|index/i.test(d.instrument_type) || !d.instrument_type)
+      // ABD ve diğer hisseler — BIST hariç
+      all = all.filter(d =>
+        (/stock|equity|common|etf|fund|index/i.test(d.instrument_type) || !d.instrument_type)
+        && d.exchange !== 'BIST'
+      )
     }
 
     res.status(200).json({ results: all.slice(0, 15) })
