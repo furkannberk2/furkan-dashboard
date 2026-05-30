@@ -11,7 +11,7 @@ import Stocks from './pages/Stocks'
 
 function App() {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0f0f' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       <Sidebar />
       <main style={{ flex: 1, padding: '32px', overflowY: 'auto', minWidth: 0 }}>
         <Routes>
