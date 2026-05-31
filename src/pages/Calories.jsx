@@ -49,12 +49,19 @@ function Calories() {
     return () => stopScan()
   }, [showAdd, addMode, scanResult])
 
-  async function startScan() {
+async function startScan() {
     setScanStatus('scanning')
     try {
+      // Arka kamerayı tercih et
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices()
+      const rearCamera = devices.find(d =>
+        /back|rear|environment/i.test(d.label)
+      ) || devices[devices.length - 1]
+      const deviceId = rearCamera?.deviceId
+
       const reader = new BrowserMultiFormatReader()
       readerRef.current = reader
-      await reader.decodeFromVideoDevice(undefined, videoRef.current, async (result, err) => {
+      await reader.decodeFromVideoDevice(deviceId, videoRef.current, async (result, err) => {
         if (result) {
           const code = result.getText()
           stopScan()
