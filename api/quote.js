@@ -1,32 +1,63 @@
-import axios from 'axios'
+import yahooFinance from 'yahoo-finance2'
 
-const KEY = process.env.TWELVE_DATA_KEY
+// Twelve Data sembol → Yahoo sembol dönüşümü
+function toYahooSymbol(sym, hint = '') {
+  // hint: "BIST" gelirse .IS eklenir
+  if (!sym) return sym
+  // Kripto: BTC/USD → BTC-USD
+  if (sym.includes('/')) return sym.replace('/', '-')
+  // BIST hint
+  if (hint === 'BIST' && !sym.includes('.')) return sym + '.IS'
+  // XAU/XAG için özel
+  return sym
+}
+
+function fromYahooSymbol(yahooSym) {
+  // Yahoo formatından geri çevir
+  if (yahooSym.endsWith('.IS')) return yahooSym.slice(0, -3)
+  if (yahooSym.endsWith('-USD') || yahooSym.endsWith('-EUR') || yahooSym.endsWith('-CAD')) {
+    return yahooSym.replace('-', '/')
+  }
+  return yahooSym
+}
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
-  const { symbols } = req.query
+  const { symbols, hints } = req.query
   if (!symbols) return res.status(400).json({ error: 'symbols gerekli' })
 
+  const symbolList = symbols.split(',').map(s => s.trim()).filter(Boolean)
+  // hints: BIST sembolleri için (örn. "THYAO,ASELS" → BIST flag'iyle gelir)
+  const hintList = (hints || '').split(',').map(s => s.trim())
+
+  // Twelve Data formatından Yahoo formatına dönüştür
+  const yahooSymbols = symbolList.map((s, i) => toYahooSymbol(s, hintList[i] || ''))
+
   try {
-    const response = await axios.get('https://api.twelvedata.com/quote', {
-      params: { symbol: symbols, apikey: KEY }
+    // Yahoo Finance'tan tek seferde tüm semboller (paralel)
+    const results = await Promise.allSettled(
+      yahooSymbols.map(s => yahooFinance.quote(s, { validateResult: false }))
+    )
+
+    const out = {}
+    results.forEach((r, i) => {
+      const originalSym = symbolList[i]
+      if (r.status === 'fulfilled' && r.value) {
+        const q = r.value
+        out[originalSym] = {
+          close: q.regularMarketPrice,
+          previous_close: q.regularMarketPreviousClose,
+          percent_change: q.regularMarketChangePercent,
+          currency: q.currency,
+          name: q.longName || q.shortName || originalSym
+        }
+      } else {
+        out[originalSym] = { close: 0, percent_change: 0, error: 'not_found' }
+      }
     })
-    const data = response.data
 
-    // API kod hatası (örn. rate limit) — boş dön
-    if (data.code && data.code >= 400) {
-      return res.status(200).json({})
-    }
-
-    let result = {}
-    if (data.symbol) {
-      result[data.symbol] = data
-    } else {
-      result = data
-    }
-    res.status(200).json(result)
+    res.status(200).json(out)
   } catch (err) {
-    // Rate limit veya başka hata — boş dön ki frontend takılmasın
     res.status(200).json({})
   }
 }

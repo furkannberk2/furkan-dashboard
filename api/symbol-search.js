@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const KEY = process.env.TWELVE_DATA_KEY
+import yahooFinance from 'yahoo-finance2'
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
@@ -8,33 +6,49 @@ export default async function handler(req, res) {
   if (!q) return res.status(400).json({ error: 'q gerekli' })
 
   try {
-    const r = await axios.get('https://api.twelvedata.com/symbol_search', {
-      params: { symbol: q, outputsize: 50, apikey: KEY }
+    const result = await yahooFinance.search(q, {
+      quotesCount: 20,
+      newsCount: 0
     })
-    let all = (r.data.data || []).map(d => ({
-      symbol: d.symbol,
-      instrument_name: d.instrument_name,
-      instrument_type: d.instrument_type || '',
-      exchange: d.exchange || d.country || ''
-    }))
 
+    let quotes = result.quotes || []
+
+    // Türe göre filtre
     if (type === 'crypto') {
-      all = all.filter(d => /crypto|digital/i.test(d.instrument_type))
+      quotes = quotes.filter(q => q.quoteType === 'CRYPTOCURRENCY')
     } else if (type === 'forex') {
-      all = all.filter(d => /currency|forex/i.test(d.instrument_type))
+      quotes = quotes.filter(q => q.quoteType === 'CURRENCY')
     } else if (type === 'bist') {
-      // Sadece BIST hisseleri
-      all = all.filter(d => d.exchange === 'BIST')
+      quotes = quotes.filter(q => q.exchange === 'IST' || q.symbol?.endsWith('.IS'))
     } else {
-      // ABD ve diğer hisseler — BIST hariç
-      all = all.filter(d =>
-        (/stock|equity|common|etf|fund|index/i.test(d.instrument_type) || !d.instrument_type)
-        && d.exchange !== 'BIST'
+      // ABD hisse — BIST hariç
+      quotes = quotes.filter(q =>
+        (q.quoteType === 'EQUITY' || q.quoteType === 'ETF') &&
+        !q.symbol?.endsWith('.IS')
       )
     }
 
-    res.status(200).json({ results: all.slice(0, 15) })
+    // Çıktı formatı (eski uyumlu)
+    const results = quotes.map(q => {
+      // BIST sembolü .IS olmadan döndür (frontend'in beklediği format)
+      let symbol = q.symbol
+      if (symbol?.endsWith('.IS')) symbol = symbol.slice(0, -3)
+      // Kripto sembol BTC-USD → BTC/USD
+      if (q.quoteType === 'CRYPTOCURRENCY' && symbol?.includes('-')) {
+        symbol = symbol.replace('-', '/')
+      }
+      return {
+        symbol,
+        instrument_name: q.longname || q.shortname || q.symbol,
+        instrument_type: q.quoteType === 'CRYPTOCURRENCY' ? 'Digital Currency' :
+                         q.quoteType === 'CURRENCY' ? 'Physical Currency' :
+                         q.quoteType === 'ETF' ? 'ETF' : 'Common Stock',
+        exchange: q.exchange === 'IST' ? 'BIST' : (q.exchange || '')
+      }
+    })
+
+    res.status(200).json({ results: results.slice(0, 15) })
   } catch (err) {
-    res.status(500).json({ error: err.response?.data?.message || err.message })
+    res.status(500).json({ error: err.message })
   }
 }
