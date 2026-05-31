@@ -1,25 +1,11 @@
 import YahooFinance from 'yahoo-finance2'
 const yahooFinance = new YahooFinance()
 
-// Twelve Data sembol → Yahoo sembol dönüşümü
 function toYahooSymbol(sym, hint = '') {
-  // hint: "BIST" gelirse .IS eklenir
   if (!sym) return sym
-  // Kripto: BTC/USD → BTC-USD
   if (sym.includes('/')) return sym.replace('/', '-')
-  // BIST hint
   if (hint === 'BIST' && !sym.includes('.')) return sym + '.IS'
-  // XAU/XAG için özel
   return sym
-}
-
-function fromYahooSymbol(yahooSym) {
-  // Yahoo formatından geri çevir
-  if (yahooSym.endsWith('.IS')) return yahooSym.slice(0, -3)
-  if (yahooSym.endsWith('-USD') || yahooSym.endsWith('-EUR') || yahooSym.endsWith('-CAD')) {
-    return yahooSym.replace('-', '/')
-  }
-  return yahooSym
 }
 
 export default async function handler(req, res) {
@@ -28,37 +14,27 @@ export default async function handler(req, res) {
   if (!symbols) return res.status(400).json({ error: 'symbols gerekli' })
 
   const symbolList = symbols.split(',').map(s => s.trim()).filter(Boolean)
-  // hints: BIST sembolleri için (örn. "THYAO,ASELS" → BIST flag'iyle gelir)
   const hintList = (hints || '').split(',').map(s => s.trim())
-
-  // Twelve Data formatından Yahoo formatına dönüştür
   const yahooSymbols = symbolList.map((s, i) => toYahooSymbol(s, hintList[i] || ''))
 
-  try {
-    // Yahoo Finance'tan tek seferde tüm semboller (paralel)
-    const results = await Promise.allSettled(
-      yahooSymbols.map(s => yahooFinance.quote(s, { validateResult: false }))
-    )
+  const out = {}
 
-    const out = {}
-    results.forEach((r, i) => {
-      const originalSym = symbolList[i]
-      if (r.status === 'fulfilled' && r.value) {
-        const q = r.value
-        out[originalSym] = {
-          close: q.regularMarketPrice,
-          previous_close: q.regularMarketPreviousClose,
-          percent_change: q.regularMarketChangePercent,
-          currency: q.currency,
-          name: q.longName || q.shortName || originalSym
-        }
-      } else {
-        out[originalSym] = { close: 0, percent_change: 0, error: 'not_found' }
+  for (let i = 0; i < symbolList.length; i++) {
+    const originalSym = symbolList[i]
+    const ySym = yahooSymbols[i]
+    try {
+      const q = await yahooFinance.quote(ySym)
+      out[originalSym] = {
+        close: q.regularMarketPrice ?? 0,
+        previous_close: q.regularMarketPreviousClose ?? 0,
+        percent_change: q.regularMarketChangePercent ?? 0,
+        currency: q.currency || 'USD',
+        name: q.longName || q.shortName || originalSym
       }
-    })
-
-    res.status(200).json(out)
-  } catch (err) {
-    res.status(200).json({})
+    } catch (err) {
+      out[originalSym] = { close: 0, percent_change: 0, error: err.message }
+    }
   }
+
+  res.status(200).json(out)
 }
