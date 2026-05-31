@@ -12,6 +12,12 @@ export default async function handler(req, res) {
       params: { symbol: symbols, apikey: KEY }
     })
     const data = response.data
+
+    // API kod hatası (örn. rate limit) — boş dön
+    if (data.code && data.code >= 400) {
+      return res.status(200).json({})
+    }
+
     let result = {}
     if (data.symbol) {
       result[data.symbol] = data
@@ -20,6 +26,7 @@ export default async function handler(req, res) {
     }
     res.status(200).json(result)
   } catch (err) {
-    res.status(500).json({ error: err.response?.data?.message || err.message })
+    // Rate limit veya başka hata — boş dön ki frontend takılmasın
+    res.status(200).json({})
   }
 }
