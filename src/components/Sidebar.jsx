@@ -1,3 +1,4 @@
+import { useAuth } from './AuthProvider'
 import { NavLink } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Home, CheckSquare, ListTodo, Apple, Mail, TrendingUp, FolderKanban, Wallet, Sun, Moon, MoreHorizontal, X } from 'lucide-react'
@@ -29,6 +30,7 @@ function useIsMobile() {
 }
 
 function Sidebar() {
+  const { signOut } = useAuth()
   const [theme, setTheme] = useState(getInitialTheme())
   const [moreOpen, setMoreOpen] = useState(false)
   const isMobile = useIsMobile()
@@ -125,6 +127,14 @@ function Sidebar() {
               }}>
                 {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
                 {theme === 'dark' ? 'Aydınlık tema' : 'Karanlık tema'}
+              </button>
+              <button onClick={() => { signOut(); setMoreOpen(false) }} style={{
+                width: '100%', padding: '12px', borderRadius: '10px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--danger)', fontSize: '13.5px', cursor: 'pointer',
+                marginTop: '8px', fontWeight: '500'
+              }}>
+                Çıkış yap
               </button>
             </div>
           </div>
