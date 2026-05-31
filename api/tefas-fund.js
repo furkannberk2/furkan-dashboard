@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   const list = codes.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
   const out = {}
 
-  // Bugün ve 30 gün önce
   const today = new Date()
   const monthAgo = new Date()
   monthAgo.setDate(monthAgo.getDate() - 35)
@@ -22,27 +21,27 @@ export default async function handler(req, res) {
   for (const code of list) {
     try {
       const params = new URLSearchParams({
-        calismatipi: '1',
         fontip: 'YAT',
         sfontur: '',
-        kurucukod: '',
+        fonkod: code,
         fongrup: '',
         bastarih: formatDate(monthAgo),
         bittarih: formatDate(today),
         fonturkod: '',
-        fonunvantip: '',
-        islemdurum: '1',
-        fonkod: code
+        fonunvantip: ''
       })
       const r = await axios.post(
         'https://www.tefas.gov.tr/api/DB/BindHistoryInfo',
         params.toString(),
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'Mozilla/5.0',
-            'Accept': 'application/json',
-            'Referer': 'https://www.tefas.gov.tr/'
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'tr-TR,tr;q=0.9',
+            'Referer': 'https://www.tefas.gov.tr/TarihselVeriler.aspx',
+            'Origin': 'https://www.tefas.gov.tr',
+            'X-Requested-With': 'XMLHttpRequest'
           }
         }
       )
@@ -51,7 +50,6 @@ export default async function handler(req, res) {
         out[code] = { close: 0, error: 'not_found' }
         continue
       }
-      // En son tarih → günümüz fiyatı
       const sorted = data.sort((a, b) => b.TARIH - a.TARIH)
       const latest = sorted[0]
       const oldest = sorted[sorted.length - 1]
@@ -73,7 +71,7 @@ export default async function handler(req, res) {
         name: latest.FONUNVAN || code
       }
     } catch (err) {
-      out[code] = { close: 0, error: err.message }
+      out[code] = { close: 0, error: err.response?.status ? `HTTP ${err.response.status}` : err.message }
     }
   }
 
