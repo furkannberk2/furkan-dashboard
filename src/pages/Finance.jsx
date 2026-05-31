@@ -18,9 +18,7 @@ const ASSET_TYPES = [
   { key: 'SILVER_GRAM', name: 'Gram Gümüş', unit: 'gr', category: 'Gümüş' },
   { key: 'CRYPTO', name: 'Kripto', unit: 'adet', category: 'Kripto', needsSymbol: true },
   { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
-  { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
   { key: 'BIST', name: 'BIST Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
-
 ]
 const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
 
@@ -147,7 +145,6 @@ function Finance() {
       return (grams / 31.1035) * xau * usdTry
     }
     if (inv.type === 'BIST') {
-      // BIST fiyatı zaten TRY cinsinden, USD çarpımına gerek yok
       const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
       return qty * tryPrice
     }
@@ -283,7 +280,7 @@ function Finance() {
       const at = ASSET_TYPES.find(a => a.key === i.type)
       grouped[key] = {
         key, type: i.type, symbol: i.symbol, name: i.name,
-        displayName: at ? at.name : i.name,
+        displayName: at && !at.needsSymbol ? at.name : i.name,
         unit: at?.unit || 'adet',
         items: [], totalQty: 0, totalTRY: 0,
         dailyChange: getDailyChange(i)
@@ -606,7 +603,7 @@ function Finance() {
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <input value={invSearch} onChange={e => setInvSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchInvSymbol()}
-                  placeholder={invAssetType.key === 'CRYPTO' ? 'BTC, ETH, SOL...' : 'Apple, AAPL, TSLA...'}
+                  placeholder={invAssetType.key === 'CRYPTO' ? 'BTC, ETH, SOL...' : invAssetType.key === 'BIST' ? 'THYAO, ASELS, GARAN...' : 'Apple, AAPL, TSLA...'}
                   style={inputStyle} autoFocus />
                 <button onClick={searchInvSymbol} style={buttonStyle}>{invSearching ? '...' : 'Ara'}</button>
               </div>
