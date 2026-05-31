@@ -23,11 +23,38 @@ export default async function handler(req, res) {
           }
         }
       )
-      const data = r.data
-      // Veri yapısı henüz belirsiz, ne dönerse out'a koy
-      out[code] = data
+      const list2 = r.data?.resultList || []
+      if (list2.length === 0) {
+        out[code] = { close: 0, error: 'not_found' }
+        continue
+      }
+
+      // Son tarihe göre sırala (büyükten küçüğe)
+      const sorted = [...list2].sort((a, b) => new Date(b.tarih) - new Date(a.tarih))
+      const latest = sorted[0]
+      const dayBefore = sorted[1] || latest
+
+      // 30 gün öncesi bul
+      const latestDate = new Date(latest.tarih)
+      const monthAgo = new Date(latestDate)
+      monthAgo.setDate(monthAgo.getDate() - 30)
+      const monthAgoEntry = sorted.find(e => new Date(e.tarih) <= monthAgo) || sorted[sorted.length - 1]
+
+      const latestPrice = parseFloat(latest.fiyat)
+      const dayBeforePrice = parseFloat(dayBefore.fiyat)
+      const monthAgoPrice = parseFloat(monthAgoEntry.fiyat)
+
+      out[code] = {
+        close: latestPrice,
+        previous_close: dayBeforePrice,
+        percent_change: ((latestPrice - dayBeforePrice) / dayBeforePrice) * 100,
+        monthly_change: ((latestPrice - monthAgoPrice) / monthAgoPrice) * 100,
+        currency: 'TRY',
+        name: latest.fonUnvan || code,
+        date: latest.tarih
+      }
     } catch (err) {
-      out[code] = { error: err.response?.status ? `HTTP ${err.response.status}` : err.message }
+      out[code] = { close: 0, error: err.response?.status ? `HTTP ${err.response.status}` : err.message }
     }
   }
 
