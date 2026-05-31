@@ -1,4 +1,5 @@
 import { useAuth } from '../components/AuthProvider'
+import { readCachedQuotes, fetchMissingQuotes, staleAllQuotes } from '../lib/quoteCache'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
@@ -115,20 +116,23 @@ function Finance() {
     if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
   }
 
-  async function fetchPrices() {
+ async function fetchPrices(forceRefresh = false) {
     try {
       const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
       const d1 = await r1.json()
       setRates(d1.rates || {})
+
       const symbols = new Set()
       if (investments.some(i => i.type?.startsWith('GOLD_'))) symbols.add('XAU/USD')
       if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
       investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
-      if (symbols.size > 0) {
-        const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
-        const d2 = await r2.json()
-        setQuotes(d2)
-      }
+      const symbolList = [...symbols]
+      if (symbolList.length === 0) return
+
+      if (forceRefresh) staleAllQuotes()
+
+      setQuotes(readCachedQuotes(symbolList))
+      fetchMissingQuotes(symbolList, (updated) => setQuotes(updated))
     } catch (err) { console.error(err) }
   }
 
@@ -471,7 +475,7 @@ async function savePayday(value) {
             <div style={{ fontSize: '12px', color: 'var(--text-faint)', flex: 1, minWidth: '160px' }}>
               {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : 'Kurlar yükleniyor...'}
             </div>
-            <button onClick={fetchPrices} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
+            <button onClick={fetchPrices(True)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
           </div>
 
