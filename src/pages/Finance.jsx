@@ -32,14 +32,6 @@ function useIsMobile() {
   return m
 }
 
-function getRemainingDays() {
-  const now = new Date()
-  const currentDay = now.getDate()
-  if (currentDay <= 5) return 5 - currentDay + 1
-  const next5 = new Date(now.getFullYear(), now.getMonth() + 1, 5)
-  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  return Math.round((next5 - todayDate) / (1000 * 60 * 60 * 24)) + 1
-}
 
 function getMonthLabel(offset) {
   const d = new Date()
@@ -50,6 +42,7 @@ function getMonthLabel(offset) {
 function Finance() {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState('daily')
+  const [payday, setPayday] = useState(5)
   const [dailyExpenses, setDailyExpenses] = useState([])
   const [recurringExpenses, setRecurringExpenses] = useState([])
   const [variableBudgets, setVariableBudgets] = useState([])
@@ -88,17 +81,25 @@ function Finance() {
   const today = new Date().toISOString().split('T')[0]
   const currentMonth = today.slice(0, 7)
   const remainingDays = getRemainingDays()
-
+  function getRemainingDays() {
+    const now = new Date()
+    const currentDay = now.getDate()
+    if (currentDay <= payday) return payday - currentDay + 1
+    const nextPayday = new Date(now.getFullYear(), now.getMonth() + 1, payday)
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return Math.round((nextPayday - todayDate) / (1000 * 60 * 60 * 24)) + 1
+  }
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
 
   async function fetchAll() {
-    const [daily, recurring, variable, inv, inc] = await Promise.all([
+  const [daily, recurring, variable, inv, inc, settings] = await Promise.all([
       supabase.from('daily_expenses').select('*').order('date', { ascending: false }),
       supabase.from('recurring_expenses').select('*').order('due_day', { ascending: true }),
       supabase.from('variable_budgets').select('*').eq('month', currentMonth),
       supabase.from('investments').select('*'),
-      supabase.from('income').select('*').eq('month', currentMonth).single()
+      supabase.from('income').select('*').eq('month', currentMonth).single(),
+      supabase.from('user_settings').select('*').eq('key', 'payday').single()
     ])
     if (!daily.error) setDailyExpenses(daily.data)
     if (!recurring.error) setRecurringExpenses(recurring.data)
@@ -109,6 +110,7 @@ function Finance() {
       setIncomeInput(inc.data.amount)
       if (inc.data.balance) { setBalanceInput(inc.data.balance); setUseBalance(true) }
     }
+    if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
   }
 
   async function fetchPrices() {
@@ -230,7 +232,11 @@ function Finance() {
     setEditingId(null); setEditData({})
     fetchAll()
   }
-
+async function savePayday(value) {
+    const num = Math.min(31, Math.max(1, Number(value) || 5))
+    setPayday(num)
+    await supabase.from('user_settings').upsert({ key: 'payday', value: String(num), updated_at: new Date() }, { onConflict: 'key' })
+  }
   async function saveIncome() {
     if (!incomeInput) return
     const payload = { amount: Number(incomeInput), balance: useBalance && balanceInput ? Number(balanceInput) : null }
@@ -263,7 +269,7 @@ function Finance() {
 
   const totalIncome = income ? Number(income.amount) : 0
   const currentDay = new Date().getDate()
-  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < 5).reduce((s, e) => s + Number(e.amount), 0)
+  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < payday).reduce((s, e) => s + Number(e.amount), 0)
   const totalRecurringFull = recurringExpenses.reduce((s, e) => s + Number(e.amount), 0)
   const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = useBalance && income?.balance ? Number(income.balance) : totalIncome
@@ -295,7 +301,11 @@ function Finance() {
   const paidRecurring = recurringExpenses.filter(e => paidStatus[e.id])
   const unpaidRecurring = recurringExpenses.filter(e => !paidStatus[e.id])
   const monthlyFree = totalIncome - totalRecurringFull - totalVariable
-  const projection = [0, 1, 2].map(offset => ({ label: getMonthLabel(offset), income: totalIncome, recurring: totalRecurringFull, variable: totalVariable, free: monthlyFree }))
+  const projection = [0, 1, 2].map(offset => {
+    const variable = offset === 0 ? totalVariable : 0
+    const free = totalIncome - totalRecurringFull - variable
+    return { label: getMonthLabel(offset), income: totalIncome, recurring: totalRecurringFull, variable, free }
+  })
 
   return (
     <div style={{ color: 'var(--text)' }}>
@@ -524,7 +534,16 @@ function Finance() {
       {tab === 'income' && (
         <div style={{ maxWidth: '780px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '10px' }}>{currentMonth} — maaş günü: her ayın 5'i</div>
+ <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>{currentMonth} — maaş günü:</span>
+              <input
+                type="number" min="1" max="31"
+                value={payday}
+                onChange={e => savePayday(e.target.value)}
+                style={{ ...inputStyle, flex: 0, width: '60px', padding: '5px 8px', fontSize: '13px', textAlign: 'center' }}
+              />
+              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>her ayın</span>
+            </div>
             <input value={incomeInput} onChange={e => setIncomeInput(e.target.value)} placeholder="₺ Aylık maaş" type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div onClick={() => setUseBalance(!useBalance)} style={{ width: '18px', height: '18px', borderRadius: '5px', border: '2px solid', borderColor: useBalance ? 'var(--accent)' : 'var(--text-faint)', background: useBalance ? 'var(--accent)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
