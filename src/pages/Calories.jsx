@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 
 const MEALS = ['Kahvaltı', 'Öğle', 'Akşam', 'Atıştırmalık']
 
@@ -10,15 +11,87 @@ function Calories() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedMeal, setSelectedMeal] = useState('Kahvaltı')
 
+  const [showAdd, setShowAdd] = useState(false)
+  const [addMode, setAddMode] = useState('search') // 'search' | 'manual' | 'barcode'
+
+  // Search
   const [search, setSearch] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
+
+  // Manual
+  const [mName, setMName] = useState('')
+  const [mCalories, setMCalories] = useState('')
+  const [mQuantity, setMQuantity] = useState('100')
+  const [mProtein, setMProtein] = useState('')
+  const [mCarbs, setMCarbs] = useState('')
+  const [mFat, setMFat] = useState('')
+
+  // Barcode
+  const videoRef = useRef(null)
+  const readerRef = useRef(null)
+  const [scanStatus, setScanStatus] = useState('') // '', 'scanning', 'found', 'error'
+  const [scanResult, setScanResult] = useState(null)
+  const [scanQty, setScanQty] = useState(100)
 
   const [showGoal, setShowGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
 
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
+
+  // Barkod tarayıcı kontrolü
+  useEffect(() => {
+    if (showAdd && addMode === 'barcode' && !scanResult) {
+      startScan()
+    } else {
+      stopScan()
+    }
+    return () => stopScan()
+  }, [showAdd, addMode, scanResult])
+
+  async function startScan() {
+    setScanStatus('scanning')
+    try {
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+      await reader.decodeFromVideoDevice(undefined, videoRef.current, async (result, err) => {
+        if (result) {
+          const code = result.getText()
+          stopScan()
+          setScanStatus('found')
+          try {
+            const r = await fetch(`${BACKEND}/api/barcode?code=${code}`)
+            const data = await r.json()
+            if (data.product) {
+              setScanResult(data.product)
+            } else {
+              setScanStatus('not_found')
+            }
+          } catch {
+            setScanStatus('error')
+          }
+        }
+      })
+    } catch (err) {
+      console.error(err)
+      setScanStatus('error')
+    }
+  }
+
+  function stopScan() {
+    if (readerRef.current) {
+      try { readerRef.current.reset() } catch {}
+      readerRef.current = null
+    }
+  }
+
+  function resetAdd() {
+    setShowAdd(false)
+    setSearch(''); setResults([])
+    setMName(''); setMCalories(''); setMQuantity('100'); setMProtein(''); setMCarbs(''); setMFat('')
+    setScanResult(null); setScanStatus(''); setScanQty(100)
+    setAddMode('search')
+  }
 
   async function fetchEntries() {
     const { data, error } = await supabase
@@ -53,7 +126,21 @@ function Calories() {
       fat: Math.round(food.fat * factor),
       quantity
     })
-    setShowSearch(false); setSearch(''); setResults([])
+    resetAdd()
+    fetchEntries()
+  }
+
+  async function addManual() {
+    if (!mName.trim() || !mCalories) return
+    await supabase.from('food_entries').insert({
+      date: selectedDate, meal: selectedMeal, name: mName,
+      calories: Number(mCalories),
+      protein: mProtein ? Number(mProtein) : 0,
+      carbs: mCarbs ? Number(mCarbs) : 0,
+      fat: mFat ? Number(mFat) : 0,
+      quantity: Number(mQuantity) || 1
+    })
+    resetAdd()
     fetchEntries()
   }
 
@@ -90,7 +177,6 @@ function Calories() {
         </div>
       </div>
 
-      {/* Özet kart */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px', marginBottom: '20px', maxWidth: '680px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
           <span style={{ fontSize: '28px', fontWeight: '700' }}>{totalCalories}</span>
@@ -106,7 +192,6 @@ function Calories() {
         </div>
       </div>
 
-      {/* Öğünler */}
       <div style={{ maxWidth: '680px' }}>
         {MEALS.map(meal => {
           const mealEntries = entries.filter(e => e.meal === meal)
@@ -118,7 +203,7 @@ function Calories() {
                   <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{meal}</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{mealTotal} kcal</span>
                 </div>
-                <button onClick={() => { setSelectedMeal(meal); setShowSearch(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
+                <button onClick={() => { setSelectedMeal(meal); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
               </div>
               {mealEntries.map(e => (
                 <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
@@ -134,18 +219,87 @@ function Calories() {
         })}
       </div>
 
-      {showSearch && (
-        <Modal onClose={() => setShowSearch(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px' }}>{selectedMeal} — Yemek Ekle</h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '14px' }}>Besin değerleri 100g içindir</p>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchFood()} placeholder="Yemek ara (örn. yumurta, tavuk)..." style={inputStyle} autoFocus />
-            <button onClick={searchFood} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
+      {showAdd && (
+        <Modal onClose={resetAdd}>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{selectedMeal} — Ekle</h3>
+
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+            {[['search', '🔍 Ara'], ['manual', '✏️ Manuel'], ['barcode', '📷 Barkod']].map(([val, label]) => (
+              <button key={val} onClick={() => setAddMode(val)} style={{
+                flex: 1, padding: '7px 10px', borderRadius: '8px', border: '1px solid',
+                borderColor: addMode === val ? 'var(--accent)' : 'var(--border-strong)',
+                background: addMode === val ? 'var(--accent)' : 'transparent',
+                color: addMode === val ? '#fff' : 'var(--text-dim)', fontSize: '12px', cursor: 'pointer'
+              }}>{label}</button>
+            ))}
           </div>
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-            {results.map((food, i) => <FoodResult key={i} food={food} onAdd={addFood} />)}
-            {results.length === 0 && !searching && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Aramak için yukarıya yazın.</p>}
-          </div>
+
+          {/* ARAMA */}
+          {addMode === 'search' && (
+            <>
+              <p style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '12px' }}>Besin değerleri 100g içindir</p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchFood()} placeholder="Yemek ara..." style={inputStyle} autoFocus />
+                <button onClick={searchFood} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
+              </div>
+              <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                {results.map((food, i) => <FoodResult key={i} food={food} onAdd={addFood} />)}
+                {results.length === 0 && !searching && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Aramak için yukarıya yazın.</p>}
+              </div>
+            </>
+          )}
+
+          {/* MANUEL */}
+          {addMode === 'manual' && (
+            <>
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>İsim</label>
+                <input value={mName} onChange={e => setMName(e.target.value)} placeholder="örn. Pilav" style={{ ...inputStyle, width: '100%' }} autoFocus />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Kalori (kcal)</label>
+                  <input value={mCalories} onChange={e => setMCalories(e.target.value)} type="number" placeholder="200" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Miktar (gr/adet)</label>
+                  <input value={mQuantity} onChange={e => setMQuantity(e.target.value)} type="number" placeholder="100" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px' }}>Makrolar (isteğe bağlı)</div>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+                <input value={mProtein} onChange={e => setMProtein(e.target.value)} type="number" placeholder="Protein (g)" style={{ ...inputStyle, fontSize: '13px' }} />
+                <input value={mCarbs} onChange={e => setMCarbs(e.target.value)} type="number" placeholder="Karb (g)" style={{ ...inputStyle, fontSize: '13px' }} />
+                <input value={mFat} onChange={e => setMFat(e.target.value)} type="number" placeholder="Yağ (g)" style={{ ...inputStyle, fontSize: '13px' }} />
+              </div>
+              <button onClick={addManual} style={{ ...buttonStyle, width: '100%' }}>Ekle</button>
+            </>
+          )}
+
+          {/* BARKOD */}
+          {addMode === 'barcode' && (
+            <>
+              {!scanResult ? (
+                <div>
+                  <div style={{ position: 'relative', background: '#000', borderRadius: '8px', overflow: 'hidden', marginBottom: '10px' }}>
+                    <video ref={videoRef} style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '10%', right: '10%', height: '1px', background: 'var(--danger)', boxShadow: '0 0 8px var(--danger)' }} />
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center', margin: 0 }}>
+                    {scanStatus === 'scanning' && '📷 Barkodu kameraya tut...'}
+                    {scanStatus === 'found' && '⏳ Aranıyor...'}
+                    {scanStatus === 'not_found' && '❌ Bu barkod veritabanında yok'}
+                    {scanStatus === 'error' && '⚠️ Kameraya erişilemedi — tarayıcı izni gerekli'}
+                  </p>
+                  {(scanStatus === 'not_found' || scanStatus === 'error') && (
+                    <button onClick={() => { setScanStatus(''); startScan() }} style={{ ...buttonStyle, width: '100%', marginTop: '10px' }}>Tekrar Dene</button>
+                  )}
+                </div>
+              ) : (
+                <FoodResult food={scanResult} onAdd={addFood} />
+              )}
+            </>
+          )}
         </Modal>
       )}
 
