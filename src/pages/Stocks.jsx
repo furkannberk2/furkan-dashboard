@@ -183,7 +183,7 @@ function Stocks() {
           {!selected ? (
             <>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                {[['stock', 'Hisse'], ['crypto', 'Kripto'], ['forex', 'Döviz/Altın']].map(([val, label]) => (
+                {[['stock', 'ABD Hisse'], ['bist', 'BIST'], ['crypto', 'Kripto'], ['forex', 'Döviz']].map(([val, label]) => (
                   <button key={val} onClick={() => { setSearchType(val); setResults([]) }} style={{
                     padding: '5px 12px', borderRadius: '20px', border: '1px solid',
                     borderColor: searchType === val ? 'var(--accent)' : 'var(--border-strong)',
@@ -194,7 +194,7 @@ function Stocks() {
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchSymbol()}
-                  placeholder={searchType === 'crypto' ? 'BTC, ETH...' : searchType === 'forex' ? 'EUR, XAU (altın)...' : 'Apple, AAPL...'}
+                  placeholder={searchType === 'crypto' ? 'BTC, ETH...' : searchType === 'forex' ? 'EUR, XAU (altın)...' : searchType === 'bist' ? 'THYAO, ASELS, GARAN...' : 'Apple, AAPL...'}
                   style={inputStyle} autoFocus />
                 <button onClick={searchSymbol} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
               </div>
