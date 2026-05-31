@@ -21,6 +21,7 @@ const ASSET_TYPES = [
   { key: 'CRYPTO', name: 'Kripto', unit: 'adet', category: 'Kripto', needsSymbol: true },
   { key: 'STOCK', name: 'ABD Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
   { key: 'BIST', name: 'BIST Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
+  { key: 'TEFAS_FUND', name: 'TEFAS Fonu', unit: 'pay', category: 'Fon', needsSymbol: true, manualCode: true },
 ]
 const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
 
@@ -34,11 +35,22 @@ function useIsMobile() {
   return m
 }
 
-
 function getMonthLabel(offset) {
   const d = new Date()
   d.setMonth(d.getMonth() + offset)
   return d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+}
+
+// Bir due_day bugünden sonraki maaş gününe kadar olan dönemde mi?
+function isDueInCurrentCycle(dueDay, currentDay, payday) {
+  if (!dueDay) return true // gün belirtilmemişse her zaman dahil
+  if (currentDay <= payday) {
+    // Maaş gününden önceyiz (örn. bugün 2, maaş 5) → bu ay maaş gününe kadar olan günler
+    return dueDay >= currentDay && dueDay <= payday
+  } else {
+    // Maaş gününü geçtik (örn. bugün 10, maaş 5) → ayın geri kalanı + bir sonraki maaş günü
+    return dueDay >= currentDay || dueDay <= payday
+  }
 }
 
 function Finance() {
@@ -57,6 +69,7 @@ function Finance() {
 
   const [rates, setRates] = useState({})
   const [quotes, setQuotes] = useState({})
+  const [tefasQuotes, setTefasQuotes] = useState({})
 
   const [showAddInv, setShowAddInv] = useState(false)
   const [invAssetType, setInvAssetType] = useState(null)
@@ -64,6 +77,9 @@ function Finance() {
   const [invResults, setInvResults] = useState([])
   const [invSearching, setInvSearching] = useState(false)
   const [invSelectedSymbol, setInvSelectedSymbol] = useState(null)
+  const [invManualCode, setInvManualCode] = useState('')
+  const [invManualPreview, setInvManualPreview] = useState(null)
+  const [invManualChecking, setInvManualChecking] = useState(false)
   const [invQty, setInvQty] = useState('')
   const [invLocation, setInvLocation] = useState('Fiziksel')
 
@@ -96,7 +112,7 @@ function Finance() {
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
 
   async function fetchAll() {
-  const [daily, recurring, variable, inv, inc, settings] = await Promise.all([
+    const [daily, recurring, variable, inv, inc, settings] = await Promise.all([
       supabase.from('daily_expenses').select('*').order('date', { ascending: false }),
       supabase.from('recurring_expenses').select('*').order('due_day', { ascending: true }),
       supabase.from('variable_budgets').select('*').eq('month', currentMonth),
@@ -116,23 +132,31 @@ function Finance() {
     if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
   }
 
- async function fetchPrices(forceRefresh = false) {
+  async function fetchPrices(forceRefresh = false) {
     try {
       const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
       const d1 = await r1.json()
       setRates(d1.rates || {})
 
+      // Yahoo semboller
       const symbols = new Set()
       if (investments.some(i => i.type?.startsWith('GOLD_'))) symbols.add('XAU/USD')
       if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
       investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
       const symbolList = [...symbols]
-      if (symbolList.length === 0) return
+      if (symbolList.length > 0) {
+        if (forceRefresh) staleAllQuotes()
+        setQuotes(readCachedQuotes(symbolList))
+        fetchMissingQuotes(symbolList, (updated) => setQuotes(updated))
+      }
 
-      if (forceRefresh) staleAllQuotes()
-
-      setQuotes(readCachedQuotes(symbolList))
-      fetchMissingQuotes(symbolList, (updated) => setQuotes(updated))
+      // TEFAS fonları
+      const tefasCodes = investments.filter(i => i.type === 'TEFAS_FUND').map(i => i.symbol).filter(Boolean)
+      if (tefasCodes.length > 0) {
+        const r2 = await fetch(`${BACKEND}/api/tefas-fund?codes=${encodeURIComponent(tefasCodes.join(','))}`)
+        const d2 = await r2.json()
+        setTefasQuotes(d2)
+      }
     } catch (err) { console.error(err) }
   }
 
@@ -156,6 +180,10 @@ function Finance() {
       const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
       return qty * tryPrice
     }
+    if (inv.type === 'TEFAS_FUND') {
+      const tryPrice = parseFloat(tefasQuotes[inv.symbol]?.close || 0)
+      return qty * tryPrice
+    }
     if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
       const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
       return qty * usdPrice * usdTry
@@ -165,6 +193,7 @@ function Finance() {
 
   function getDailyChange(inv) {
     if (inv.type === 'CRYPTO' || inv.type === 'STOCK' || inv.type === 'BIST') return parseFloat(quotes[inv.symbol]?.percent_change || 0)
+    if (inv.type === 'TEFAS_FUND') return parseFloat(tefasQuotes[inv.symbol]?.percent_change || 0)
     if (inv.type === 'SILVER_GRAM') return parseFloat(quotes['XAG/USD']?.percent_change || 0)
     if (inv.type?.startsWith('GOLD_')) return parseFloat(quotes['XAU/USD']?.percent_change || 0)
     return null
@@ -182,10 +211,35 @@ function Finance() {
     finally { setInvSearching(false) }
   }
 
+  async function checkTefasCode() {
+    if (!invManualCode.trim()) return
+    setInvManualChecking(true)
+    setInvManualPreview(null)
+    try {
+      const code = invManualCode.trim().toUpperCase()
+      const res = await fetch(`${BACKEND}/api/tefas-fund?codes=${encodeURIComponent(code)}`)
+      const data = await res.json()
+      const entry = data[code]
+      if (entry && entry.close > 0) {
+        setInvManualPreview({ code, name: entry.name, price: entry.close })
+      } else {
+        setInvManualPreview({ error: 'Bu kodla bir fon bulunamadı' })
+      }
+    } catch (err) {
+      setInvManualPreview({ error: err.message })
+    } finally {
+      setInvManualChecking(false)
+    }
+  }
+
   async function addInvestment() {
     if (!invAssetType || !invQty) return
     let symbol, name
-    if (invAssetType.needsSymbol) {
+    if (invAssetType.manualCode) {
+      if (!invManualPreview || invManualPreview.error) return
+      symbol = invManualPreview.code
+      name = invManualPreview.name
+    } else if (invAssetType.needsSymbol) {
       if (!invSelectedSymbol) return
       symbol = invSelectedSymbol.symbol
       name = invSelectedSymbol.instrument_name || invSelectedSymbol.symbol
@@ -199,6 +253,7 @@ function Finance() {
     })
     setShowAddInv(false)
     setInvAssetType(null); setInvSelectedSymbol(null); setInvSearch(''); setInvResults([])
+    setInvManualCode(''); setInvManualPreview(null)
     setInvQty(''); setInvLocation('Fiziksel')
     fetchAll()
   }
@@ -238,16 +293,16 @@ function Finance() {
     setEditingId(null); setEditData({})
     fetchAll()
   }
-async function savePayday(value) {
+  async function savePayday(value) {
     const num = Math.min(31, Math.max(1, Number(value) || 5))
     setPayday(num)
-    await supabase.from('user_settings').upsert({user_id: user.id, key: 'payday', value: String(num), updated_at: new Date() }, { onConflict: 'key' })
+    await supabase.from('user_settings').upsert({ user_id: user.id, key: 'payday', value: String(num), updated_at: new Date() }, { onConflict: 'key' })
   }
   async function saveIncome() {
     if (!incomeInput) return
     const payload = { amount: Number(incomeInput), balance: useBalance && balanceInput ? Number(balanceInput) : null }
     if (income) await supabase.from('income').update(payload).eq('id', income.id)
-    else await supabase.from('income').insert({ ...payload, month: currentMonth,user_id: user.id})
+    else await supabase.from('income').insert({ ...payload, month: currentMonth, user_id: user.id })
     fetchAll()
   }
 
@@ -265,7 +320,7 @@ async function savePayday(value) {
 
   async function addVariableBudget() {
     if (!vAmount || !vName) return
-    await supabase.from('variable_budgets').insert({user_id: user.id, month: currentMonth, name: vName, amount: Number(vAmount) })
+    await supabase.from('variable_budgets').insert({ user_id: user.id, month: currentMonth, name: vName, amount: Number(vAmount) })
     setVName(''); setVAmount(''); fetchAll()
   }
 
@@ -275,7 +330,10 @@ async function savePayday(value) {
 
   const totalIncome = income ? Number(income.amount) : 0
   const currentDay = new Date().getDate()
-  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < payday).reduce((s, e) => s + Number(e.amount), 0)
+  // YENİ MANTIK: Sadece bugünden bir sonraki maaş gününe kadar olan döneme düşen giderler hesaba katılır
+  const totalRecurring = recurringExpenses
+    .filter(e => isDueInCurrentCycle(e.due_day, currentDay, payday))
+    .reduce((s, e) => s + Number(e.amount), 0)
   const totalRecurringFull = recurringExpenses.reduce((s, e) => s + Number(e.amount), 0)
   const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = useBalance && income?.balance ? Number(income.balance) : totalIncome
@@ -287,7 +345,7 @@ async function savePayday(value) {
 
   const grouped = {}
   investments.forEach(i => {
-    const key = i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST' ? i.symbol : i.type
+    const key = i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST' || i.type === 'TEFAS_FUND' ? i.symbol : i.type
     if (!grouped[key]) {
       const at = ASSET_TYPES.find(a => a.key === i.type)
       grouped[key] = {
@@ -475,7 +533,7 @@ async function savePayday(value) {
             <div style={{ fontSize: '12px', color: 'var(--text-faint)', flex: 1, minWidth: '160px' }}>
               {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : 'Kurlar yükleniyor...'}
             </div>
-            <button onClick={fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
+            <button onClick={() => fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
           </div>
 
@@ -540,7 +598,7 @@ async function savePayday(value) {
       {tab === 'income' && (
         <div style={{ maxWidth: '780px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
- <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>{currentMonth} — maaş günü:</span>
               <input
                 type="number" min="1" max="31"
@@ -570,7 +628,7 @@ async function savePayday(value) {
               {useBalance && income?.balance && (
                 <Row label="Mevcut Bakiye (baz alınan)" value={`₺${Number(income.balance).toLocaleString('tr-TR')}`} color="var(--purple)" />
               )}
-              <Row label="Sabit Giderler" value={`− ₺${totalRecurring.toLocaleString('tr-TR')}`} color="var(--danger)" />
+              <Row label="Sabit Giderler (kalan dönem)" value={`− ₺${totalRecurring.toLocaleString('tr-TR')}`} color="var(--danger)" />
               <Row label="Değişken Bütçe" value={`− ₺${totalVariable.toLocaleString('tr-TR')}`} color="var(--warning)" />
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '4px' }}>
                 <Row label="Kullanılabilir Bütçe" value={`₺${(baseAmount - totalRecurring - totalVariable).toLocaleString('tr-TR')}`} bold />
@@ -602,7 +660,7 @@ async function savePayday(value) {
 
       {/* Yatırım ekleme modal */}
       {showAddInv && (
-        <Modal onClose={() => { setShowAddInv(false); setInvAssetType(null); setInvSelectedSymbol(null) }}>
+        <Modal onClose={() => { setShowAddInv(false); setInvAssetType(null); setInvSelectedSymbol(null); setInvManualCode(''); setInvManualPreview(null) }}>
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>Yatırım Ekle</h3>
 
           {!invAssetType ? (
@@ -620,7 +678,30 @@ async function savePayday(value) {
                 ))}
               </div>
             </>
-          ) : invAssetType.needsSymbol && !invSelectedSymbol ? (
+          ) : invAssetType.manualCode && (!invManualPreview || invManualPreview.error) ? (
+            <>
+              <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>{invAssetType.name}</div>
+                <button onClick={() => setInvAssetType(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Geri</button>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '10px' }}>Fon kodunu yaz (örn. BID, AAK, GO9):</p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <input
+                  value={invManualCode}
+                  onChange={e => setInvManualCode(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === 'Enter' && checkTefasCode()}
+                  placeholder="Fon kodu"
+                  maxLength="6"
+                  style={inputStyle}
+                  autoFocus
+                />
+                <button onClick={checkTefasCode} style={buttonStyle}>{invManualChecking ? '...' : 'Kontrol'}</button>
+              </div>
+              {invManualPreview?.error && (
+                <p style={{ fontSize: '12px', color: 'var(--danger)' }}>{invManualPreview.error}</p>
+              )}
+            </>
+          ) : invAssetType.needsSymbol && !invAssetType.manualCode && !invSelectedSymbol ? (
             <>
               <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600' }}>{invAssetType.name}</div>
@@ -649,12 +730,21 @@ async function savePayday(value) {
             <>
               <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '600' }}>
-                  {invAssetType.needsSymbol ? invSelectedSymbol.symbol : invAssetType.name}
+                  {invAssetType.manualCode ? invManualPreview.code : invAssetType.needsSymbol ? invSelectedSymbol.symbol : invAssetType.name}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                  {invAssetType.needsSymbol ? invSelectedSymbol.instrument_name : `Birim: ${invAssetType.unit}`}
+                  {invAssetType.manualCode ? invManualPreview.name :
+                   invAssetType.needsSymbol ? invSelectedSymbol.instrument_name :
+                   `Birim: ${invAssetType.unit}`}
                 </div>
-                <button onClick={() => { if (invAssetType.needsSymbol) setInvSelectedSymbol(null); else setInvAssetType(null) }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+                {invAssetType.manualCode && invManualPreview?.price && (
+                  <div style={{ fontSize: '12px', color: 'var(--success)', marginTop: '4px' }}>Güncel: ₺{invManualPreview.price.toFixed(4)}</div>
+                )}
+                <button onClick={() => {
+                  if (invAssetType.manualCode) { setInvManualPreview(null); setInvManualCode('') }
+                  else if (invAssetType.needsSymbol) setInvSelectedSymbol(null)
+                  else setInvAssetType(null)
+                }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>
@@ -666,6 +756,7 @@ async function savePayday(value) {
                    invAssetType.key === 'USD' ? 'Dolar miktarı ($)' :
                    invAssetType.key === 'EUR' ? 'Euro miktarı (€)' :
                    invAssetType.key === 'GBP' ? 'Sterlin miktarı (£)' :
+                   invAssetType.key === 'TEFAS_FUND' ? 'Pay adedi' :
                    'Adet'}
                 </label>
                 <input value={invQty} onChange={e => setInvQty(e.target.value)} type="number" step="0.000001" placeholder="0" style={{ ...inputStyle, width: '100%' }} autoFocus />
