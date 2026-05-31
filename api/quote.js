@@ -1,4 +1,5 @@
-import yahooFinance from 'yahoo-finance2'
+import YahooFinance from 'yahoo-finance2'
+const yahooFinance = new YahooFinance()
 
 // Twelve Data sembol → Yahoo sembol dönüşümü
 function toYahooSymbol(sym, hint = '') {
