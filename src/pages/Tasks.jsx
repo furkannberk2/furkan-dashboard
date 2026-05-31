@@ -1,3 +1,4 @@
+import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -18,6 +19,7 @@ function useIsMobile() {
 }
 
 function Tasks() {
+  const { user } = useAuth()
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
   const [filter, setFilter] = useState('today')
@@ -45,6 +47,7 @@ function Tasks() {
       title: newTask, type: 'todo',
       day: newDeadline || today, status: 'todo',
       note: newDetail || null,
+      user_id: user.id
     })
     if (!error) {
       setNewTask(''); setNewDeadline(''); setNewDetail(''); setShowDetail(false)

@@ -1,3 +1,4 @@
+import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
@@ -6,6 +7,7 @@ import { BrowserMultiFormatReader } from '@zxing/browser'
 const MEALS = ['Kahvaltı', 'Öğle', 'Akşam', 'Atıştırmalık']
 
 function Calories() {
+  const { user } = useAuth()
   const [entries, setEntries] = useState([])
   const [goal, setGoal] = useState(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -131,7 +133,8 @@ async function startScan() {
       protein: Math.round(food.protein * factor),
       carbs: Math.round(food.carbs * factor),
       fat: Math.round(food.fat * factor),
-      quantity
+      quantity,
+      user_id: user.id
     })
     resetAdd()
     fetchEntries()
@@ -145,7 +148,8 @@ async function startScan() {
       protein: mProtein ? Number(mProtein) : 0,
       carbs: mCarbs ? Number(mCarbs) : 0,
       fat: mFat ? Number(mFat) : 0,
-      quantity: Number(mQuantity) || 1
+      quantity: Number(mQuantity) || 1,
+      user_id: user.id
     })
     resetAdd()
     fetchEntries()
@@ -161,7 +165,7 @@ async function startScan() {
     if (goal) {
       await supabase.from('calorie_goals').update({ daily_calories: Number(goalInput), updated_at: new Date() }).eq('id', goal.id)
     } else {
-      await supabase.from('calorie_goals').insert({ daily_calories: Number(goalInput) })
+      await supabase.from('calorie_goals').insert({user_id: user.id, daily_calories: Number(goalInput) })
     }
     setShowGoal(false); fetchGoal()
   }

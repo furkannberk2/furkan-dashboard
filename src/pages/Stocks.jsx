@@ -1,3 +1,4 @@
+import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
@@ -13,6 +14,7 @@ function useIsMobile() {
 }
 
 function Stocks() {
+  const { user } = useAuth()
   const isMobile = useIsMobile()
   const [holdings, setHoldings] = useState([])
   const [quotes, setQuotes] = useState({})
@@ -74,7 +76,8 @@ function Stocks() {
       name: r.instrument_name || r.symbol,
       type: r.exchange === 'BIST' ? 'BIST' : (r.instrument_type || 'Hisse'),
       quantity: 0,
-      buy_price: 0
+      buy_price: 0,
+      user_id: user.id
     })
     setShowAdd(false); setSearch(''); setResults([])
     fetchHoldings()

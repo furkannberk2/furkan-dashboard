@@ -1,3 +1,4 @@
+import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
@@ -40,6 +41,7 @@ function getMonthLabel(offset) {
 }
 
 function Finance() {
+  const { user } = useAuth()
   const isMobile = useIsMobile()
   const [tab, setTab] = useState('daily')
   const [payday, setPayday] = useState(5)
@@ -189,7 +191,7 @@ function Finance() {
     }
     await supabase.from('investments').insert({
       symbol, name, type: invAssetType.key,
-      quantity: Number(invQty), location: invLocation
+      quantity: Number(invQty), location: invLocation, user_id: user.id
     })
     setShowAddInv(false)
     setInvAssetType(null); setInvSelectedSymbol(null); setInvSearch(''); setInvResults([])
@@ -235,31 +237,31 @@ function Finance() {
 async function savePayday(value) {
     const num = Math.min(31, Math.max(1, Number(value) || 5))
     setPayday(num)
-    await supabase.from('user_settings').upsert({ key: 'payday', value: String(num), updated_at: new Date() }, { onConflict: 'key' })
+    await supabase.from('user_settings').upsert({user_id: user.id, key: 'payday', value: String(num), updated_at: new Date() }, { onConflict: 'key' })
   }
   async function saveIncome() {
     if (!incomeInput) return
     const payload = { amount: Number(incomeInput), balance: useBalance && balanceInput ? Number(balanceInput) : null }
     if (income) await supabase.from('income').update(payload).eq('id', income.id)
-    else await supabase.from('income').insert({ ...payload, month: currentMonth })
+    else await supabase.from('income').insert({ ...payload, month: currentMonth,user_id: user.id})
     fetchAll()
   }
 
   async function addDailyExpense() {
     if (!newAmount) return
-    await supabase.from('daily_expenses').insert({ date: newDate, category: newCategory, description: newDesc || null, amount: Number(newAmount) })
+    await supabase.from('daily_expenses').insert({ date: newDate, user_id: user.id, category: newCategory, description: newDesc || null, amount: Number(newAmount) })
     setNewAmount(''); setNewDesc(''); fetchAll()
   }
 
   async function addRecurring() {
     if (!rAmount || !rName) return
-    await supabase.from('recurring_expenses').insert({ name: rName, category: rCategory, amount: Number(rAmount), due_day: rDueDay ? Number(rDueDay) : null })
+    await supabase.from('recurring_expenses').insert({ name: rName, user_id: user.id, category: rCategory, amount: Number(rAmount), due_day: rDueDay ? Number(rDueDay) : null })
     setRName(''); setRAmount(''); setRDueDay(''); fetchAll()
   }
 
   async function addVariableBudget() {
     if (!vAmount || !vName) return
-    await supabase.from('variable_budgets').insert({ month: currentMonth, name: vName, amount: Number(vAmount) })
+    await supabase.from('variable_budgets').insert({user_id: user.id, month: currentMonth, name: vName, amount: Number(vAmount) })
     setVName(''); setVAmount(''); fetchAll()
   }
 

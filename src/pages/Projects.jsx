@@ -1,3 +1,4 @@
+import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -15,6 +16,7 @@ function useIsMobile() {
 }
 
 function Projects() {
+  const { user } = useAuth()
   const isMobile = useIsMobile()
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
@@ -53,7 +55,7 @@ function Projects() {
 
   async function addProject() {
     if (!newName.trim()) return
-    await supabase.from('projects').insert({ name: newName, color: newColor, icon: newIcon || null, status: 'aktif', progress: 0 })
+    await supabase.from('projects').insert({user_id: user.id, name: newName, color: newColor, icon: newIcon || null, status: 'aktif', progress: 0 })
     setNewName(''); setNewIcon(''); setShowAddProject(false)
     fetchProjects()
   }
@@ -72,7 +74,7 @@ function Projects() {
 
   async function addTask() {
     if (!newTask.trim()) return
-    await supabase.from('project_tasks').insert({ project_id: selectedProject.id, title: newTask, status: 'todo', date: newTaskDate || null })
+    await supabase.from('project_tasks').insert({ user_id: user.id, project_id: selectedProject.id, title: newTask, status: 'todo', date: newTaskDate || null })
     setNewTask(''); setNewTaskDate('')
     fetchProjectDetails(selectedProject.id)
   }
@@ -89,7 +91,7 @@ function Projects() {
 
   async function addRoutine() {
     if (!newRoutine.trim()) return
-    await supabase.from('project_routines').insert({ project_id: selectedProject.id, title: newRoutine, frequency: newFrequency })
+    await supabase.from('project_routines').insert({ user_id: user.id, project_id: selectedProject.id, title: newRoutine, frequency: newFrequency })
     setNewRoutine('')
     fetchProjectDetails(selectedProject.id)
   }
