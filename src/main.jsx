@@ -5,6 +5,9 @@ import App from './App.jsx'
 import { AuthProvider } from './components/AuthProvider'
 import './index.css'
 
+import { applyTheme, getInitialTheme } from './theme'
+applyTheme(getInitialTheme())
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -13,4 +16,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,
-)
+) 

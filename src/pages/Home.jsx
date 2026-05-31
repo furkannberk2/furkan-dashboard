@@ -2,20 +2,20 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
+import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
 
 function Home() {
+  const { user } = useAuth()
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
   const currentMonth = todayStr.slice(0, 7)
 
-  // Data
   const [tasks, setTasks] = useState([])
-  const [habitsPage, setHabitsPage] = useState(null)
-  const [habitNames, setHabitNames] = useState([])
+  const [habits, setHabits] = useState([])
+  const [todayLogs, setTodayLogs] = useState([])
   const [foodEntries, setFoodEntries] = useState([])
   const [calorieGoal, setCalorieGoal] = useState(null)
   const [dailyExpenses, setDailyExpenses] = useState([])
@@ -23,27 +23,34 @@ function Home() {
   const [variableBudgets, setVariableBudgets] = useState([])
   const [income, setIncome] = useState(null)
   const [investments, setInvestments] = useState([])
+  const [payday, setPayday] = useState(5)
   const [rates, setRates] = useState({})
   const [quotes, setQuotes] = useState({})
   const [mailData, setMailData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { if (user) fetchAll() }, [user])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
+  useEffect(() => { fetchMail() }, [])
 
   async function fetchAll() {
     try {
-      const [t, daily, recurring, variable, inv, inc, food, goal] = await Promise.all([
+      const [t, h, hl, daily, recurring, variable, inv, inc, food, goal, settings] = await Promise.all([
         supabase.from('tasks').select('*'),
+        supabase.from('habits').select('*').order('position', { ascending: true }),
+        supabase.from('habit_logs').select('*').eq('date', todayStr),
         supabase.from('daily_expenses').select('*'),
         supabase.from('recurring_expenses').select('*'),
         supabase.from('variable_budgets').select('*').eq('month', currentMonth),
         supabase.from('investments').select('*'),
         supabase.from('income').select('*').eq('month', currentMonth).single(),
         supabase.from('food_entries').select('*').eq('date', todayStr),
-        supabase.from('calorie_goals').select('*').limit(1).single()
+        supabase.from('calorie_goals').select('*').limit(1).single(),
+        supabase.from('user_settings').select('*').eq('key', 'payday').single()
       ])
       if (!t.error) setTasks(t.data)
+      if (!h.error) setHabits(h.data)
+      if (!hl.error) setTodayLogs(hl.data)
       if (!daily.error) setDailyExpenses(daily.data)
       if (!recurring.error) setRecurringExpenses(recurring.data)
       if (!variable.error) setVariableBudgets(variable.data)
@@ -51,24 +58,7 @@ function Home() {
       if (!inc.error && inc.data) setIncome(inc.data)
       if (!food.error) setFoodEntries(food.data)
       if (!goal.error && goal.data) setCalorieGoal(goal.data)
-
-      // Notion habits
-      try {
-        const month = MONTHS[today.getMonth()]
-        const r = await fetch(`${BACKEND}/api/habits?month=${month}`)
-        const data = await r.json()
-        const pages = data.results || []
-        const dayNum = today.getDate()
-        const todayPage = pages.find(p => {
-          const title = p.properties['Day']?.title?.[0]?.plain_text
-          return parseInt(title) === dayNum
-        })
-        if (todayPage) {
-          setHabitsPage(todayPage)
-          const names = Object.keys(todayPage.properties).filter(k => todayPage.properties[k].type === 'checkbox')
-          setHabitNames(names)
-        }
-      } catch (e) { console.error(e) }
+      if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
     } finally {
       setLoading(false)
     }
@@ -83,7 +73,7 @@ function Home() {
       const symbols = new Set()
       if (investments.some(i => i.type?.startsWith('GOLD_'))) symbols.add('XAU/USD')
       if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
-      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK').forEach(i => i.symbol && symbols.add(i.symbol))
+      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
       if (symbols.size > 0) {
         const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
         const d2 = await r2.json()
@@ -93,17 +83,19 @@ function Home() {
   }
 
   async function toggleTask(t) {
-    await supabase.from('tasks').update({ completed: !t.completed }).eq('id', t.id)
+    const newStatus = t.status === 'done' ? 'todo' : 'done'
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', t.id)
     fetchAll()
   }
 
-  async function toggleHabit(habitName, currentValue) {
-    if (!habitsPage) return
-    await fetch(`${BACKEND}/api/habits/${habitsPage.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: habitName, value: !currentValue })
-    })
+  async function toggleHabit(habitId, isDone) {
+    if (isDone) {
+      await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('date', todayStr)
+    } else {
+      await supabase.from('habit_logs').insert({
+        habit_id: habitId, date: todayStr, done: true, user_id: user.id
+      })
+    }
     fetchAll()
   }
 
@@ -114,18 +106,19 @@ function Home() {
       setMailData(d)
     } catch (e) { console.error(e) }
   }
-  useEffect(() => { fetchMail() }, [])
 
   // ----- Hesaplamalar -----
   // Görevler
-  const todayTasks = tasks.filter(t => !t.deadline || t.deadline === todayStr || (!t.completed && t.deadline < todayStr))
-  const todayTasksDone = todayTasks.filter(t => t.completed).length
+  const todayTasks = tasks.filter(t => !t.day || t.day === todayStr || (t.status !== 'done' && t.day < todayStr))
+  const todayTasksDone = todayTasks.filter(t => t.status === 'done').length
   const todayTasksTotal = todayTasks.length
-  const openTasks = todayTasks.filter(t => !t.completed).slice(0, 5)
+  const openTasks = todayTasks.filter(t => t.status !== 'done').slice(0, 5)
 
   // Alışkanlıklar
-  const habitsDone = habitsPage ? habitNames.filter(n => habitsPage.properties[n]?.checkbox).length : 0
-  const habitsTotal = habitNames.length
+  const isHabitDone = id => todayLogs.some(l => l.habit_id === id && l.done)
+  const habitsDone = habits.filter(h => isHabitDone(h.id)).length
+  const habitsTotal = habits.length
+  const visibleHabits = habits.slice(0, 6)
 
   // Kalori
   const totalCal = foodEntries.reduce((s, e) => s + Number(e.calories), 0)
@@ -136,14 +129,14 @@ function Home() {
   const todayExp = dailyExpenses.filter(e => e.date === todayStr).reduce((s, e) => s + Number(e.amount), 0)
   const totalIncome = income ? Number(income.amount) : 0
   const currentDay = today.getDate()
-  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < 5).reduce((s, e) => s + Number(e.amount), 0)
+  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < payday).reduce((s, e) => s + Number(e.amount), 0)
   const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = income?.balance ? Number(income.balance) : totalIncome
   const remainingDays = (() => {
-    if (currentDay <= 5) return 5 - currentDay + 1
-    const next5 = new Date(today.getFullYear(), today.getMonth() + 1, 5)
+    if (currentDay <= payday) return payday - currentDay + 1
+    const nextPay = new Date(today.getFullYear(), today.getMonth() + 1, payday)
     const td = new Date(today.getFullYear(), today.getMonth(), currentDay)
-    return Math.round((next5 - td) / (1000 * 60 * 60 * 24)) + 1
+    return Math.round((nextPay - td) / (1000 * 60 * 60 * 24)) + 1
   })()
   const dailyBudget = baseAmount > 0 ? Math.round((baseAmount - totalRecurring - totalVariable) / remainingDays) : 0
   const expPercent = dailyBudget > 0 ? Math.min((todayExp / dailyBudget) * 100, 100) : 0
@@ -165,6 +158,10 @@ function Home() {
       const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
       return (grams / 31.1035) * xau * usdTry
     }
+    if (inv.type === 'BIST') {
+      const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
+      return qty * tryPrice
+    }
     if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
       const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
       return qty * usdPrice * usdTry
@@ -173,11 +170,10 @@ function Home() {
   }
   const portfolioTotal = investments.reduce((s, i) => s + getTRYValue(i), 0)
 
-  // Portföy günlük değişim (ağırlıklı)
   let weightedChange = 0, totalWithPrice = 0
   investments.forEach(i => {
     let change = null
-    if (i.type === 'CRYPTO' || i.type === 'STOCK') change = parseFloat(quotes[i.symbol]?.percent_change || 0)
+    if (i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST') change = parseFloat(quotes[i.symbol]?.percent_change || 0)
     else if (i.type === 'SILVER_GRAM') change = parseFloat(quotes['XAG/USD']?.percent_change || 0)
     else if (i.type?.startsWith('GOLD_')) change = parseFloat(quotes['XAU/USD']?.percent_change || 0)
     if (change !== null && !isNaN(change)) {
@@ -190,16 +186,17 @@ function Home() {
 
   if (loading) return <p style={{ color: 'var(--text-faint)' }}>Yükleniyor...</p>
 
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Furkan'
+
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>İyi günler, Furkan</h2>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>İyi günler, {firstName}</h2>
         <p style={{ fontSize: '13px', color: 'var(--text-faint)', margin: '4px 0 0' }}>
           {today.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
-      {/* Üst sıra — 5 küçük kart */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         <StatCard
           to="/tasks"
@@ -213,7 +210,7 @@ function Home() {
           to="/habits"
           label="Alışkanlıklar"
           value={habitsTotal > 0 ? `${habitsDone}/${habitsTotal}` : '—'}
-          sub={habitsTotal > 0 ? (habitsDone === habitsTotal ? 'Hepsi tamam' : `${habitsTotal - habitsDone} kalan`) : 'Veri yok'}
+          sub={habitsTotal > 0 ? (habitsDone === habitsTotal ? 'Hepsi tamam' : `${habitsTotal - habitsDone} kalan`) : 'Henüz yok'}
           percent={habitsTotal > 0 ? (habitsDone / habitsTotal) * 100 : 0}
           color="var(--success)"
         />
@@ -244,9 +241,7 @@ function Home() {
         />
       </div>
 
-      {/* Orta sıra — Görevler + Alışkanlıklar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        {/* Görevler */}
         <div style={cardStyle}>
           <CardHeader title="Bugünün Görevleri" to="/tasks" />
           {openTasks.length === 0 ? (
@@ -260,7 +255,7 @@ function Home() {
               }}>
                 <Circle size={16} color="var(--text-faint)" strokeWidth={2} />
                 <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', flex: 1 }}>{t.title}</span>
-                {t.deadline && t.deadline !== todayStr && (
+                {t.day && t.day < todayStr && (
                   <span style={{ fontSize: '11px', color: 'var(--danger)' }}>geçti</span>
                 )}
               </div>
@@ -268,16 +263,15 @@ function Home() {
           )}
         </div>
 
-        {/* Alışkanlıklar */}
         <div style={cardStyle}>
           <CardHeader title="Bugünün Alışkanlıkları" to="/habits" />
-          {!habitsPage ? (
-            <p style={emptyStyle}>Bu ay için veri yok.</p>
+          {habits.length === 0 ? (
+            <p style={emptyStyle}>Henüz alışkanlık eklenmedi.</p>
           ) : (
-            habitNames.map(name => {
-              const checked = habitsPage.properties[name]?.checkbox || false
+            visibleHabits.map(h => {
+              const checked = isHabitDone(h.id)
               return (
-                <div key={name} onClick={() => toggleHabit(name, checked)} style={{
+                <div key={h.id} onClick={() => toggleHabit(h.id, checked)} style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '9px 0', borderBottom: '1px solid var(--border)',
                   cursor: 'pointer'
@@ -288,7 +282,7 @@ function Home() {
                     color: checked ? 'var(--success)' : 'var(--text-secondary)',
                     textDecoration: checked ? 'line-through' : 'none',
                     flex: 1
-                  }}>{name}</span>
+                  }}>{h.name}</span>
                 </div>
               )
             })
@@ -296,7 +290,6 @@ function Home() {
         </div>
       </div>
 
-      {/* Alt — Mail durumu */}
       <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Mail</div>

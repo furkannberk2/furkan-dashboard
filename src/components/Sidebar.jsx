@@ -33,6 +33,8 @@ function Sidebar() {
   const [moreOpen, setMoreOpen] = useState(false)
   const isMobile = useIsMobile()
 
+
+  
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
@@ -175,9 +177,17 @@ function Sidebar() {
           )}
         </NavLink>
       ))}
+      <button onClick={signOut} style={{
+        marginTop: 'auto', padding: '9px 12px', borderRadius: '8px',
+        background: 'transparent', border: 'none',
+        color: 'var(--text-dim)', fontSize: '12.5px', cursor: 'pointer',
+        textAlign: 'center'
+      }}>
+        Çıkış yap
+      </button>
 
       <button onClick={toggleTheme} style={{
-        marginTop: 'auto', padding: '9px 12px', borderRadius: '8px',
+        padding: '9px 12px', borderRadius: '8px',
         background: 'transparent', border: '1px solid var(--border)',
         color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
