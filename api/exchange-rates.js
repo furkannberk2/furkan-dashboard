@@ -1,15 +1,15 @@
 import axios from 'axios'
 
-const KEY = process.env.EXCHANGE_RATE_KEY
-
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
   try {
-    // USD bazlı tüm kurları çek
-    const r = await axios.get(`https://v6.exchangerate-api.com/v6/${KEY}/latest/USD`)
-    const rates = r.data.conversion_rates
-    res.status(200).json({ usdTry: rates.TRY, rates })
+    // Frankfurter API, anahtarsız, sınırsız, ECB verisi
+    // USD baz alarak TRY, EUR, GBP çekelim
+    const r = await axios.get('https://api.frankfurter.app/latest?from=USD&to=TRY,EUR,GBP')
+    const data = r.data
+    // Format: { amount: 1, base: 'USD', date: '...', rates: { TRY: 32.5, EUR: 0.92, GBP: 0.78 } }
+    res.status(200).json({ usdTry: data.rates.TRY, rates: data.rates })
   } catch (err) {
-    res.status(500).json({ error: err.response?.data?.['error-type'] || err.message })
+    res.status(500).json({ error: err.message })
   }
 }
