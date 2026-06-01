@@ -53,7 +53,7 @@ export function staleAllQuotes() {
 }
 
 // Cache'te olmayan veya eski olanları arka planda parça parça çeker
-export async function fetchMissingQuotes(symbols, onUpdate) {
+export async function fetchMissingQuotes(symbols, onUpdate, bistSymbols = []) {
   if (activeFetch) activeFetch.cancelled = true
   const job = { cancelled: false }
   activeFetch = job
@@ -61,14 +61,19 @@ export async function fetchMissingQuotes(symbols, onUpdate) {
   const needsFetch = symbols.filter(s => !isFresh(readCacheEntry(s)))
   if (needsFetch.length === 0) return
 
+  const bistSet = new Set(bistSymbols)
+
   for (let i = 0; i < needsFetch.length; i += BATCH_SIZE) {
     if (job.cancelled) return
     const batch = needsFetch.slice(i, i + BATCH_SIZE)
     try {
-      const r = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(batch.join(','))}`)
+      // BIST için hints gönder
+      const hints = batch.map(s => bistSet.has(s) ? 'BIST' : '')
+      const url = `${BACKEND}/api/quote?symbols=${encodeURIComponent(batch.join(','))}&hints=${encodeURIComponent(hints.join(','))}`
+      const r = await fetch(url)
       const data = await r.json()
       Object.entries(data).forEach(([sym, val]) => {
-        if (val && val.close !== undefined) writeCache(sym, val)
+        if (val && val.close !== undefined && val.close > 0) writeCache(sym, val)
       })
       if (!job.cancelled) onUpdate(readCachedQuotes(symbols))
     } catch (err) {
