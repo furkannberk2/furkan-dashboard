@@ -3,7 +3,13 @@ const yahooFinance = new YahooFinance()
 
 function toYahooSymbol(sym, hint = '') {
   if (!sym) return sym
+  // Altın
+  if (sym === 'XAU/USD' || sym === 'XAUUSD') return 'GC=F'
+  // Gümüş
+  if (sym === 'XAG/USD' || sym === 'XAGUSD') return 'SI=F'
+  // Kripto: BTC/USD → BTC-USD
   if (sym.includes('/')) return sym.replace('/', '-')
+  // BIST
   if (hint === 'BIST' && !sym.includes('.')) return sym + '.IS'
   return sym
 }
