@@ -132,25 +132,30 @@ function Finance() {
     if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
   }
 
-  async function fetchPrices(forceRefresh = false) {
+async function fetchPrices(forceRefresh = false) {
     try {
       const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
       const d1 = await r1.json()
       setRates(d1.rates || {})
 
-      // Yahoo semboller
-      const symbols = new Set()
-      if (investments.some(i => i.type?.startsWith('GOLD_'))) symbols.add('XAU/USD')
-      if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
-      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
-      const symbolList = [...symbols]
-      if (symbolList.length > 0) {
-        if (forceRefresh) staleAllQuotes()
-        setQuotes(readCachedQuotes(symbolList))
-        fetchMissingQuotes(symbolList, (updated) => setQuotes(updated))
+      const yahooSymbols = new Set()
+      const bistSymbols = new Set()
+
+      if (investments.some(i => i.type?.startsWith('GOLD_'))) yahooSymbols.add('XAU/USD')
+      if (investments.some(i => i.type === 'SILVER_GRAM')) yahooSymbols.add('XAG/USD')
+      investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK').forEach(i => i.symbol && yahooSymbols.add(i.symbol))
+      investments.filter(i => i.type === 'BIST').forEach(i => i.symbol && bistSymbols.add(i.symbol))
+
+      if (forceRefresh) staleAllQuotes()
+
+      const allForCache = [...yahooSymbols, ...bistSymbols]
+      const bistList = [...bistSymbols]
+
+      if (allForCache.length > 0) {
+        setQuotes(readCachedQuotes(allForCache))
+        fetchMissingQuotes(allForCache, (updated) => setQuotes(updated), bistList)
       }
 
-      // TEFAS fonları
       const tefasCodes = investments.filter(i => i.type === 'TEFAS_FUND').map(i => i.symbol).filter(Boolean)
       if (tefasCodes.length > 0) {
         const r2 = await fetch(`${BACKEND}/api/tefas-fund?codes=${encodeURIComponent(tefasCodes.join(','))}`)

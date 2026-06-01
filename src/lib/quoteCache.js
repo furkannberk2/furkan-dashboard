@@ -67,7 +67,6 @@ export async function fetchMissingQuotes(symbols, onUpdate, bistSymbols = []) {
     if (job.cancelled) return
     const batch = needsFetch.slice(i, i + BATCH_SIZE)
     try {
-      // BIST için hints gönder
       const hints = batch.map(s => bistSet.has(s) ? 'BIST' : '')
       const url = `${BACKEND}/api/quote?symbols=${encodeURIComponent(batch.join(','))}&hints=${encodeURIComponent(hints.join(','))}`
       const r = await fetch(url)
