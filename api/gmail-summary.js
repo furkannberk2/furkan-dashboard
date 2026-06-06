@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
-function getOAuthClient(account) {
+async function getOAuthClient(account) {
   const client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -13,8 +13,30 @@ function getOAuthClient(account) {
   )
   client.setCredentials({
     access_token: account.access_token,
-    refresh_token: account.refresh_token
+    refresh_token: account.refresh_token,
+    expiry_date: account.token_expiry ? new Date(account.token_expiry).getTime() : null
   })
+
+  // Token süresi dolduysa yenile
+  const now = Date.now()
+  const expiry = account.token_expiry ? new Date(account.token_expiry).getTime() : 0
+  if (expiry < now + 60000) { // 1 dakika öncesinden yenile
+    try {
+      const { credentials } = await client.refreshAccessToken()
+      client.setCredentials(credentials)
+      // Supabase'i güncelle
+      await supabase.from('gmail_accounts').update({
+        access_token: credentials.access_token,
+        token_expiry: new Date(credentials.expiry_date).toISOString()
+      }).eq('email', account.email)
+    } catch (refreshErr) {
+      console.error('Token refresh failed:', refreshErr.message)
+      // Refresh başarısız — bu hesabı sil ki kullanıcı yeniden bağlasın
+      await supabase.from('gmail_accounts').delete().eq('email', account.email)
+      throw new Error('TOKEN_EXPIRED')
+    }
+  }
+
   return client
 }
 
@@ -46,8 +68,9 @@ function extractBody(payload) {
 }
 
 async function getTodayMessages(account) {
-  const auth = getOAuthClient(account)
+  const auth = await getOAuthClient(account)  // await ekle
   const gmail = google.gmail({ version: 'v1', auth })
+
 
   const startOfDay = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
 
