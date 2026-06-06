@@ -21,7 +21,7 @@ function Mail() {
   }
 
   function connectGmail() {
-    window.location.href = `${BACKEND}/api/gmail-auth`
+    window.location.href = `${BACKEND}/api/gmail-auth?action=connect`
   }
 
   return (
