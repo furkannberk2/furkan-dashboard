@@ -145,6 +145,8 @@ Uygulama ve sistem bildirimleri (Vercel, hosting, geliştirici servisleri vb.).
 
 ÇOK ÖNEMLİ KURAL: "X'ten haber/bülten geldi" gibi açıklamalar YAPMA. Bunun yerine mailin İÇERİĞİNİ özetle. Örnek: "Aposto'dan bülten geldi" DEME — onun yerine "Aposto: [haberin asıl konusu, manşetler, ne olduğu]" yaz. Haber ve bültenlerde içindeki asıl bilgiyi/başlıkları aktar, sadece kimden geldiğini değil.
 
+Ve özellikle sanat, kültür, haber kısmında; özellikle mailin içeriği de uzunsa ilgili özeti de biraz uzun tut.
+
 Her maddeyi yeni satıra yaz, kısa ve net tut, göndereni parantezde belirt.
 
 E-postalar:
