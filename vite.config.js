@@ -8,7 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        navigateFallbackDenylist: [/^\/api/]
+        navigateFallbackDenylist: [/^\/api/],
+        maximumFileSizeToCacheInBytes: 20 * 1024 * 1024
       },
       manifest: {
         name: "Furkan's Dashboard",
