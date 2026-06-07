@@ -1,162 +1,109 @@
-import { google } from 'googleapis'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { createClient } from '@supabase/supabase-js'
+import { useState } from 'react'
+import { BACKEND } from '../config'
+import { useAuth } from '../components/AuthProvider'
 
-const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+function Mail() {
+  const { user } = useAuth()
+  const userId = user?.id
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [showMails, setShowMails] = useState(false)
 
-async function getOAuthClient(account) {
-  const client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+  async function fetchSummary() {
+    if (!userId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`${BACKEND}/api/gmail-summary?user_id=${userId}`)
+      const json = await res.json()
+      setData(json)
+    } catch (err) {
+      console.error(err)
+      setData({ error: 'Bir hata oluştu.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function connectGmail() {
+    if (!userId) return
+    window.location.href = `${BACKEND}/api/gmail-auth?action=connect&user_id=${userId}`
+  }
+
+  return (
+    <div style={{ color: 'var(--text)', maxWidth: '720px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Mail Özeti</h2>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={connectGmail} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>+ Hesap Bağla</button>
+          <button onClick={fetchSummary} disabled={loading} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>
+            {loading ? 'Özetleniyor...' : 'Bugünü Özetle'}
+          </button>
+        </div>
+      </div>
+
+      {!data && !loading && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Önce Gmail hesabını bağla, sonra "Bugünü Özetle" butonuna bas.</p>
+        </div>
+      )}
+
+      {data?.connected === false && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '14px' }}>Henüz bağlı bir Gmail hesabı yok.</p>
+          <button onClick={connectGmail} style={buttonStyle}>Gmail Bağla</button>
+        </div>
+      )}
+
+      {data?.error && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--danger)', borderRadius: '12px', padding: '14px', color: 'var(--danger)', fontSize: '14px' }}>
+          {data.error}
+        </div>
+      )}
+
+      {data?.summary && (
+        <div>
+          {data.accounts && (
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
+              {data.accounts.map(email => (
+                <span key={email} style={{ fontSize: '12px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '20px', padding: '4px 12px', color: 'var(--text-muted)' }}>📧 {email}</span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
+              Bugünün Özeti {data.mails?.length > 0 && `· ${data.mails.length} mail`}
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{data.summary}</div>
+          </div>
+
+          {data.mails?.length > 0 && (
+            <div>
+              <button onClick={() => setShowMails(!showMails)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '10px' }}>
+                {showMails ? '▲ Mailleri gizle' : '▼ Tüm mailleri göster'}
+              </button>
+              {showMails && data.mails.map((m, i) => (
+                <div key={i} style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '11px 14px', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', gap: '8px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.subject}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{m.account}</span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>{m.from}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{m.snippet}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
-  client.setCredentials({
-    access_token: account.access_token,
-    refresh_token: account.refresh_token,
-    expiry_date: account.token_expiry ? new Date(account.token_expiry).getTime() : null
-  })
-
-  const now = Date.now()
-  const expiry = account.token_expiry ? new Date(account.token_expiry).getTime() : 0
-  if (expiry < now + 60000) {
-    try {
-      const { credentials } = await client.refreshAccessToken()
-      client.setCredentials(credentials)
-      await supabase.from('gmail_accounts').update({
-        access_token: credentials.access_token,
-        token_expiry: new Date(credentials.expiry_date).toISOString()
-      }).eq('email', account.email)
-    } catch (refreshErr) {
-      console.error('Token refresh failed:', refreshErr.message)
-      await supabase.from('gmail_accounts').delete().eq('email', account.email)
-      throw new Error('TOKEN_EXPIRED')
-    }
-  }
-
-  return client
 }
 
-function extractBody(payload) {
-  if (!payload) return ''
-  if (payload.body?.data) {
-    try {
-      return Buffer.from(payload.body.data, 'base64').toString('utf-8')
-    } catch { return '' }
-  }
-  if (payload.parts) {
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        try {
-          return Buffer.from(part.body.data, 'base64').toString('utf-8')
-        } catch { return '' }
-      }
-    }
-    for (const part of payload.parts) {
-      const nested = extractBody(part)
-      if (nested) return nested
-    }
-  }
-  return ''
+const buttonStyle = {
+  padding: '9px 16px', background: 'var(--accent)',
+  border: 'none', borderRadius: '8px',
+  color: '#fff', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap'
 }
 
-async function getTodayMessages(account) {
-  const auth = await getOAuthClient(account)
-  const gmail = google.gmail({ version: 'v1', auth })
-
-  const startOfDay = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-
-  const list = await gmail.users.messages.list({
-    userId: 'me',
-    q: `after:${startOfDay}`,
-    maxResults: 30
-  })
-
-  const messages = list.data.messages || []
-  const details = await Promise.all(messages.map(async m => {
-    const msg = await gmail.users.messages.get({ userId: 'me', id: m.id, format: 'full' })
-    const headers = msg.data.payload.headers
-    const from = headers.find(h => h.name === 'From')?.value || ''
-    const subject = headers.find(h => h.name === 'Subject')?.value || '(konu yok)'
-    const snippet = msg.data.snippet || ''
-    let body = extractBody(msg.data.payload)
-    body = body.replace(/\s+/g, ' ').replace(/https?:\/\/\S+/g, '').trim().slice(0, 600)
-    return { from, subject, snippet, body, account: account.email }
-  }))
-
-  return details
-}
-
-export default async function handler(req, res) {
-  try {
-    const userId = req.query.user_id
-    if (!userId) return res.status(400).json({ error: 'user_id gerekli' })
-
-    const { data: accounts } = await supabase
-      .from('gmail_accounts')
-      .select('*')
-      .eq('user_id', userId)
-
-    if (!accounts || accounts.length === 0) {
-      return res.status(200).json({ connected: false, summary: null, mails: [] })
-    }
-
-    let allMails = []
-    for (const account of accounts) {
-      try {
-        const mails = await getTodayMessages(account)
-        allMails = allMails.concat(mails)
-      } catch (err) {
-        console.error(`${account.email} hatası:`, err.message)
-      }
-    }
-
-    if (allMails.length === 0) {
-      return res.status(200).json({ connected: true, summary: 'Bugün hiç mail gelmemiş.', mails: [], accounts: accounts.map(a => a.email) })
-    }
-
-    const mailText = allMails.map((m, i) =>
-      `${i + 1}. [${m.account}] Gönderen: ${m.from} | Konu: ${m.subject} | İçerik: ${m.body || m.snippet}`
-    ).join('\n\n')
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
-    const prompt = `Aşağıda bugün gelen e-postalar var. Türkçe özetle. SADECE düz metin kullan — yıldız (*), kare (#) gibi markdown işaretleri KULLANMA.
-
-Şu kategorilere ayır (bir kategoride mail yoksa o başlığı hiç yazma):
-
-👤 KİŞİSEL
-Gerçek kişilerden gelen, sana özel yazılmış mailler.
-
-📌 ÖNEMLİ & AKSİYON
-Fatura, doğrulama kodu, hesap onayı, iş/proje ile ilgili, yapılması gereken işler. Önemli detayları (kod, tarih, tutar) belirt.
-
-📰 HABER & ETKİNLİK
-Bültenler, etkinlik duyuruları, haber özetleri.
-
-📱 SOSYAL MEDYA
-LinkedIn, Instagram, X, Facebook gibi platform bildirimleri.
-
-🔧 UYGULAMALAR
-Uygulama ve sistem bildirimleri (Vercel, hosting, geliştirici servisleri vb.).
-
-ÇOK ÖNEMLİ KURAL: "X'ten haber/bülten geldi" gibi açıklamalar YAPMA. Bunun yerine mailin İÇERİĞİNİ özetle. Örnek: "Aposto'dan bülten geldi" DEME — onun yerine "Aposto: [haberin asıl konusu, manşetler, ne olduğu]" yaz. Haber ve bültenlerde içindeki asıl bilgiyi/başlıkları aktar ve içerikte anahtar bilgi ve mesajları da getir, sadece kimden geldiğini değil.
-
-Her maddeyi yeni satıra yaz, kısa ve net tut, göndereni parantezde belirt.
-
-E-postalar:
-${mailText}`
-
-    const result = await model.generateContent(prompt)
-    const summary = result.response.text()
-
-    res.status(200).json({
-      connected: true,
-      summary,
-      mails: allMails.map(({ body, ...rest }) => rest),
-      accounts: accounts.map(a => a.email)
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-}
+export default Mail
