@@ -31,7 +31,7 @@ function Home() {
 
   useEffect(() => { if (user) fetchAll() }, [user])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
-  useEffect(() => { fetchMail() }, [])
+  useEffect(() => { if (user) fetchMail() }, [user])
 
   async function fetchAll() {
     try {
@@ -100,12 +100,13 @@ function Home() {
   }
 
   async function fetchMail() {
-    try {
-      const r = await fetch(`${BACKEND}/api/gmail-summary`)
-      const d = await r.json()
-      setMailData(d)
-    } catch (e) { console.error(e) }
-  }
+  if (!user) return
+  try {
+    const r = await fetch(`${BACKEND}/api/gmail-summary?user_id=${user.id}`)
+    const d = await r.json()
+    setMailData(d)
+  } catch (e) { console.error(e) }
+}
 
   // ----- Hesaplamalar -----
   // Görevler
@@ -234,11 +235,13 @@ function Home() {
           to="/finance"
           label="Portföy"
           value={portfolioChange !== null
-            ? `${portfolioChange >= 0 ? '+' : ''}${portfolioChange.toFixed(2)}%`
-            : '—'}
+          ? `${portfolioChange >= 0 ? '+' : ''}${portfolioChange.toFixed(2)}%`
+          : '—'}
           valueColor={portfolioChange !== null ? (portfolioChange >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text)'}
-          sub={`₺${Math.round(portfolioTotal).toLocaleString('tr-TR')} toplam`}
-        />
+          sub={portfolioChange !== null && portfolioTotal > 0
+          ? `${portfolioChange >= 0 ? '+' : ''}₺${Math.round(portfolioTotal * portfolioChange / 100).toLocaleString('tr-TR')} bugün`
+          : ''}
+          />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '24px' }}>
