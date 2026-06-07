@@ -2,7 +2,7 @@ import { google } from 'googleapis'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 async function getOAuthClient(account) {
