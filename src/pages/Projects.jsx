@@ -3,8 +3,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const COLORS = ['#6366f1', '#f472b6', '#fb923c', '#60a5fa', '#a78bfa', '#6ee7b7', '#fbbf24', '#f87171']
-const FREQUENCIES = ['Her gün', 'Haftada 1', 'Haftada 2', 'Haftada 3', 'Ayda 1', 'Ayda 2']
-
+const FREQUENCIES = ['Her gün', 'Haftada 1', 'Haftada 2', 'Haftada 3', '2 haftada 1', 'Ayda 1', 'Ayda 2']
+const WEEKDAYS = [
+  { v: 1, label: 'Pzt' }, { v: 2, label: 'Sal' }, { v: 3, label: 'Çar' },
+  { v: 4, label: 'Per' }, { v: 5, label: 'Cum' }, { v: 6, label: 'Cmt' }, { v: 7, label: 'Paz' }
+]
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
   useEffect(() => {
@@ -34,6 +37,9 @@ function Projects() {
   const [newRoutine, setNewRoutine] = useState('')
   const [newFrequency, setNewFrequency] = useState('Haftada 1')
   const [newRoutineEnd, setNewRoutineEnd] = useState('')
+  const [newRoutineDays, setNewRoutineDays] = useState([])
+  const [newRoutineMonthDays, setNewRoutineMonthDays] = useState([])
+  const [newBiweeklyAnchor, setNewBiweeklyAnchor] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -119,18 +125,32 @@ function Projects() {
     recalcAutoProgress(selectedProject.id, data || [])
   }
 
-  async function addRoutine() {
-    if (!newRoutine.trim()) return
-    await supabase.from('project_routines').insert({
-      user_id: user.id,
-      project_id: selectedProject.id,
-      title: newRoutine,
-      frequency: newFrequency,
-      end_date: newRoutineEnd || null
-    })
-    setNewRoutine(''); setNewRoutineEnd('')
-    fetchProjectDetails(selectedProject.id)
+async function addRoutine() {
+  if (!newRoutine.trim()) return
+  const payload = {
+    user_id: user.id,
+    project_id: selectedProject.id,
+    title: newRoutine,
+    frequency: newFrequency,
+    end_date: newRoutineEnd || null,
+    days_of_week: null,
+    days_of_month: null,
+    biweekly_anchor: null
   }
+  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(newFrequency)) {
+    payload.days_of_week = newRoutineDays
+  }
+  if (newFrequency === '2 haftada 1') {
+    payload.days_of_week = newRoutineDays
+    payload.biweekly_anchor = newBiweeklyAnchor || today
+  }
+  if (['Ayda 1', 'Ayda 2'].includes(newFrequency)) {
+    payload.days_of_month = newRoutineMonthDays
+  }
+  await supabase.from('project_routines').insert(payload)
+  setNewRoutine(''); setNewRoutineEnd(''); setNewRoutineDays([]); setNewRoutineMonthDays([]); setNewBiweeklyAnchor('')
+  fetchProjectDetails(selectedProject.id)
+}
 
   async function markRoutineDone(id) {
     await supabase.from('project_routines').update({ last_done: new Date().toISOString() }).eq('id', id)
@@ -169,6 +189,32 @@ function Projects() {
     return false
   }
 
+  function getMaxDays(freq) {
+  if (freq === 'Haftada 1' || freq === '2 haftada 1') return 1
+  if (freq === 'Haftada 2') return 2
+  if (freq === 'Haftada 3') return 3
+  if (freq === 'Ayda 1') return 1
+  if (freq === 'Ayda 2') return 2
+  return 0
+}
+
+function toggleWeekday(v) {
+  const max = getMaxDays(newFrequency)
+  setNewRoutineDays(prev => {
+    if (prev.includes(v)) return prev.filter(x => x !== v)
+    if (prev.length >= max) return [...prev.slice(1), v]
+    return [...prev, v]
+  })
+}
+
+function toggleMonthDay(v) {
+  const max = getMaxDays(newFrequency)
+  setNewRoutineMonthDays(prev => {
+    if (prev.includes(v)) return prev.filter(x => x !== v)
+    if (prev.length >= max) return [...prev.slice(1), v]
+    return [...prev, v]
+  })
+} 
   const completedPhases = phases.filter(t => t.status === 'done').length
 
   return (
@@ -293,43 +339,101 @@ function Projects() {
             </div>
           )}
 
-          {tab === 'routines' && (
-            <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
-                <select value={newFrequency} onChange={e => setNewFrequency(e.target.value)} style={{ ...selectStyle, fontSize: '13px' }}>
-                  {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Bitiş (opsiyonel):</span>
-                <input type="date" value={newRoutineEnd} onChange={e => setNewRoutineEnd(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
-                <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}>Ekle</button>
-              </div>
-              {routines.map(r => {
-                const overdue = isRoutineOverdue(r)
-                const expired = r.end_date && r.end_date < today
-                return (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: `1px solid ${overdue ? 'var(--danger)' : 'var(--border)'}`, borderLeft: `3px solid ${expired ? 'var(--text-faded)' : overdue ? 'var(--danger)' : 'var(--text-faded)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', opacity: expired ? 0.5 : 1 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '3px' }}>{r.title}</div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{r.frequency}</span>
-                        {r.end_date && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>→ {formatDate(r.end_date)}</span>}
-                        <span style={{ fontSize: '11px', color: overdue ? 'var(--danger)' : 'var(--text-faint)' }}>{getLastDoneLabel(r.last_done)}</span>
-                        {expired && <span style={{ fontSize: '11px', color: 'var(--text-faded)' }}>· süresi doldu</span>}
-                      </div>
-                    </div>
-                    {!expired && (
-                      <button onClick={() => markRoutineDone(r.id)} style={{ background: 'transparent', border: '1px solid var(--success)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
-                    )}
-                    <span onClick={() => deleteRoutine(r.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>✕</span>
-                  </div>
-                )
-              })}
-              {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Rutin yok.</p>}
+{tab === 'routines' && (
+  <div>
+    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+      <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
+      <select value={newFrequency} onChange={e => { setNewFrequency(e.target.value); setNewRoutineDays([]); setNewRoutineMonthDays([]) }} style={{ ...selectStyle, fontSize: '13px' }}>
+        {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+      </select>
+    </div>
+
+    {/* Haftalık frekanslar için gün seçimi */}
+    {(['Haftada 1', 'Haftada 2', 'Haftada 3', '2 haftada 1'].includes(newFrequency)) && (
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
+          Hangi gün(ler)? ({newRoutineDays.length}/{getMaxDays(newFrequency)})
+        </div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {WEEKDAYS.map(d => (
+            <button key={d.v} type="button" onClick={() => toggleWeekday(d.v)} style={{
+              padding: '6px 10px', borderRadius: '6px', border: '1px solid',
+              borderColor: newRoutineDays.includes(d.v) ? selectedProject.color : 'var(--border-strong)',
+              background: newRoutineDays.includes(d.v) ? selectedProject.color : 'transparent',
+              color: newRoutineDays.includes(d.v) ? '#fff' : 'var(--text-dim)',
+              fontSize: '12px', cursor: 'pointer', minWidth: '40px'
+            }}>{d.label}</button>
+          ))}
+        </div>
+        {newFrequency === '2 haftada 1' && (
+          <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Başlangıç haftası:</span>
+            <input type="date" value={newBiweeklyAnchor} onChange={e => setNewBiweeklyAnchor(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Aylık frekanslar için ay günü seçimi */}
+    {['Ayda 1', 'Ayda 2'].includes(newFrequency) && (
+      <div style={{ marginBottom: '8px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
+          Ayın hangi gün(ler)? ({newRoutineMonthDays.length}/{getMaxDays(newFrequency)})
+        </div>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+            <button key={d} type="button" onClick={() => toggleMonthDay(d)} style={{
+              padding: '4px 0', borderRadius: '4px', border: '1px solid',
+              borderColor: newRoutineMonthDays.includes(d) ? selectedProject.color : 'var(--border-strong)',
+              background: newRoutineMonthDays.includes(d) ? selectedProject.color : 'transparent',
+              color: newRoutineMonthDays.includes(d) ? '#fff' : 'var(--text-dim)',
+              fontSize: '11px', cursor: 'pointer', width: '28px'
+            }}>{d}</button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Bitiş (opsiyonel):</span>
+      <input type="date" value={newRoutineEnd} onChange={e => setNewRoutineEnd(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
+      <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}>Ekle</button>
+    </div>
+
+    {routines.map(r => {
+      const overdue = isRoutineOverdue(r)
+      const expired = r.end_date && r.end_date < today
+      return (
+        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: `1px solid ${overdue ? 'var(--danger)' : 'var(--border)'}`, borderLeft: `3px solid ${expired ? 'var(--text-faded)' : overdue ? 'var(--danger)' : 'var(--text-faded)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', opacity: expired ? 0.5 : 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '3px' }}>{r.title}</div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{r.frequency}</span>
+              {r.days_of_week?.length > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                  {r.days_of_week.map(v => WEEKDAYS.find(d => d.v === v)?.label).join(', ')}
+                </span>
+              )}
+              {r.days_of_month?.length > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                  Ayın {r.days_of_month.join(', ')}'i
+                </span>
+              )}
+              {r.end_date && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>→ {formatDate(r.end_date)}</span>}
+              <span style={{ fontSize: '11px', color: overdue ? 'var(--danger)' : 'var(--text-faint)' }}>{getLastDoneLabel(r.last_done)}</span>
+              {expired && <span style={{ fontSize: '11px', color: 'var(--text-faded)' }}>· süresi doldu</span>}
             </div>
+          </div>
+          {!expired && (
+            <button onClick={() => markRoutineDone(r.id)} style={{ background: 'transparent', border: '1px solid var(--success)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
           )}
+          <span onClick={() => deleteRoutine(r.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>✕</span>
+        </div>
+      )
+    })}
+    {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Rutin yok.</p>}
+  </div>
+)}
         </Modal>
       )}
     </div>

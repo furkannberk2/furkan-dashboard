@@ -213,63 +213,123 @@ function Tasks() {
   }
 
   // Tüm itemları birleştir
-  function buildAllItems() {
-    const [rangeStart, rangeEnd] = getDateRange()
-    const items = []
+function buildAllItems() {
+  const [rangeStart, rangeEnd] = getDateRange()
+  const items = []
 
-    // Normal görevler
-    tasks.forEach(t => {
-      items.push({ ...t, source: 'task' })
+  // Normal görevler (zaten filtrelenmiş geldi)
+  tasks.forEach(t => {
+    items.push({ ...t, source: 'task' })
+  })
+
+  // Proje aşamaları (tarihi olanlar) — TÜMÜ, filtre aralığına bakmadan
+  projectTasks.forEach(pt => {
+    if (!pt.date) return
+    // Filtre 'today/week/month' ise sadece aralıktakiler; 'all' ise hepsi
+    if (filter !== 'all' && (pt.date < rangeStart || pt.date > rangeEnd)) return
+    const proj = projects.find(p => p.id === pt.project_id)
+    items.push({
+      ...pt,
+      day: pt.date,
+      source: 'project_task',
+      project: proj,
+      priority: 'medium'
     })
+  })
 
-    // Proje aşamaları (tarihi olanlar, aralığa düşenler)
-    projectTasks.forEach(pt => {
-      if (!pt.date) return
-      if (pt.date < rangeStart || pt.date > rangeEnd) return
-      const proj = projects.find(p => p.id === pt.project_id)
+  // Rutin örnekleri: sadece mevcut ay sonuna kadar
+  const monthEnd = getMonthEnd()
+  const routineEnd = rangeEnd < monthEnd ? rangeEnd : monthEnd
+  const routineStart = rangeStart > today ? rangeStart : today
+
+  routines.forEach(r => {
+    const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
+    const matchingDates = generateRoutineDates(r, routineStart, endDate)
+    matchingDates.forEach(date => {
+      if (date < rangeStart) return
+      const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
+      const proj = projects.find(p => p.id === r.project_id)
       items.push({
-        ...pt,
-        day: pt.date,
-        source: 'project_task',
+        id: `routine-${r.id}-${date}`,
+        routine_id: r.id,
+        title: r.title,
+        day: date,
+        status: log ? 'done' : 'todo',
+        source: 'routine',
         project: proj,
+        frequency: r.frequency,
         priority: 'medium'
       })
     })
+  })
 
-    // Rutin örnekleri: aralıktaki her uygun tarih için bir örnek
-    routines.forEach(r => {
-      const step = FREQ_DAYS[r.frequency]
-      if (!step) return
-      const endDate = r.end_date || addDays(today, 365)
-      // Başlangıç: last_done varsa ondan, yoksa bugünden
-      let cursor = r.last_done
-        ? addDays(r.last_done.split('T')[0], step)
-        : today
-      // Aralık dışına çıkana kadar veya bitiş tarihine kadar
-      let safety = 100
-      while (cursor <= rangeEnd && cursor <= endDate && safety > 0) {
-        if (cursor >= rangeStart) {
-          const log = routineLogs.find(l => l.routine_id === r.id && l.date === cursor)
-          const proj = projects.find(p => p.id === r.project_id)
-          items.push({
-            id: `routine-${r.id}-${cursor}`,
-            routine_id: r.id,
-            title: r.title,
-            day: cursor,
-            status: log ? 'done' : 'todo',
-            source: 'routine',
-            project: proj,
-            frequency: r.frequency,
-            priority: 'medium'
-          })
-        }
-        cursor = addDays(cursor, step)
-        safety--
-      }
-    })
+  return items
+}
 
-    return items
+function generateRoutineDates(routine, start, end) {
+  const dates = []
+  if (start > end) return dates
+
+  if (routine.frequency === 'Her gün') {
+    let cursor = start
+    let safety = 100
+    while (cursor <= end && safety > 0) {
+      dates.push(cursor)
+      cursor = addDays(cursor, 1)
+      safety--
+    }
+    return dates
   }
+
+  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
+    const days = routine.days_of_week || []
+    if (days.length === 0) return dates
+    let cursor = start
+    let safety = 100
+    while (cursor <= end && safety > 0) {
+      const dow = new Date(cursor + 'T00:00:00').getDay()
+      const dowMon = dow === 0 ? 7 : dow  // Pazar=7
+      if (days.includes(dowMon)) dates.push(cursor)
+      cursor = addDays(cursor, 1)
+      safety--
+    }
+    return dates
+  }
+
+  if (routine.frequency === '2 haftada 1') {
+    const days = routine.days_of_week || []
+    const anchor = routine.biweekly_anchor || start
+    if (days.length === 0) return dates
+    let cursor = start
+    let safety = 100
+    while (cursor <= end && safety > 0) {
+      const dow = new Date(cursor + 'T00:00:00').getDay()
+      const dowMon = dow === 0 ? 7 : dow
+      const diffDays = Math.floor((new Date(cursor) - new Date(anchor)) / (1000 * 60 * 60 * 24))
+      const weekNum = Math.floor(diffDays / 7)
+      if (days.includes(dowMon) && weekNum % 2 === 0) dates.push(cursor)
+      cursor = addDays(cursor, 1)
+      safety--
+    }
+    return dates
+  }
+
+  if (['Ayda 1', 'Ayda 2'].includes(routine.frequency)) {
+    const monthDays = routine.days_of_month || []
+    if (monthDays.length === 0) return dates
+    let cursor = start
+    let safety = 100
+    while (cursor <= end && safety > 0) {
+      const d = new Date(cursor + 'T00:00:00').getDate()
+      if (monthDays.includes(d)) dates.push(cursor)
+      cursor = addDays(cursor, 1)
+      safety--
+    }
+    return dates
+  }
+
+  return dates
+}
 
   const allItems = buildAllItems()
 
