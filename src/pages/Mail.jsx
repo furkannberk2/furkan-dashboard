@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 
@@ -9,20 +9,24 @@ function Mail() {
   const [loading, setLoading] = useState(false)
   const [showMails, setShowMails] = useState(false)
 
-  async function fetchSummary() {
-    if (!userId) return
-    setLoading(true)
-    try {
-      const res = await fetch(`${BACKEND}/api/gmail-summary?user_id=${userId}`)
-      const json = await res.json()
-      setData(json)
-    } catch (err) {
-      console.error(err)
-      setData({ error: 'Bir hata oluştu.' })
-    } finally {
-      setLoading(false)
-    }
+async function fetchSummary() {
+  if (!userId) return
+  setLoading(true)
+  try {
+    const res = await fetch(`${BACKEND}/api/gmail-summary?user_id=${userId}`)
+    const json = await res.json()
+    setData(json)
+  } catch (err) {
+    console.error(err)
+    setData({ error: 'Bir hata oluştu.' })
+  } finally {
+    setLoading(false)
   }
+}
+
+useEffect(() => {
+  if (userId) fetchSummary()
+}, [userId])
 
   function connectGmail() {
     if (!userId) return
