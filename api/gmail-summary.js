@@ -98,7 +98,36 @@ async function getTodayMessages(account) {
 
 export default async function handler(req, res) {
   try {
-    const { data: accounts } = await supabase.from('gmail_accounts').select('*')
+    const userId = req.query.user_id
+    const force = req.query.force === '1'
+    if (!userId) return res.status(400).json({ error: 'user_id gerekli' })
+
+    const today = new Date().toISOString().split('T')[0]
+
+    // Cache kontrolü — force=1 değilse bugünün özetini cache'ten dön
+    if (!force) {
+      const { data: cached } = await supabase
+        .from('mail_summaries')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .single()
+      if (cached) {
+        return res.status(200).json({
+          connected: true,
+          summary: cached.summary,
+          mails: cached.mails || [],
+          accounts: cached.accounts || [],
+          cached: true
+        })
+      }
+    }
+
+    const { data: accounts } = await supabase
+      .from('gmail_accounts')
+      .select('*')
+      .eq('user_id', userId)
+
     if (!accounts || accounts.length === 0) {
       return res.status(200).json({ connected: false, summary: null, mails: [] })
     }
@@ -117,7 +146,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ connected: true, summary: 'Bugün hiç mail gelmemiş.', mails: [], accounts: accounts.map(a => a.email) })
     }
 
-    // Gemini'ye gönderilecek metin — gövde dahil
     const mailText = allMails.map((m, i) =>
       `${i + 1}. [${m.account}] Gönderen: ${m.from} | Konu: ${m.subject} | İçerik: ${m.body || m.snippet}`
     ).join('\n\n')
@@ -143,9 +171,7 @@ LinkedIn, Instagram, X, Facebook gibi platform bildirimleri.
 🔧 UYGULAMALAR
 Uygulama ve sistem bildirimleri (Vercel, hosting, geliştirici servisleri vb.).
 
-ÇOK ÖNEMLİ KURAL: "X'ten haber/bülten geldi" gibi açıklamalar YAPMA. Bunun yerine mailin İÇERİĞİNİ özetle. Örnek: "Aposto'dan bülten geldi" DEME — onun yerine "Aposto: [haberin asıl konusu, manşetler, ne olduğu]" yaz. Haber ve bültenlerde içindeki asıl bilgiyi/başlıkları aktar, sadece kimden geldiğini değil.
-
-Ve özellikle sanat, kültür, haber kısmında; özellikle mailin içeriği de uzunsa ilgili özeti de biraz uzun tut.
+ÇOK ÖNEMLİ KURAL: "X'ten haber/bülten geldi" gibi açıklamalar YAPMA. Bunun yerine mailin İÇERİĞİNİ özetle. Örnek: "Aposto'dan bülten geldi" DEME — onun yerine "Aposto: [haberin asıl konusu, manşetler, ne olduğu]" yaz. Haber ve bültenlerde içindeki asıl bilgiyi/başlıkları aktar ve içerikte anahtar bilgi ve mesajları da getir, sadece kimden geldiğini değil.
 
 Her maddeyi yeni satıra yaz, kısa ve net tut, göndereni parantezde belirt.
 
@@ -155,11 +181,23 @@ ${mailText}`
     const result = await model.generateContent(prompt)
     const summary = result.response.text()
 
+    const cleanMails = allMails.map(({ body, ...rest }) => rest)
+    const accountEmails = accounts.map(a => a.email)
+
+    // Cache'e kaydet
+    await supabase.from('mail_summaries').upsert({
+      user_id: userId,
+      date: today,
+      summary,
+      mails: cleanMails,
+      accounts: accountEmails
+    }, { onConflict: 'user_id,date' })
+
     res.status(200).json({
       connected: true,
       summary,
-      mails: allMails.map(({ body, ...rest }) => rest), // gövdeyi frontend'e gönderme
-      accounts: accounts.map(a => a.email)
+      mails: cleanMails,
+      accounts: accountEmails
     })
   } catch (err) {
     res.status(500).json({ error: err.message })

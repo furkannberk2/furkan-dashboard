@@ -9,11 +9,12 @@ function Mail() {
   const [loading, setLoading] = useState(false)
   const [showMails, setShowMails] = useState(false)
 
-async function fetchSummary() {
+async function fetchSummary(force = false) {
   if (!userId) return
   setLoading(true)
   try {
-    const res = await fetch(`${BACKEND}/api/gmail-summary?user_id=${userId}`)
+    const url = `${BACKEND}/api/gmail-summary?user_id=${userId}${force ? '&force=1' : ''}`
+    const res = await fetch(url)
     const json = await res.json()
     setData(json)
   } catch (err) {
@@ -39,8 +40,8 @@ useEffect(() => {
         <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Mail Özeti</h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button onClick={connectGmail} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>+ Hesap Bağla</button>
-          <button onClick={fetchSummary} disabled={loading} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>
-            {loading ? 'Özetleniyor...' : 'Bugünü Özetle'}
+          <button onClick={() => fetchSummary(true)} disabled={loading} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>
+          {loading ? 'Özetleniyor...' : 'Bugünü Özetle'}
           </button>
         </div>
       </div>
