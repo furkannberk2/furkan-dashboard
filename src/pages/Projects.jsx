@@ -20,19 +20,20 @@ function Projects() {
   const isMobile = useIsMobile()
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState(null)
-  const [tasks, setTasks] = useState([])
+  const [phases, setPhases] = useState([])
   const [routines, setRoutines] = useState([])
-  const [tab, setTab] = useState('tasks')
+  const [tab, setTab] = useState('phases')
 
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState(COLORS[0])
   const [newIcon, setNewIcon] = useState('')
   const [showAddProject, setShowAddProject] = useState(false)
 
-  const [newTask, setNewTask] = useState('')
-  const [newTaskDate, setNewTaskDate] = useState('')
+  const [newPhase, setNewPhase] = useState('')
+  const [newPhaseDate, setNewPhaseDate] = useState('')
   const [newRoutine, setNewRoutine] = useState('')
   const [newFrequency, setNewFrequency] = useState('Haftada 1')
+  const [newRoutineEnd, setNewRoutineEnd] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -46,16 +47,16 @@ function Projects() {
 
   async function fetchProjectDetails(projectId) {
     const [t, r] = await Promise.all([
-      supabase.from('project_tasks').select('*').eq('project_id', projectId).order('date', { ascending: true }),
+      supabase.from('project_tasks').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
       supabase.from('project_routines').select('*').eq('project_id', projectId).order('created_at', { ascending: true })
     ])
-    if (!t.error) setTasks(t.data)
+    if (!t.error) setPhases(t.data)
     if (!r.error) setRoutines(r.data)
   }
 
   async function addProject() {
     if (!newName.trim()) return
-    await supabase.from('projects').insert({user_id: user.id, name: newName, color: newColor, icon: newIcon || null, status: 'aktif', progress: 0 })
+    await supabase.from('projects').insert({ user_id: user.id, name: newName, color: newColor, icon: newIcon || null, status: 'aktif', progress: 0, progress_manual: false })
     setNewName(''); setNewIcon(''); setShowAddProject(false)
     fetchProjects()
   }
@@ -66,33 +67,68 @@ function Projects() {
     if (selectedProject?.id === id) setSelectedProject(prev => ({ ...prev, ...data }))
   }
 
+  async function setProgressManual(value) {
+    await updateProject(selectedProject.id, { progress: value, progress_manual: true })
+  }
+
+  async function resetProgressAuto() {
+    const total = phases.length
+    const done = phases.filter(p => p.status === 'done').length
+    const auto = total > 0 ? Math.round((done / total) * 100) : 0
+    await updateProject(selectedProject.id, { progress: auto, progress_manual: false })
+  }
+
+  async function recalcAutoProgress(projectId, list) {
+    // selectedProject elle giriliyorsa otomatik hesaplama yapma
+    const proj = projects.find(p => p.id === projectId) || selectedProject
+    if (proj?.progress_manual) return
+    const total = list.length
+    const done = list.filter(p => p.status === 'done').length
+    const auto = total > 0 ? Math.round((done / total) * 100) : 0
+    await supabase.from('projects').update({ progress: auto }).eq('id', projectId)
+    fetchProjects()
+    if (selectedProject?.id === projectId) setSelectedProject(prev => ({ ...prev, progress: auto }))
+  }
+
   async function deleteProject(id) {
     await supabase.from('projects').delete().eq('id', id)
     setSelectedProject(null)
     fetchProjects()
   }
 
-  async function addTask() {
-    if (!newTask.trim()) return
-    await supabase.from('project_tasks').insert({ user_id: user.id, project_id: selectedProject.id, title: newTask, status: 'todo', date: newTaskDate || null })
-    setNewTask(''); setNewTaskDate('')
-    fetchProjectDetails(selectedProject.id)
+  async function addPhase() {
+    if (!newPhase.trim()) return
+    await supabase.from('project_tasks').insert({ user_id: user.id, project_id: selectedProject.id, title: newPhase, status: 'todo', date: newPhaseDate || null })
+    setNewPhase(''); setNewPhaseDate('')
+    const { data } = await supabase.from('project_tasks').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true })
+    setPhases(data || [])
+    recalcAutoProgress(selectedProject.id, data || [])
   }
 
-  async function toggleTask(id, status) {
+  async function togglePhase(id, status) {
     await supabase.from('project_tasks').update({ status: status === 'todo' ? 'done' : 'todo' }).eq('id', id)
-    fetchProjectDetails(selectedProject.id)
+    const { data } = await supabase.from('project_tasks').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true })
+    setPhases(data || [])
+    recalcAutoProgress(selectedProject.id, data || [])
   }
 
-  async function deleteTask(id) {
+  async function deletePhase(id) {
     await supabase.from('project_tasks').delete().eq('id', id)
-    fetchProjectDetails(selectedProject.id)
+    const { data } = await supabase.from('project_tasks').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true })
+    setPhases(data || [])
+    recalcAutoProgress(selectedProject.id, data || [])
   }
 
   async function addRoutine() {
     if (!newRoutine.trim()) return
-    await supabase.from('project_routines').insert({ user_id: user.id, project_id: selectedProject.id, title: newRoutine, frequency: newFrequency })
-    setNewRoutine('')
+    await supabase.from('project_routines').insert({
+      user_id: user.id,
+      project_id: selectedProject.id,
+      title: newRoutine,
+      frequency: newFrequency,
+      end_date: newRoutineEnd || null
+    })
+    setNewRoutine(''); setNewRoutineEnd('')
     fetchProjectDetails(selectedProject.id)
   }
 
@@ -121,6 +157,7 @@ function Projects() {
   }
 
   function isRoutineOverdue(routine) {
+    if (routine.end_date && routine.end_date < today) return false
     if (!routine.last_done) return true
     const diff = Math.floor((new Date() - new Date(routine.last_done)) / (1000 * 60 * 60 * 24))
     if (routine.frequency === 'Her gün') return diff >= 1
@@ -132,7 +169,7 @@ function Projects() {
     return false
   }
 
-  const completedTasks = tasks.filter(t => t.status === 'done').length
+  const completedPhases = phases.filter(t => t.status === 'done').length
 
   return (
     <div style={{ color: 'var(--text)' }}>
@@ -141,10 +178,9 @@ function Projects() {
         <button onClick={() => setShowAddProject(true)} style={buttonStyle}>+ Yeni Proje</button>
       </div>
 
-      {/* Proje Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
         {projects.map(p => (
-          <div key={p.id} onClick={() => { setSelectedProject(p); setTab('tasks') }} style={{
+          <div key={p.id} onClick={() => { setSelectedProject(p); setTab('phases') }} style={{
             background: 'var(--bg-card)', border: '1px solid var(--border)',
             borderTop: `3px solid ${p.color}`,
             borderRadius: '12px', padding: '14px', cursor: 'pointer'
@@ -196,16 +232,26 @@ function Projects() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input type="number" min="0" max="100" value={selectedProject.progress}
-                  onChange={e => updateProject(selectedProject.id, { progress: Number(e.target.value) })}
+                  onChange={e => setProgressManual(Number(e.target.value))}
                   style={{ ...inputStyle, width: '60px', flex: 0, fontSize: '13px', textAlign: 'center', padding: '5px 8px' }} />
                 <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>%</span>
               </div>
+              {selectedProject.progress_manual && (
+                <button onClick={resetProgressAuto} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '12px', padding: '5px 10px' }}>
+                  Otomatik hesapla
+                </button>
+              )}
               <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
                 <option value="aktif">Aktif</option>
                 <option value="beklemede">Beklemede</option>
                 <option value="tamamlandı">Tamamlandı</option>
               </select>
             </div>
+            {!selectedProject.progress_manual && phases.length > 0 && (
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '6px' }}>
+                Otomatik: {completedPhases}/{phases.length} aşama tamamlandı
+              </div>
+            )}
           </div>
 
           <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '5px', marginBottom: '18px' }}>
@@ -213,60 +259,70 @@ function Projects() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
-            {['tasks', 'routines'].map(t => (
+            {['phases', 'routines'].map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
                 padding: '6px 14px', borderRadius: '20px', border: '1px solid',
                 borderColor: tab === t ? selectedProject.color : 'var(--border-strong)',
                 background: tab === t ? selectedProject.color : 'transparent',
                 color: tab === t ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
               }}>
-                {t === 'tasks' ? `Görevler ${tasks.length > 0 ? `(${completedTasks}/${tasks.length})` : ''}` : 'Rutinler'}
+                {t === 'phases' ? `Aşamalar ${phases.length > 0 ? `(${completedPhases}/${phases.length})` : ''}` : 'Rutinler'}
               </button>
             ))}
           </div>
 
-          {tab === 'tasks' && (
+          {tab === 'phases' && (
             <div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                <input value={newTask} onChange={e => setNewTask(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTask()} placeholder="Görev ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
-                <input type="date" value={newTaskDate} onChange={e => setNewTaskDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
-                <button onClick={addTask} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>Ekle</button>
+                <input value={newPhase} onChange={e => setNewPhase(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPhase()} placeholder="Aşama ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
+                <input type="date" value={newPhaseDate} onChange={e => setNewPhaseDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
+                <button onClick={addPhase} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>Ekle</button>
               </div>
-              {tasks.map(t => (
+              {phases.map((t, i) => (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
-                  <div onClick={() => toggleTask(t.id, t.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: t.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: t.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div onClick={() => togglePhase(t.id, t.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: t.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: t.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {t.status === 'done' && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0, fontWeight: '600' }}>Aşama {i + 1}</span>
                   <span style={{ fontSize: '13px', color: t.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>{t.title}</span>
                   {t.date && <span style={{ fontSize: '11px', color: t.date < today && t.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.date)}</span>}
-                  <span onClick={() => deleteTask(t.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
+                  <span onClick={() => deletePhase(t.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
                 </div>
               ))}
-              {tasks.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Görev yok.</p>}
+              {phases.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Aşama yok.</p>}
             </div>
           )}
 
           {tab === 'routines' && (
             <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
                 <select value={newFrequency} onChange={e => setNewFrequency(e.target.value)} style={{ ...selectStyle, fontSize: '13px' }}>
                   {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
                 </select>
-                <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>Ekle</button>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Bitiş (opsiyonel):</span>
+                <input type="date" value={newRoutineEnd} onChange={e => setNewRoutineEnd(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
+                <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}>Ekle</button>
               </div>
               {routines.map(r => {
                 const overdue = isRoutineOverdue(r)
+                const expired = r.end_date && r.end_date < today
                 return (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: `1px solid ${overdue ? 'var(--danger)' : 'var(--border)'}`, borderLeft: `3px solid ${overdue ? 'var(--danger)' : 'var(--text-faded)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: `1px solid ${overdue ? 'var(--danger)' : 'var(--border)'}`, borderLeft: `3px solid ${expired ? 'var(--text-faded)' : overdue ? 'var(--danger)' : 'var(--text-faded)'}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', opacity: expired ? 0.5 : 1 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '3px' }}>{r.title}</div>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{r.frequency}</span>
+                        {r.end_date && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>→ {formatDate(r.end_date)}</span>}
                         <span style={{ fontSize: '11px', color: overdue ? 'var(--danger)' : 'var(--text-faint)' }}>{getLastDoneLabel(r.last_done)}</span>
+                        {expired && <span style={{ fontSize: '11px', color: 'var(--text-faded)' }}>· süresi doldu</span>}
                       </div>
                     </div>
-                    <button onClick={() => markRoutineDone(r.id)} style={{ background: 'transparent', border: '1px solid var(--success)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
+                    {!expired && (
+                      <button onClick={() => markRoutineDone(r.id)} style={{ background: 'transparent', border: '1px solid var(--success)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Yapıldı</button>
+                    )}
                     <span onClick={() => deleteRoutine(r.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>✕</span>
                   </div>
                 )
