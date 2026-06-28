@@ -8,6 +8,15 @@ const PRIORITIES = {
   low: { label: 'Düşük', color: 'var(--success)' }
 }
 
+const FREQ_DAYS = {
+  'Her gün': 1,
+  'Haftada 1': 7,
+  'Haftada 2': 4,
+  'Haftada 3': 3,
+  'Ayda 1': 30,
+  'Ayda 2': 15
+}
+
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
   useEffect(() => {
@@ -22,6 +31,10 @@ function Tasks() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
+  const [projectTasks, setProjectTasks] = useState([])
+  const [projects, setProjects] = useState([])
+  const [routines, setRoutines] = useState([])
+  const [routineLogs, setRoutineLogs] = useState([])
   const [filter, setFilter] = useState('today')
   const [newTask, setNewTask] = useState('')
   const [newDeadline, setNewDeadline] = useState('')
@@ -33,15 +46,29 @@ function Tasks() {
   const [showDone, setShowDone] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
-  useEffect(() => { fetchTasks() }, [filter])
+  useEffect(() => { fetchAll() }, [filter])
 
-  async function fetchTasks() {
+  async function fetchAll() {
+    const [t, pt, p, r, rl] = await Promise.all([
+      buildTaskQuery(),
+      supabase.from('project_tasks').select('*'),
+      supabase.from('projects').select('*'),
+      supabase.from('project_routines').select('*'),
+      supabase.from('project_routine_logs').select('*')
+    ])
+    if (!t.error) setTasks(t.data || [])
+    if (!pt.error) setProjectTasks(pt.data || [])
+    if (!p.error) setProjects(p.data || [])
+    if (!r.error) setRoutines(r.data || [])
+    if (!rl.error) setRoutineLogs(rl.data || [])
+  }
+
+  async function buildTaskQuery() {
     let query = supabase.from('tasks').select('*').order('day', { ascending: true })
     if (filter === 'today') query = query.eq('day', today)
     if (filter === 'week') query = query.gte('day', getWeekStart()).lte('day', getWeekEnd())
     if (filter === 'month') query = query.gte('day', getMonthStart()).lte('day', getMonthEnd())
-    const { data, error } = await query
-    if (!error) setTasks(data)
+    return await query
   }
 
   async function addTask() {
@@ -55,39 +82,87 @@ function Tasks() {
     })
     if (!error) {
       setNewTask(''); setNewDeadline(''); setNewDetail(''); setShowDetail(false); setNewPriority('medium')
-      fetchTasks()
+      fetchAll()
     }
   }
 
-  async function toggleTask(id, currentStatus) {
-    await supabase.from('tasks').update({ status: currentStatus === 'todo' ? 'done' : 'todo' }).eq('id', id)
-    fetchTasks()
+  async function toggleTask(item) {
+    if (item.source === 'project_task') {
+      const newStatus = item.status === 'todo' ? 'done' : 'todo'
+      await supabase.from('project_tasks').update({ status: newStatus }).eq('id', item.id)
+      // Proje progress'i otomatik güncelle (manual değilse)
+      const proj = projects.find(p => p.id === item.project_id)
+      if (proj && !proj.progress_manual) {
+        const { data } = await supabase.from('project_tasks').select('*').eq('project_id', item.project_id)
+        if (data) {
+          const done = data.filter(d => d.status === 'done').length
+          const total = data.length
+          const auto = total > 0 ? Math.round((done / total) * 100) : 0
+          await supabase.from('projects').update({ progress: auto }).eq('id', item.project_id)
+        }
+      }
+    } else if (item.source === 'routine') {
+      // Rutin tamamlanma logu
+      const existing = routineLogs.find(l => l.routine_id === item.routine_id && l.date === item.day)
+      if (existing) {
+        await supabase.from('project_routine_logs').delete().eq('id', existing.id)
+      } else {
+        await supabase.from('project_routine_logs').insert({
+          user_id: user.id,
+          routine_id: item.routine_id,
+          date: item.day,
+          done: true
+        })
+        // Last done'u da güncelle
+        await supabase.from('project_routines').update({ last_done: new Date().toISOString() }).eq('id', item.routine_id)
+      }
+    } else {
+      const newStatus = item.status === 'todo' ? 'done' : 'todo'
+      await supabase.from('tasks').update({ status: newStatus }).eq('id', item.id)
+    }
+    fetchAll()
   }
 
-  async function deleteTask(id) {
-    await supabase.from('tasks').delete().eq('id', id)
-    fetchTasks()
+  async function deleteItem(item) {
+    if (item.source === 'project_task') {
+      await supabase.from('project_tasks').delete().eq('id', item.id)
+    } else if (item.source === 'routine') {
+      // Rutin örneğini silemiyoruz, sadece o günkü logu kaldırıyoruz
+      return
+    } else {
+      await supabase.from('tasks').delete().eq('id', item.id)
+    }
+    fetchAll()
   }
 
-  function startEdit(task) {
-    setEditingId(task.id)
+  function startEdit(item) {
+    if (item.source === 'routine') return  // Rutinler düzenlenemez
+    setEditingId(item.id)
     setEditDraft({
-      title: task.title,
-      day: task.day,
-      priority: task.priority || 'medium',
-      note: task.note || ''
+      title: item.title,
+      day: item.day || item.date,
+      priority: item.priority || 'medium',
+      note: item.note || '',
+      source: item.source
     })
   }
 
   async function saveEdit() {
-    await supabase.from('tasks').update({
-      title: editDraft.title,
-      day: editDraft.day,
-      priority: editDraft.priority,
-      note: editDraft.note || null
-    }).eq('id', editingId)
+    if (editDraft.source === 'project_task') {
+      await supabase.from('project_tasks').update({
+        title: editDraft.title,
+        date: editDraft.day
+      }).eq('id', editingId)
+    } else {
+      await supabase.from('tasks').update({
+        title: editDraft.title,
+        day: editDraft.day,
+        priority: editDraft.priority,
+        note: editDraft.note || null
+      }).eq('id', editingId)
+    }
     setEditingId(null)
-    fetchTasks()
+    fetchAll()
   }
 
   function cancelEdit() {
@@ -114,39 +189,117 @@ function Tasks() {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
   }
 
+  function addDays(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() + days)
+    return d.toISOString().split('T')[0]
+  }
+
   function formatDate(dateStr) {
+    if (!dateStr) return ''
     const d = new Date(dateStr + 'T00:00:00')
     return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' })
   }
 
   function isOverdue(dateStr) { return dateStr < today }
 
-  function groupByDay(tasks) {
-    const groups = {}
-    tasks.forEach(t => {
-      if (!groups[t.day]) groups[t.day] = []
-      groups[t.day].push(t)
-    })
-    return groups
+  // Filtre aralığını hesapla
+  function getDateRange() {
+    if (filter === 'today') return [today, today]
+    if (filter === 'week') return [getWeekStart(), getWeekEnd()]
+    if (filter === 'month') return [getMonthStart(), getMonthEnd()]
+    // 'all' için: bugünden 30 gün ileri
+    return [today, addDays(today, 30)]
   }
 
-  // Önceliğe göre sırala (yüksek > orta > düşük) + bitmemişler önce
+  // Tüm itemları birleştir
+  function buildAllItems() {
+    const [rangeStart, rangeEnd] = getDateRange()
+    const items = []
+
+    // Normal görevler
+    tasks.forEach(t => {
+      items.push({ ...t, source: 'task' })
+    })
+
+    // Proje aşamaları (tarihi olanlar, aralığa düşenler)
+    projectTasks.forEach(pt => {
+      if (!pt.date) return
+      if (pt.date < rangeStart || pt.date > rangeEnd) return
+      const proj = projects.find(p => p.id === pt.project_id)
+      items.push({
+        ...pt,
+        day: pt.date,
+        source: 'project_task',
+        project: proj,
+        priority: 'medium'
+      })
+    })
+
+    // Rutin örnekleri: aralıktaki her uygun tarih için bir örnek
+    routines.forEach(r => {
+      const step = FREQ_DAYS[r.frequency]
+      if (!step) return
+      const endDate = r.end_date || addDays(today, 365)
+      // Başlangıç: last_done varsa ondan, yoksa bugünden
+      let cursor = r.last_done
+        ? addDays(r.last_done.split('T')[0], step)
+        : today
+      // Aralık dışına çıkana kadar veya bitiş tarihine kadar
+      let safety = 100
+      while (cursor <= rangeEnd && cursor <= endDate && safety > 0) {
+        if (cursor >= rangeStart) {
+          const log = routineLogs.find(l => l.routine_id === r.id && l.date === cursor)
+          const proj = projects.find(p => p.id === r.project_id)
+          items.push({
+            id: `routine-${r.id}-${cursor}`,
+            routine_id: r.id,
+            title: r.title,
+            day: cursor,
+            status: log ? 'done' : 'todo',
+            source: 'routine',
+            project: proj,
+            frequency: r.frequency,
+            priority: 'medium'
+          })
+        }
+        cursor = addDays(cursor, step)
+        safety--
+      }
+    })
+
+    return items
+  }
+
+  const allItems = buildAllItems()
+
   const priorityOrder = { high: 0, medium: 1, low: 2 }
-  function sortTasks(arr) {
+  function sortItems(arr) {
     return [...arr].sort((a, b) => {
       const aDone = a.status === 'done' ? 1 : 0
       const bDone = b.status === 'done' ? 1 : 0
       if (aDone !== bDone) return aDone - bDone
+      if (a.day !== b.day) return (a.day || '').localeCompare(b.day || '')
       return (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1)
     })
   }
 
-  const activeTasks = tasks.filter(t => t.status !== 'done')
-  const doneTasks = tasks.filter(t => t.status === 'done')
-  const grouped = (filter === 'week' || filter === 'month') ? groupByDay(tasks) : null
+  function groupByDay(arr) {
+    const groups = {}
+    arr.forEach(t => {
+      const key = t.day || 'no-date'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(t)
+    })
+    return groups
+  }
+
+  const activeItems = allItems.filter(t => t.status !== 'done')
+  const doneItems = allItems.filter(t => t.status === 'done')
+  const grouped = (filter === 'week' || filter === 'month') ? groupByDay(allItems) : null
 
   const sharedItemProps = {
-    today, onToggle: toggleTask, onDelete: deleteTask,
+    today, onToggle: toggleTask, onDelete: deleteItem,
     onEdit: startEdit, formatDate, isOverdue,
     editingId, editDraft, setEditDraft, saveEdit, cancelEdit
   }
@@ -155,7 +308,6 @@ function Tasks() {
     <div style={{ color: 'var(--text)' }}>
       <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Görevler</h2>
 
-      {/* Görev Ekleme */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '20px', maxWidth: '680px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <input
@@ -193,7 +345,6 @@ function Tasks() {
         )}
       </div>
 
-      {/* Filtre */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {['today', 'week', 'month', 'all'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
@@ -207,32 +358,30 @@ function Tasks() {
         ))}
       </div>
 
-      {/* Bugün & Tümü — liste */}
       {!grouped && (
         <div style={{ maxWidth: '680px' }}>
-          {sortTasks(activeTasks).map(t => (
-            <TaskItem key={t.id} task={t} {...sharedItemProps} />
+          {sortItems(activeItems).map(t => (
+            <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
           ))}
-          {activeTasks.length === 0 && doneTasks.length === 0 && (
+          {activeItems.length === 0 && doneItems.length === 0 && (
             <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>
           )}
-          {doneTasks.length > 0 && (
+          {doneItems.length > 0 && (
             <div style={{ marginTop: '20px' }}>
               <button
                 onClick={() => setShowDone(!showDone)}
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}
               >
-                {showDone ? '▲' : '▼'} Tamamlananlar ({doneTasks.length})
+                {showDone ? '▲' : '▼'} Tamamlananlar ({doneItems.length})
               </button>
-              {showDone && doneTasks.map(t => (
-                <TaskItem key={t.id} task={t} {...sharedItemProps} />
+              {showDone && sortItems(doneItems).map(t => (
+                <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Hafta & Ay — sütunlar */}
       {grouped && (
         <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
           {Object.keys(grouped).sort().map(day => (
@@ -250,8 +399,8 @@ function Tasks() {
               }}>
                 {formatDate(day)}
               </div>
-              {sortTasks(grouped[day]).map(t => (
-                <TaskItem key={t.id} task={t} {...sharedItemProps} compact />
+              {sortItems(grouped[day]).map(t => (
+                <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} compact />
               ))}
             </div>
           ))}
@@ -274,11 +423,7 @@ function PrioritySelect({ value, onChange }) {
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        style={{
-          ...selectStyle,
-          fontSize: '13px',
-          paddingLeft: '26px'
-        }}
+        style={{ ...selectStyle, fontSize: '13px', paddingLeft: '26px' }}
       >
         <option value="high">Yüksek</option>
         <option value="medium">Orta</option>
@@ -290,7 +435,9 @@ function PrioritySelect({ value, onChange }) {
 
 function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverdue, compact, editingId, editDraft, setEditDraft, saveEdit, cancelEdit }) {
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
-  const isEditing = editingId === task.id
+  const isEditing = editingId === task.id && task.source !== 'routine'
+  const projectColor = task.project?.color
+  const leftBorderColor = task.source === 'task' ? p.color : (projectColor || 'var(--text-faded)')
 
   if (isEditing) {
     return (
@@ -298,7 +445,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
         marginBottom: '8px',
         background: 'var(--bg-item)',
         border: '1px solid var(--accent)',
-        borderLeft: `3px solid ${p.color}`,
+        borderLeft: `3px solid ${leftBorderColor}`,
         borderRadius: '8px',
         padding: '11px 14px'
       }}>
@@ -314,15 +461,19 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             onChange={e => setEditDraft({ ...editDraft, day: e.target.value })}
             style={{ ...inputStyle, fontSize: '13px', minWidth: '140px', flex: 0 }}
           />
-          <PrioritySelect value={editDraft.priority} onChange={v => setEditDraft({ ...editDraft, priority: v })} />
+          {editDraft.source === 'task' && (
+            <PrioritySelect value={editDraft.priority} onChange={v => setEditDraft({ ...editDraft, priority: v })} />
+          )}
         </div>
-        <textarea
-          value={editDraft.note}
-          onChange={e => setEditDraft({ ...editDraft, note: e.target.value })}
-          placeholder="Detay..."
-          rows={2}
-          style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: '13px', marginBottom: '8px' }}
-        />
+        {editDraft.source === 'task' && (
+          <textarea
+            value={editDraft.note}
+            onChange={e => setEditDraft({ ...editDraft, note: e.target.value })}
+            placeholder="Detay..."
+            rows={2}
+            style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: '13px', marginBottom: '8px' }}
+          />
+        )}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <button onClick={cancelEdit} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}>İptal</button>
           <button onClick={saveEdit} style={{ ...buttonStyle, fontSize: '13px', padding: '7px 14px' }}>Kaydet</button>
@@ -336,13 +487,13 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
       marginBottom: '8px',
       background: 'var(--bg-item)',
       border: '1px solid var(--border)',
-      borderLeft: `3px solid ${p.color}`,
+      borderLeft: `3px solid ${leftBorderColor}`,
       borderRadius: '8px',
       padding: compact ? '8px 10px' : '11px 14px'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div
-          onClick={() => onToggle(task.id, task.status)}
+          onClick={() => onToggle(task)}
           style={{
             width: '18px', height: '18px',
             borderRadius: '5px',
@@ -366,18 +517,32 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             color: task.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)',
             textDecoration: task.status === 'done' ? 'line-through' : 'none',
             flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-            cursor: 'pointer'
+            cursor: task.source === 'routine' ? 'default' : 'pointer'
           }}
         >
           {task.title}
         </span>
-        <span
-          title={p.label}
-          style={{
-            width: '7px', height: '7px', borderRadius: '50%',
-            background: p.color, flexShrink: 0
-          }}
-        />
+        {task.project && (
+          <span style={{
+            fontSize: '10px',
+            background: task.project.color + '22',
+            color: task.project.color,
+            border: `1px solid ${task.project.color}55`,
+            borderRadius: '4px',
+            padding: '2px 6px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            fontWeight: '600'
+          }}>
+            {task.project.icon ? task.project.icon + ' ' : ''}{task.project.name}
+          </span>
+        )}
+        {task.source === 'routine' && (
+          <span style={{ fontSize: '10px', color: 'var(--text-faint)', flexShrink: 0 }}>🔁</span>
+        )}
+        {task.source === 'task' && (
+          <span title={p.label} style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+        )}
         {!compact && (
           <span style={{
             fontSize: '11px',
@@ -387,10 +552,12 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             {formatDate(task.day)}
           </span>
         )}
-        <span
-          onClick={() => onDelete(task.id)}
-          style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
-        >✕</span>
+        {task.source !== 'routine' && (
+          <span
+            onClick={() => onDelete(task)}
+            style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
+          >✕</span>
+        )}
       </div>
       {task.note && (
         <div style={{
