@@ -267,6 +267,7 @@ const routineEnd = rangeEnd
 }
 
 function generateRoutineDates(routine, start, end) {
+  console.log('  ÜRETILEN:', matchingDates, 'aralık:', routineStart, '→', routineEnd)
   const dates = []
   if (start > end) return dates
 
