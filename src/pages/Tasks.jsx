@@ -242,6 +242,7 @@ const routineStart = rangeStart > today ? rangeStart : today
 const routineEnd = rangeEnd
 
   routines.forEach(r => {
+    console.log('RUTIN:', r.title, 'freq:', r.frequency, 'days:', r.days_of_week, 'type:', typeof r.days_of_week)
     const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
     const matchingDates = generateRoutineDates(r, routineStart, endDate)
     matchingDates.forEach(date => {
