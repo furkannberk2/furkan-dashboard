@@ -238,9 +238,8 @@ function buildAllItems() {
   })
 
   // Rutin örnekleri: sadece mevcut ay sonuna kadar
-  const monthEnd = getMonthEnd()
-  const routineEnd = rangeEnd < monthEnd ? rangeEnd : monthEnd
-  const routineStart = rangeStart > today ? rangeStart : today
+const routineStart = rangeStart > today ? rangeStart : today
+const routineEnd = rangeEnd
 
   routines.forEach(r => {
     const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
