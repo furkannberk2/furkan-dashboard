@@ -28,6 +28,9 @@ function Tasks() {
   const [newPriority, setNewPriority] = useState('medium')
   const [newDetail, setNewDetail] = useState('')
   const [showDetail, setShowDetail] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editDraft, setEditDraft] = useState({})
+  const [showDone, setShowDone] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => { fetchTasks() }, [filter])
@@ -46,11 +49,12 @@ function Tasks() {
     const { error } = await supabase.from('tasks').insert({
       title: newTask, type: 'todo',
       day: newDeadline || today, status: 'todo',
+      priority: newPriority,
       note: newDetail || null,
       user_id: user.id
     })
     if (!error) {
-      setNewTask(''); setNewDeadline(''); setNewDetail(''); setShowDetail(false)
+      setNewTask(''); setNewDeadline(''); setNewDetail(''); setShowDetail(false); setNewPriority('medium')
       fetchTasks()
     }
   }
@@ -63,6 +67,32 @@ function Tasks() {
   async function deleteTask(id) {
     await supabase.from('tasks').delete().eq('id', id)
     fetchTasks()
+  }
+
+  function startEdit(task) {
+    setEditingId(task.id)
+    setEditDraft({
+      title: task.title,
+      day: task.day,
+      priority: task.priority || 'medium',
+      note: task.note || ''
+    })
+  }
+
+  async function saveEdit() {
+    await supabase.from('tasks').update({
+      title: editDraft.title,
+      day: editDraft.day,
+      priority: editDraft.priority,
+      note: editDraft.note || null
+    }).eq('id', editingId)
+    setEditingId(null)
+    fetchTasks()
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft({})
   }
 
   function getWeekStart() {
@@ -100,7 +130,26 @@ function Tasks() {
     return groups
   }
 
+  // Önceliğe göre sırala (yüksek > orta > düşük) + bitmemişler önce
+  const priorityOrder = { high: 0, medium: 1, low: 2 }
+  function sortTasks(arr) {
+    return [...arr].sort((a, b) => {
+      const aDone = a.status === 'done' ? 1 : 0
+      const bDone = b.status === 'done' ? 1 : 0
+      if (aDone !== bDone) return aDone - bDone
+      return (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1)
+    })
+  }
+
+  const activeTasks = tasks.filter(t => t.status !== 'done')
+  const doneTasks = tasks.filter(t => t.status === 'done')
   const grouped = (filter === 'week' || filter === 'month') ? groupByDay(tasks) : null
+
+  const sharedItemProps = {
+    today, onToggle: toggleTask, onDelete: deleteTask,
+    onEdit: startEdit, formatDate, isOverdue,
+    editingId, editDraft, setEditDraft, saveEdit, cancelEdit
+  }
 
   return (
     <div style={{ color: 'var(--text)' }}>
@@ -125,11 +174,7 @@ function Tasks() {
             onChange={e => setNewDeadline(e.target.value)}
             style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
           />
-          <select value={newPriority} onChange={e => setNewPriority(e.target.value)} style={{ ...selectStyle, fontSize: '13px', flex: isMobile ? 1 : 0 }}>
-            <option value="high">🔴 Yüksek</option>
-            <option value="medium">🟡 Orta</option>
-            <option value="low">🟢 Düşük</option>
-          </select>
+          <PrioritySelect value={newPriority} onChange={setNewPriority} />
           <button
             onClick={() => setShowDetail(!showDetail)}
             style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}
@@ -165,12 +210,25 @@ function Tasks() {
       {/* Bugün & Tümü — liste */}
       {!grouped && (
         <div style={{ maxWidth: '680px' }}>
-          {tasks.map(t => (
-            <TaskItem key={t.id} task={t} today={today}
-              onToggle={toggleTask} onDelete={deleteTask}
-              formatDate={formatDate} isOverdue={isOverdue} />
+          {sortTasks(activeTasks).map(t => (
+            <TaskItem key={t.id} task={t} {...sharedItemProps} />
           ))}
-          {tasks.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
+          {activeTasks.length === 0 && doneTasks.length === 0 && (
+            <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>
+          )}
+          {doneTasks.length > 0 && (
+            <div style={{ marginTop: '20px' }}>
+              <button
+                onClick={() => setShowDone(!showDone)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}
+              >
+                {showDone ? '▲' : '▼'} Tamamlananlar ({doneTasks.length})
+              </button>
+              {showDone && doneTasks.map(t => (
+                <TaskItem key={t.id} task={t} {...sharedItemProps} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -192,10 +250,8 @@ function Tasks() {
               }}>
                 {formatDate(day)}
               </div>
-              {grouped[day].map(t => (
-                <TaskItem key={t.id} task={t} today={today}
-                  onToggle={toggleTask} onDelete={deleteTask}
-                  formatDate={formatDate} isOverdue={isOverdue} compact />
+              {sortTasks(grouped[day]).map(t => (
+                <TaskItem key={t.id} task={t} {...sharedItemProps} compact />
               ))}
             </div>
           ))}
@@ -206,8 +262,75 @@ function Tasks() {
   )
 }
 
-function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, compact }) {
+function PrioritySelect({ value, onChange }) {
+  const p = PRIORITIES[value] || PRIORITIES.medium
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <span style={{
+        position: 'absolute', left: '12px',
+        width: '8px', height: '8px', borderRadius: '50%',
+        background: p.color, pointerEvents: 'none'
+      }} />
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          ...selectStyle,
+          fontSize: '13px',
+          paddingLeft: '26px'
+        }}
+      >
+        <option value="high">Yüksek</option>
+        <option value="medium">Orta</option>
+        <option value="low">Düşük</option>
+      </select>
+    </div>
+  )
+}
+
+function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverdue, compact, editingId, editDraft, setEditDraft, saveEdit, cancelEdit }) {
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
+  const isEditing = editingId === task.id
+
+  if (isEditing) {
+    return (
+      <div style={{
+        marginBottom: '8px',
+        background: 'var(--bg-item)',
+        border: '1px solid var(--accent)',
+        borderLeft: `3px solid ${p.color}`,
+        borderRadius: '8px',
+        padding: '11px 14px'
+      }}>
+        <input
+          value={editDraft.title}
+          onChange={e => setEditDraft({ ...editDraft, title: e.target.value })}
+          style={{ ...inputStyle, width: '100%', marginBottom: '8px' }}
+        />
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+          <input
+            type="date"
+            value={editDraft.day}
+            onChange={e => setEditDraft({ ...editDraft, day: e.target.value })}
+            style={{ ...inputStyle, fontSize: '13px', minWidth: '140px', flex: 0 }}
+          />
+          <PrioritySelect value={editDraft.priority} onChange={v => setEditDraft({ ...editDraft, priority: v })} />
+        </div>
+        <textarea
+          value={editDraft.note}
+          onChange={e => setEditDraft({ ...editDraft, note: e.target.value })}
+          placeholder="Detay..."
+          rows={2}
+          style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: '13px', marginBottom: '8px' }}
+        />
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <button onClick={cancelEdit} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}>İptal</button>
+          <button onClick={saveEdit} style={{ ...buttonStyle, fontSize: '13px', padding: '7px 14px' }}>Kaydet</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       marginBottom: '8px',
@@ -236,14 +359,25 @@ function TaskItem({ task, today, onToggle, onDelete, formatDate, isOverdue, comp
             </svg>
           )}
         </div>
-        <span style={{
-          fontSize: '13px',
-          color: task.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)',
-          textDecoration: task.status === 'done' ? 'line-through' : 'none',
-          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis'
-        }}>
+        <span
+          onClick={() => onEdit(task)}
+          style={{
+            fontSize: '13px',
+            color: task.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)',
+            textDecoration: task.status === 'done' ? 'line-through' : 'none',
+            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+            cursor: 'pointer'
+          }}
+        >
           {task.title}
         </span>
+        <span
+          title={p.label}
+          style={{
+            width: '7px', height: '7px', borderRadius: '50%',
+            background: p.color, flexShrink: 0
+          }}
+        />
         {!compact && (
           <span style={{
             fontSize: '11px',
