@@ -288,9 +288,9 @@ function generateRoutineDates(routine, start, end) {
     let cursor = start
     let safety = 100
     while (cursor <= end && safety > 0) {
-      console.log('cursor:', cursor, 'dow:', dow, 'dowMon:', dowMon, 'days:', days, 'match:', days.includes(dowMon))
       const dow = new Date(cursor + 'T00:00:00').getDay()
       const dowMon = dow === 0 ? 7 : dow  // Pazar=7
+      console.log('cursor:', cursor, 'dow:', dow, 'dowMon:', dowMon, 'days:', days, 'match:', days.includes(dowMon))
       if (days.includes(dowMon)) dates.push(cursor)
       cursor = addDays(cursor, 1)
       safety--
