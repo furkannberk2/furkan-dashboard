@@ -311,6 +311,7 @@ const routineEnd = rangeEnd
   routines.forEach(r => {
     const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
     const matchingDates = generateRoutineDates(r, routineStart, endDate)
+    console.log('RUTIN:', r.title, 'days:', r.days_of_week, 'aralık:', routineStart, '→', endDate, 'üretilen:', matchingDates)
     matchingDates.forEach(date => {
       if (date < rangeStart) return
       const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
