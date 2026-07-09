@@ -111,14 +111,14 @@ function Finance() {
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
 
-  async function fetchAll() {
+async function fetchAll() {
     const [daily, recurring, variable, inv, inc, settings] = await Promise.all([
       supabase.from('daily_expenses').select('*').order('date', { ascending: false }),
       supabase.from('recurring_expenses').select('*').order('due_day', { ascending: true }),
       supabase.from('variable_budgets').select('*').eq('month', currentMonth),
       supabase.from('investments').select('*'),
-      supabase.from('income').select('*').eq('month', currentMonth).single(),
-      supabase.from('user_settings').select('*').eq('key', 'payday').single()
+      supabase.from('income').select('*').eq('month', currentMonth).maybeSingle(),
+      supabase.from('user_settings').select('*').eq('key', 'payday').maybeSingle()
     ])
     if (!daily.error) setDailyExpenses(daily.data)
     if (!recurring.error) setRecurringExpenses(recurring.data)
@@ -128,6 +128,12 @@ function Finance() {
       setIncome(inc.data)
       setIncomeInput(inc.data.amount)
       if (inc.data.balance) { setBalanceInput(inc.data.balance); setUseBalance(true) }
+    } else {
+      // Yeni ay: form temiz açılsın
+      setIncome(null)
+      setIncomeInput('')
+      setBalanceInput('')
+      setUseBalance(false)
     }
     if (!settings.error && settings.data) setPayday(Number(settings.data.value) || 5)
   }
