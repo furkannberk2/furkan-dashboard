@@ -836,7 +836,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 ))}
               </Pie>
               <RTooltip
-                formatter={(value) => `${fmt(value)}`}
+                formatter={(value) => `${formatMoney(value, 'TRY')}`}
                 contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '13px' }}
                 itemStyle={{ color: 'var(--text)' }}
               />
@@ -852,7 +852,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>{d.name}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{percent}%</span>
                 <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '600', minWidth: '90px', textAlign: 'right' }}>
-                  {fmt(d.value)}
+                  {formatMoney(d.value, 'TRY')}
                 </span>
               </div>
             )
