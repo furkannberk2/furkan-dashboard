@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
+import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays } from '../utils/finance'
 
 const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
@@ -24,7 +25,6 @@ const ASSET_TYPES = [
   { key: 'BIST', name: 'BIST Hisse', unit: 'adet', category: 'Hisse', needsSymbol: true },
   { key: 'TEFAS_FUND', name: 'TEFAS Fonu', unit: 'pay', category: 'Fon', needsSymbol: true, manualCode: true },
 ]
-const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
 
 const CATEGORY_COLORS = {
   'TL Nakit': '#60a5fa',
@@ -55,17 +55,7 @@ function getMonthLabel(offset) {
   return d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
 }
 
-// Bir due_day bugünden sonraki maaş gününe kadar olan dönemde mi?
-function isDueInCurrentCycle(dueDay, currentDay, payday) {
-  if (!dueDay) return true // gün belirtilmemişse her zaman dahil
-  if (currentDay <= payday) {
-    // Maaş gününden önceyiz (örn. bugün 2, maaş 5) → bu ay maaş gününe kadar olan günler
-    return dueDay >= currentDay && dueDay <= payday
-  } else {
-    // Maaş gününü geçtik (örn. bugün 10, maaş 5) → ayın geri kalanı + bir sonraki maaş günü
-    return dueDay >= currentDay || dueDay <= payday
-  }
-}
+
 
 function Finance() {
   const { user } = useAuth()
@@ -113,15 +103,7 @@ function Finance() {
 
   const today = new Date().toISOString().split('T')[0]
   const currentMonth = today.slice(0, 7)
-  const remainingDays = getRemainingDays()
-  function getRemainingDays() {
-    const now = new Date()
-    const currentDay = now.getDate()
-    if (currentDay <= payday) return payday - currentDay + 1
-    const nextPayday = new Date(now.getFullYear(), now.getMonth() + 1, payday)
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return Math.round((nextPayday - todayDate) / (1000 * 60 * 60 * 24)) + 1
-  }
+  const remainingDays = calcRemainingDays(payday)
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
 
@@ -185,43 +167,15 @@ async function fetchPrices(forceRefresh = false) {
     } catch (err) { console.error(err) }
   }
 
+  // baseCurrency şimdilik sabit 'TRY' — user_preferences bağlanınca dinamik olacak.
+  // getBaseCurrencyValue('TRY') eski getTRYValue ile birebir aynı sonucu verir.
+  const baseCurrency = 'TRY'
   function getTRYValue(inv) {
-    const qty = Number(inv.quantity)
-    const usdTry = rates.TRY || 0
-    if (inv.type === 'TRY') return qty
-    if (inv.type === 'USD') return qty * usdTry
-    if (inv.type === 'EUR') return rates.EUR ? qty * (usdTry / rates.EUR) : 0
-    if (inv.type === 'GBP') return rates.GBP ? qty * (usdTry / rates.GBP) : 0
-    if (inv.type === 'SILVER_GRAM') {
-      const xag = parseFloat(quotes['XAG/USD']?.close || 0)
-      return (qty / 31.1035) * xag * usdTry
-    }
-    if (inv.type?.startsWith('GOLD_')) {
-      const xau = parseFloat(quotes['XAU/USD']?.close || 0)
-      const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
-      return (grams / 31.1035) * xau * usdTry
-    }
-    if (inv.type === 'BIST') {
-      const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
-      return qty * tryPrice
-    }
-    if (inv.type === 'TEFAS_FUND') {
-      const tryPrice = parseFloat(tefasQuotes[inv.symbol]?.close || 0)
-      return qty * tryPrice
-    }
-    if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
-      const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
-      return qty * usdPrice * usdTry
-    }
-    return 0
+    return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, tefasQuotes)
   }
 
   function getDailyChange(inv) {
-    if (inv.type === 'CRYPTO' || inv.type === 'STOCK' || inv.type === 'BIST') return parseFloat(quotes[inv.symbol]?.percent_change || 0)
-    if (inv.type === 'TEFAS_FUND') return parseFloat(tefasQuotes[inv.symbol]?.percent_change || 0)
-    if (inv.type === 'SILVER_GRAM') return parseFloat(quotes['XAG/USD']?.percent_change || 0)
-    if (inv.type?.startsWith('GOLD_')) return parseFloat(quotes['XAU/USD']?.percent_change || 0)
-    return null
+    return calcDailyChange(inv, quotes, tefasQuotes)
   }
 
   async function searchInvSymbol() {
@@ -357,7 +311,7 @@ async function fetchPrices(forceRefresh = false) {
   const currentDay = new Date().getDate()
   // YENİ MANTIK: Sadece bugünden bir sonraki maaş gününe kadar olan döneme düşen giderler hesaba katılır
   const totalRecurring = recurringExpenses
-    .filter(e => isDueInCurrentCycle(e.due_day, currentDay, payday))
+    .filter(e => isDue(e.due_day, currentDay, payday))
     .reduce((s, e) => s + Number(e.amount), 0)
   const totalRecurringFull = recurringExpenses.reduce((s, e) => s + Number(e.amount), 0)
   const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
