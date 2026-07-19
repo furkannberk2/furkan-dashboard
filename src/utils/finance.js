@@ -3,12 +3,7 @@
 // Mimari: her varlık önce USD'ye çevrilir (evrensel ara birim), sonra kullanıcının
 // baz para birimine. Hiçbir para birimi ayrıcalıklı değil (TL dahil).
 
-export const GOLD_GRAMS = {
-  GOLD_GRAM: 1,
-  GOLD_QUARTER: 1.75,
-  GOLD_HALF: 3.5,
-  GOLD_FULL: 7.0,
-}
+import { goldKeyToGrams } from './regions'
 
 const OUNCE_GRAMS = 31.1035
 
@@ -44,7 +39,7 @@ export function getUSDValue(inv, rates, quotes = {}, tefasQuotes = {}) {
     // Altın türevleri → grama çevir, ons × XAU (USD)
     case inv.type?.startsWith('GOLD_'): {
       const xau = parseFloat(quotes['XAU/USD']?.close || 0)
-      const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
+      const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (goldKeyToGrams(inv.type) || 0)
       return (grams / OUNCE_GRAMS) * xau
     }
 
