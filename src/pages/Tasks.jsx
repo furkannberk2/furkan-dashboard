@@ -693,6 +693,19 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             {formatDate(task.day)}
           </span>
         )}
+        {task.source !== 'routine' && !compact && (
+          <span
+            onClick={() => onEdit(task)}
+            style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}
+            title="Düzenle"
+          >✏️</span>
+        )}
+        {task.source !== 'routine' && (
+          <span
+            onClick={() => onDelete(task)}
+            style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
+          >✕</span>
+        )}
         {task.source !== 'routine' && (
           <span
             onClick={() => onDelete(task)}
