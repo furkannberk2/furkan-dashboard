@@ -102,17 +102,22 @@ async function startScan() {
     setAddMode('search')
   }
 
-  async function fetchEntries() {
-    const { data, error } = await supabase
-      .from('food_entries').select('*').eq('date', selectedDate)
-      .order('created_at', { ascending: true })
-    if (!error) setEntries(data)
-  }
+async function fetchEntries() {
+  const { data, error } = await supabase
+    .from('food_entries').select('*')
+    .eq('date', selectedDate)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+  if (!error) setEntries(data)
+}
 
-  async function fetchGoal() {
-    const { data, error } = await supabase.from('calorie_goals').select('*').limit(1).single()
-    if (!error && data) { setGoal(data); setGoalInput(data.daily_calories) }
-  }
+async function fetchGoal() {
+  const { data, error } = await supabase
+    .from('calorie_goals').select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!error && data) { setGoal(data); setGoalInput(data.daily_calories) }
+}
 
   async function searchFood() {
     if (!search.trim()) return
