@@ -4,8 +4,7 @@ import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
-
-const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
+import { getBaseCurrencyValue, getDailyChange as calcDailyChange } from '../utils/finance'
 
 function Home() {
   const { user } = useAuth()
@@ -142,41 +141,16 @@ function Home() {
   const dailyBudget = baseAmount > 0 ? Math.round((baseAmount - totalRecurring - totalVariable) / remainingDays) : 0
   const expPercent = dailyBudget > 0 ? Math.min((todayExp / dailyBudget) * 100, 100) : 0
 
-  // Portföy
+  // Portföy — baseCurrency şimdilik sabit 'TRY' (Finance ile aynı yaklaşım)
+  const baseCurrency = 'TRY'
   function getTRYValue(inv) {
-    const qty = Number(inv.quantity)
-    const usdTry = rates.TRY || 0
-    if (inv.type === 'TRY') return qty
-    if (inv.type === 'USD') return qty * usdTry
-    if (inv.type === 'EUR') return rates.EUR ? qty * (usdTry / rates.EUR) : 0
-    if (inv.type === 'GBP') return rates.GBP ? qty * (usdTry / rates.GBP) : 0
-    if (inv.type === 'SILVER_GRAM') {
-      const xag = parseFloat(quotes['XAG/USD']?.close || 0)
-      return (qty / 31.1035) * xag * usdTry
-    }
-    if (inv.type?.startsWith('GOLD_')) {
-      const xau = parseFloat(quotes['XAU/USD']?.close || 0)
-      const grams = inv.type === 'GOLD_GRAM' ? qty : qty * (GOLD_GRAMS[inv.type] || 0)
-      return (grams / 31.1035) * xau * usdTry
-    }
-    if (inv.type === 'BIST') {
-      const tryPrice = parseFloat(quotes[inv.symbol]?.close || 0)
-      return qty * tryPrice
-    }
-    if (inv.type === 'CRYPTO' || inv.type === 'STOCK') {
-      const usdPrice = parseFloat(quotes[inv.symbol]?.close || 0)
-      return qty * usdPrice * usdTry
-    }
-    return 0
+    return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, {})
   }
   const portfolioTotal = investments.reduce((s, i) => s + getTRYValue(i), 0)
 
   let weightedChange = 0, totalWithPrice = 0
   investments.forEach(i => {
-    let change = null
-    if (i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST') change = parseFloat(quotes[i.symbol]?.percent_change || 0)
-    else if (i.type === 'SILVER_GRAM') change = parseFloat(quotes['XAG/USD']?.percent_change || 0)
-    else if (i.type?.startsWith('GOLD_')) change = parseFloat(quotes['XAU/USD']?.percent_change || 0)
+    const change = calcDailyChange(i, quotes, {})
     if (change !== null && !isNaN(change)) {
       const val = getTRYValue(i)
       weightedChange += change * val
