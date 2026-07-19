@@ -3,6 +3,7 @@ import { readCachedQuotes, fetchMissingQuotes, staleAllQuotes } from '../lib/quo
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 
 const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
@@ -24,6 +25,19 @@ const ASSET_TYPES = [
   { key: 'TEFAS_FUND', name: 'TEFAS Fonu', unit: 'pay', category: 'Fon', needsSymbol: true, manualCode: true },
 ]
 const GOLD_GRAMS = { GOLD_QUARTER: 1.6, GOLD_HALF: 3.2, GOLD_FULL: 6.4 }
+
+const CATEGORY_COLORS = {
+  'TL Nakit': '#60a5fa',
+  'Dolar': '#22c55e',
+  'Euro': '#3b82f6',
+  'Sterlin': '#8b5cf6',
+  'Altın': '#fbbf24',
+  'Gram Gümüş': '#94a3b8',
+  'Kripto': '#a78bfa',
+  'ABD Hisse': '#6ee7b7',
+  'BIST Hisse': '#f472b6',
+  'TEFAS Fonu': '#fb923c'
+}
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
@@ -354,6 +368,24 @@ async function fetchPrices(forceRefresh = false) {
   const limitPercent = dailyBudget > 0 ? Math.min((todayTotal / dailyBudget) * 100, 100) : 0
   const investTotal = investments.reduce((s, i) => s + getTRYValue(i), 0)
 
+const categoryDistribution = (() => {
+  const map = {}
+  investments.forEach(i => {
+    let label
+    if (i.type?.startsWith('GOLD_')) {
+      label = 'Altın'
+    } else {
+      const at = ASSET_TYPES.find(a => a.key === i.type)
+      label = at?.name || i.type
+    }
+    map[label] = (map[label] || 0) + getTRYValue(i)
+  })
+  return Object.entries(map)
+    .map(([name, value]) => ({ name, value: Math.round(value) }))
+    .filter(d => d.value > 0)
+    .sort((a, b) => b.value - a.value)
+})()
+
   const grouped = {}
   investments.forEach(i => {
     const key = i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST' || i.type === 'TEFAS_FUND' ? i.symbol : i.type
@@ -547,7 +579,7 @@ async function fetchPrices(forceRefresh = false) {
             <button onClick={() => fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
           </div>
-
+          <PortfolioPie data={categoryDistribution} total={investTotal} isMobile={isMobile} />
           {Object.values(grouped).map(g => (
             <div key={g.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px', gap: '8px' }}>
@@ -818,6 +850,59 @@ function SummaryCard({ title, value, sub, percent, color }) {
           <div style={{ width: `${percent}%`, height: '4px', borderRadius: '99px', background: color, transition: 'width 0.3s' }} />
         </div>
       )}
+    </div>
+  )
+}
+
+function PortfolioPie({ data, total, isMobile }) {
+  if (data.length === 0) return null
+  return (
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
+      <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
+        Varlık Dağılımı
+      </div>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '16px' }}>
+        <div style={{ width: isMobile ? '100%' : '200px', height: '200px', flexShrink: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+              >
+                {data.map((entry, i) => (
+                  <Cell key={i} fill={CATEGORY_COLORS[entry.name] || '#888'} stroke="none" />
+                ))}
+              </Pie>
+              <RTooltip
+                formatter={(value) => `₺${value.toLocaleString('tr-TR')}`}
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '13px' }}
+                itemStyle={{ color: 'var(--text)' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ flex: 1, width: '100%' }}>
+          {data.map(d => {
+            const percent = total > 0 ? ((d.value / total) * 100).toFixed(1) : 0
+            return (
+              <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: CATEGORY_COLORS[d.name] || '#888', flexShrink: 0 }} />
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>{d.name}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{percent}%</span>
+                <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '600', minWidth: '90px', textAlign: 'right' }}>
+                  ₺{d.value.toLocaleString('tr-TR')}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

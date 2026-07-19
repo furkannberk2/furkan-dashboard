@@ -164,6 +164,7 @@ Fatura, doğrulama kodu, hesap onayı, iş/proje ile ilgili, yapılması gereken
 
 📰 HABER & ETKİNLİK
 Bültenler, etkinlik duyuruları, haber özetleri.
+Burada biraz detay verilebilir mailden.
 
 📱 SOSYAL MEDYA
 LinkedIn, Instagram, X, Facebook gibi platform bildirimleri.
@@ -202,4 +203,4 @@ ${mailText}`
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
-}
+} 
