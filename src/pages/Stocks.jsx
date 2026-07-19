@@ -3,6 +3,24 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 
+const TYPE_LABELS = {
+  'BIST': 'BIST',
+  'crypto': 'Kripto',
+  'forex': 'Döviz',
+  'Hisse': 'ABD Hisse',
+  'Common Stock': 'ABD Hisse'
+}
+
+// Ham type'ı gruplama kategorisine indirger
+function getCategory(type) {
+  if (type === 'BIST') return 'BIST'
+  if (type === 'crypto' || type === 'Digital Currency' || type === 'Cryptocurrency') return 'Kripto'
+  if (type === 'forex' || type === 'Physical Currency') return 'Döviz'
+  return 'ABD Hisse'
+}
+
+const CATEGORY_ORDER = ['BIST', 'ABD Hisse', 'Kripto', 'Döviz']
+
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
   useEffect(() => {
@@ -13,6 +31,25 @@ function useIsMobile() {
   return m
 }
 
+// Basit SVG sparkline
+function Sparkline({ data, color }) {
+  if (!data || data.length < 2) return <div style={{ width: '80px', height: '28px' }} />
+  const w = 80, h = 28, pad = 2
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2)
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2)
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return (
+    <svg width={w} height={h} style={{ flexShrink: 0 }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function Stocks() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
@@ -20,6 +57,7 @@ function Stocks() {
   const [quotes, setQuotes] = useState({})
   const [monthly, setMonthly] = useState({})
   const [loading, setLoading] = useState(true)
+  const [activeFilter, setActiveFilter] = useState('all')
 
   const [showAdd, setShowAdd] = useState(false)
   const [search, setSearch] = useState('')
@@ -33,30 +71,26 @@ function Stocks() {
     const { data, error } = await supabase.from('holdings').select('*').order('created_at', { ascending: true })
     if (!error) {
       setHoldings(data)
-      if (data.length > 0) {
-        fetchQuotes(data)
-        
-      }
+      if (data.length > 0) fetchQuotes(data)
     }
     setLoading(false)
   }
 
-async function fetchQuotes(items) {
-  const uniqueItems = [...new Map(items.map(h => [h.symbol, h])).values()]
-  const symbols = uniqueItems.map(h => h.symbol).join(',')
-  const hints = uniqueItems.map(h => h.type === 'BIST' ? 'BIST' : '').join(',')
-  try {
-    const res = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols)}&hints=${encodeURIComponent(hints)}&history=1`)
-    const data = await res.json()
-    setQuotes(data)
-    // Aylık değişimi de aynı yanıttan çıkar
-    const monthlyData = {}
-    Object.entries(data).forEach(([sym, val]) => {
-      monthlyData[sym] = { monthly_change: val.monthly_change, sparkline: val.sparkline }
-    })
-    setMonthly(monthlyData)
-  } catch (err) { console.error(err) }
-}
+  async function fetchQuotes(items) {
+    const uniqueItems = [...new Map(items.map(h => [h.symbol, h])).values()]
+    const symbols = uniqueItems.map(h => h.symbol).join(',')
+    const hints = uniqueItems.map(h => h.type === 'BIST' ? 'BIST' : '').join(',')
+    try {
+      const res = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols)}&hints=${encodeURIComponent(hints)}&history=1`)
+      const data = await res.json()
+      setQuotes(data)
+      const monthlyData = {}
+      Object.entries(data).forEach(([sym, val]) => {
+        monthlyData[sym] = { monthly_change: val.monthly_change, sparkline: val.sparkline }
+      })
+      setMonthly(monthlyData)
+    } catch (err) { console.error(err) }
+  }
 
   async function searchSymbol() {
     if (!search.trim()) return
@@ -73,7 +107,7 @@ async function fetchQuotes(items) {
     await supabase.from('holdings').insert({
       symbol: r.symbol,
       name: r.instrument_name || r.symbol,
-      type: r.exchange === 'BIST' ? 'BIST' : (r.instrument_type || 'Hisse'),
+      type: r.exchange === 'BIST' ? 'BIST' : (searchType === 'crypto' ? 'crypto' : searchType === 'forex' ? 'forex' : (r.instrument_type || 'Hisse')),
       quantity: 0,
       buy_price: 0,
       user_id: user.id
@@ -88,63 +122,98 @@ async function fetchQuotes(items) {
   }
 
   function refresh() {
-    if (holdings.length > 0) {
-      fetchQuotes(holdings)
-    }
+    if (holdings.length > 0) fetchQuotes(holdings)
   }
 
   if (loading) return <div style={{ color: 'var(--text-faint)' }}>Yükleniyor...</div>
 
+  // Kategorilere göre grupla
+  const groupedByCategory = {}
+  holdings.forEach(h => {
+    const cat = getCategory(h.type)
+    if (!groupedByCategory[cat]) groupedByCategory[cat] = []
+    groupedByCategory[cat].push(h)
+  })
+
+  // Mevcut kategoriler (veri olanlar), sıralı
+  const availableCategories = CATEGORY_ORDER.filter(c => groupedByCategory[c]?.length > 0)
+
+  // Filtreye göre gösterilecek kategoriler
+  const visibleCategories = activeFilter === 'all'
+    ? availableCategories
+    : availableCategories.filter(c => c === activeFilter)
+
   return (
     <div style={{ color: 'var(--text)' }}>
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '18px' }}>
         <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '6px' }}>İzleme Listesi</h2>
         <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', marginBottom: '12px' }}>Takip etmek istediğin sembolleri ekle. Portföy için Finans → Yatırımlar'ı kullan.</p>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={refresh} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>↻ Yenile</button>
           <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>+ Ekle</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: '760px' }}>
-        {holdings.map(h => {
-          const q = quotes[h.symbol]
-          const price = parseFloat(q?.close || 0)
-          const change = parseFloat(q?.percent_change || 0)
-          const monthChange = monthly[h.symbol]?.monthly_change
-          const currency = q?.currency || (h.type === 'BIST' ? 'TRY' : 'USD')
-          const symbol = currency === 'TRY' ? '₺' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
+      {/* Filtre */}
+      {availableCategories.length > 0 && (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+          <button onClick={() => setActiveFilter('all')} style={filterBtn(activeFilter === 'all')}>Tümü</button>
+          {availableCategories.map(cat => (
+            <button key={cat} onClick={() => setActiveFilter(cat)} style={filterBtn(activeFilter === cat)}>{cat}</button>
+          ))}
+        </div>
+      )}
 
-          return (
-            <div key={h.id} style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: '14px', fontWeight: '600' }}>{h.symbol}</span>
-                  <span style={{ fontSize: '10px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-muted)' }}>{h.type}</span>
-                </div>
-                <span onClick={() => deleteHolding(h.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '18px', fontWeight: '700' }}>{symbol}{price.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</div>
-                <div style={{ fontSize: '12px' }}>
-                  <span style={{ color: 'var(--text-faint)', marginRight: '4px' }}>Günlük:</span>
-                  <span style={{ color: change >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: '600' }}>
-                    {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-                  </span>
-                </div>
-                {monthChange !== null && monthChange !== undefined && (
-                  <div style={{ fontSize: '12px' }}>
-                    <span style={{ color: 'var(--text-faint)', marginRight: '4px' }}>Aylık:</span>
-                    <span style={{ color: parseFloat(monthChange) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: '600' }}>
-                      {parseFloat(monthChange) >= 0 ? '+' : ''}{monthChange}%
-                    </span>
-                  </div>
-                )}
-              </div>
+      <div style={{ maxWidth: '820px' }}>
+        {visibleCategories.map(cat => (
+          <div key={cat} style={{ marginBottom: '22px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: '600', marginBottom: '10px' }}>
+              {cat} ({groupedByCategory[cat].length})
             </div>
-          )
-        })}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+              {groupedByCategory[cat].map(h => {
+                const q = quotes[h.symbol]
+                const price = parseFloat(q?.close || 0)
+                const change = parseFloat(q?.percent_change || 0)
+                const monthChange = monthly[h.symbol]?.monthly_change
+                const sparkline = monthly[h.symbol]?.sparkline || []
+                const currency = q?.currency || (h.type === 'BIST' ? 'TRY' : 'USD')
+                const curSym = currency === 'TRY' ? '₺' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
+                const changeColor = change >= 0 ? 'var(--success)' : 'var(--danger)'
+
+                return (
+                  <div key={h.id} style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '10px', padding: '11px 13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '700' }}>{h.symbol}</span>
+                      <span onClick={() => deleteHolding(h.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', marginLeft: 'auto' }}>✕</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '3px' }}>
+                          {curSym}{price.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11.5px', color: changeColor, fontWeight: '600' }}>
+                            {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+                          </span>
+                          {monthChange !== null && monthChange !== undefined && (
+                            <span style={{ fontSize: '11.5px', color: parseFloat(monthChange) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                              30g: {parseFloat(monthChange) >= 0 ? '+' : ''}{monthChange}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Sparkline data={sparkline} color={change >= 0 ? 'var(--success)' : 'var(--danger)'} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+
         {holdings.length === 0 && (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
             <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Henüz hiçbir sembol eklenmedi. + Ekle ile başla.</p>
@@ -192,6 +261,15 @@ async function fetchQuotes(items) {
       )}
     </div>
   )
+}
+
+function filterBtn(active) {
+  return {
+    padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+    borderColor: active ? 'var(--accent)' : 'var(--border-strong)',
+    background: active ? 'var(--accent)' : 'transparent',
+    color: active ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
+  }
 }
 
 function Modal({ children, onClose }) {
