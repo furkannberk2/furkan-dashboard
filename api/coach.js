@@ -34,15 +34,28 @@ async function buildFinanceContext(userId) {
   const balance = income?.balance ? Number(income.balance) : null
   const baseAmount = balance || totalIncome
 
+  const now = new Date()
+  const currentDay = now.getDate()
+
+  // Finance sayfasıyla birebir aynı: sadece kalan döneme düşen sabit giderler
+  function isDueInCurrentCycle(dueDay, curDay, pd) {
+    if (!dueDay) return true
+    if (curDay <= pd) return dueDay >= curDay && dueDay <= pd
+    return dueDay >= curDay || dueDay <= pd
+  }
+
+  const recurringList = recurring.data || []
+  const totalRecurring = recurringList
+    .filter(e => isDueInCurrentCycle(e.due_day, currentDay, payday))
+    .reduce((s, e) => s + Number(e.amount), 0)
+  const totalRecurringFull = recurringList.reduce((s, e) => s + Number(e.amount), 0)
+  const totalVariable = (variable.data || []).reduce((s, e) => s + Number(e.amount), 0)
+
   const dailyExpenses = daily.data || []
   const todaySpent = dailyExpenses.filter(e => e.date === today).reduce((s, e) => s + Number(e.amount), 0)
   const monthSpent = dailyExpenses.filter(e => e.date.startsWith(month)).reduce((s, e) => s + Number(e.amount), 0)
+  const hasAnyExpense = dailyExpenses.filter(e => e.date.startsWith(month)).length > 0
 
-  const totalRecurring = (recurring.data || []).reduce((s, e) => s + Number(e.amount), 0)
-  const totalVariable = (variable.data || []).reduce((s, e) => s + Number(e.amount), 0)
-
-  const now = new Date()
-  const currentDay = now.getDate()
   let remainingDays
   if (currentDay <= payday) remainingDays = payday - currentDay + 1
   else {
@@ -61,11 +74,14 @@ async function buildFinanceContext(userId) {
 
   if (totalIncome === 0 && !balance) return 'FİNANS: Gelir/bakiye girilmemiş.'
 
-  return `FİNANS: ${balance ? `Bakiye ${balance.toLocaleString('tr-TR')}₺` : `Aylık gelir ${totalIncome.toLocaleString('tr-TR')}₺`}. ` +
-    `Bu ay harcanan: ${monthSpent.toLocaleString('tr-TR')}₺. Bugün: ${todaySpent.toLocaleString('tr-TR')}₺. ` +
-    `Günlük limit: ${dailyBudget.toLocaleString('tr-TR')}₺ (${remainingDays} gün kaldı)${todaySpent > dailyBudget ? ' — BUGÜN LİMİT AŞILDI' : ''}. ` +
-    `Sabit giderler: ${totalRecurring.toLocaleString('tr-TR')}₺/ay. Değişken bütçe: ${totalVariable.toLocaleString('tr-TR')}₺. ` +
-    (topCat ? `En çok harcama: ${topCat[0]} (${topCat[1].toLocaleString('tr-TR')}₺).` : '')
+  return `FİNANS: ${balance ? `Mevcut bakiye ${balance.toLocaleString('tr-TR')}₺ (baz alınıyor)` : `Aylık gelir ${totalIncome.toLocaleString('tr-TR')}₺`}. ` +
+    `Bu ay harcanan: ${monthSpent.toLocaleString('tr-TR')}₺${!hasAnyExpense ? ' (kullanıcı bu ay henüz harcama GİRMEMİŞ olabilir, sıfır harcamayı otomatik olumlu yorumlama)' : ''}. ` +
+    `Bugün harcanan: ${todaySpent.toLocaleString('tr-TR')}₺. ` +
+    `Günlük limit: ${dailyBudget.toLocaleString('tr-TR')}₺ (${remainingDays} gün kaldı)${todaySpent > dailyBudget && dailyBudget > 0 ? ' — BUGÜN LİMİT AŞILDI' : ''}. ` +
+    `Sabit giderler (kalan döneme düşen): ${totalRecurring.toLocaleString('tr-TR')}₺` +
+    `${totalRecurringFull !== totalRecurring ? ` (aylık toplam ${totalRecurringFull.toLocaleString('tr-TR')}₺)` : ''}. ` +
+    `Değişken bütçe: ${totalVariable.toLocaleString('tr-TR')}₺. ` +
+    (topCat ? `En çok harcama kategorisi: ${topCat[0]} (${topCat[1].toLocaleString('tr-TR')}₺).` : '')
 }
 
 async function buildInvestmentContext(userId) {
