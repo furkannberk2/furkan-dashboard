@@ -39,7 +39,7 @@ function generateRoutineDates(routine, start, end) {
   }
 
   if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
-    const days = routine.days_of_week || []
+    const days = (routine.days_of_week || []).map(Number)
     if (days.length === 0) return dates
     let cursor = start
     let safety = 100
@@ -54,7 +54,7 @@ function generateRoutineDates(routine, start, end) {
   }
 
   if (routine.frequency === '2 haftada 1') {
-    const days = routine.days_of_week || []
+    const days = (routine.days_of_week || []).map(Number)
     const anchor = routine.biweekly_anchor || start
     if (days.length === 0) return dates
     let cursor = start
@@ -72,7 +72,7 @@ function generateRoutineDates(routine, start, end) {
   }
 
   if (['Ayda 1', 'Ayda 2'].includes(routine.frequency)) {
-    const monthDays = routine.days_of_month || []
+    const monthDays = (routine.days_of_month || []).map(Number)
     if (monthDays.length === 0) return dates
     let cursor = start
     let safety = 100
@@ -87,8 +87,6 @@ function generateRoutineDates(routine, start, end) {
 
   return dates
 }
-
-
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
@@ -108,6 +106,7 @@ function Tasks() {
   const [projects, setProjects] = useState([])
   const [routines, setRoutines] = useState([])
   const [routineLogs, setRoutineLogs] = useState([])
+  const [allTasksData, setAllTasksData] = useState([])
   const [filter, setFilter] = useState('today')
   const [newTask, setNewTask] = useState('')
   const [newDeadline, setNewDeadline] = useState('')
@@ -122,18 +121,20 @@ function Tasks() {
   useEffect(() => { fetchAll() }, [filter])
 
   async function fetchAll() {
-    const [t, pt, p, r, rl] = await Promise.all([
+    const [t, pt, p, r, rl, allT] = await Promise.all([
       buildTaskQuery(),
       supabase.from('project_tasks').select('*'),
       supabase.from('projects').select('*'),
       supabase.from('project_routines').select('*'),
-      supabase.from('project_routine_logs').select('*')
+      supabase.from('project_routine_logs').select('*'),
+      supabase.from('tasks').select('*').neq('status', 'done')
     ])
     if (!t.error) setTasks(t.data || [])
     if (!pt.error) setProjectTasks(pt.data || [])
     if (!p.error) setProjects(p.data || [])
     if (!r.error) setRoutines(r.data || [])
     if (!rl.error) setRoutineLogs(rl.data || [])
+    if (!allT.error) setAllTasksData(allT.data || [])
   }
 
   async function buildTaskQuery() {
@@ -163,7 +164,6 @@ function Tasks() {
     if (item.source === 'project_task') {
       const newStatus = item.status === 'todo' ? 'done' : 'todo'
       await supabase.from('project_tasks').update({ status: newStatus }).eq('id', item.id)
-      // Proje progress'i otomatik güncelle (manual değilse)
       const proj = projects.find(p => p.id === item.project_id)
       if (proj && !proj.progress_manual) {
         const { data } = await supabase.from('project_tasks').select('*').eq('project_id', item.project_id)
@@ -175,7 +175,6 @@ function Tasks() {
         }
       }
     } else if (item.source === 'routine') {
-      // Rutin tamamlanma logu
       const existing = routineLogs.find(l => l.routine_id === item.routine_id && l.date === item.day)
       if (existing) {
         await supabase.from('project_routine_logs').delete().eq('id', existing.id)
@@ -186,7 +185,6 @@ function Tasks() {
           date: item.day,
           done: true
         })
-        // Last done'u da güncelle
         await supabase.from('project_routines').update({ last_done: new Date().toISOString() }).eq('id', item.routine_id)
       }
     } else {
@@ -200,7 +198,6 @@ function Tasks() {
     if (item.source === 'project_task') {
       await supabase.from('project_tasks').delete().eq('id', item.id)
     } else if (item.source === 'routine') {
-      // Rutin örneğini silemiyoruz, sadece o günkü logu kaldırıyoruz
       return
     } else {
       await supabase.from('tasks').delete().eq('id', item.id)
@@ -209,7 +206,7 @@ function Tasks() {
   }
 
   function startEdit(item) {
-    if (item.source === 'routine') return  // Rutinler düzenlenemez
+    if (item.source === 'routine') return
     setEditingId(item.id)
     setEditDraft({
       title: item.title,
@@ -270,70 +267,78 @@ function Tasks() {
 
   function isOverdue(dateStr) { return dateStr < today }
 
-  // Filtre aralığını hesapla
   function getDateRange() {
     if (filter === 'today') return [today, today]
     if (filter === 'week') return [getWeekStart(), getWeekEnd()]
     if (filter === 'month') return [getMonthStart(), getMonthEnd()]
-    // 'all' için: bugünden 30 gün ileri
     return [today, addDays(today, 30)]
   }
 
-  // Tüm itemları birleştir
-function buildAllItems() {
-  const [rangeStart, rangeEnd] = getDateRange()
-  const items = []
+  function buildAllItems() {
+    const [rangeStart, rangeEnd] = getDateRange()
+    const items = []
 
-  // Normal görevler (zaten filtrelenmiş geldi)
-  tasks.forEach(t => {
-    items.push({ ...t, source: 'task' })
-  })
-
-  // Proje aşamaları (tarihi olanlar) — TÜMÜ, filtre aralığına bakmadan
-  projectTasks.forEach(pt => {
-    if (!pt.date) return
-    // Filtre 'today/week/month' ise sadece aralıktakiler; 'all' ise hepsi
-    if (filter !== 'all' && (pt.date < rangeStart || pt.date > rangeEnd)) return
-    const proj = projects.find(p => p.id === pt.project_id)
-    items.push({
-      ...pt,
-      day: pt.date,
-      source: 'project_task',
-      project: proj,
-      priority: 'medium'
+    tasks.forEach(t => {
+      items.push({ ...t, source: 'task' })
     })
-  })
 
-  // Rutin örnekleri: sadece mevcut ay sonuna kadar
-const routineStart = rangeStart > today ? rangeStart : today
-const routineEnd = rangeEnd
-
-  routines.forEach(r => {
-    const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
-    const matchingDates = generateRoutineDates(r, routineStart, endDate)
-    console.log('RUTIN:', r.title, 'days:', r.days_of_week, 'aralık:', routineStart, '→', endDate, 'üretilen:', matchingDates)
-    matchingDates.forEach(date => {
-      if (date < rangeStart) return
-      const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
-      const proj = projects.find(p => p.id === r.project_id)
+    projectTasks.forEach(pt => {
+      if (!pt.date) return
+      if (filter !== 'all' && (pt.date < rangeStart || pt.date > rangeEnd)) return
+      const proj = projects.find(p => p.id === pt.project_id)
       items.push({
-        id: `routine-${r.id}-${date}`,
-        routine_id: r.id,
-        title: r.title,
-        day: date,
-        status: log ? 'done' : 'todo',
-        source: 'routine',
+        ...pt,
+        day: pt.date,
+        source: 'project_task',
         project: proj,
-        frequency: r.frequency,
         priority: 'medium'
       })
     })
-  })
 
-  return items
-}
+    const routineStart = rangeStart > today ? rangeStart : today
+    const routineEnd = rangeEnd
+
+    routines.forEach(r => {
+      const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
+      const matchingDates = generateRoutineDates(r, routineStart, endDate)
+      matchingDates.forEach(date => {
+        if (date < rangeStart) return
+        const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
+        const proj = projects.find(p => p.id === r.project_id)
+        items.push({
+          id: `routine-${r.id}-${date}`,
+          routine_id: r.id,
+          title: r.title,
+          day: date,
+          status: log ? 'done' : 'todo',
+          source: 'routine',
+          project: proj,
+          frequency: r.frequency,
+          priority: 'medium'
+        })
+      })
+    })
+
+    return items
+  }
 
   const allItems = buildAllItems()
+
+  // Sağ panel hesaplamaları
+  const overdueTasks = allTasksData
+    .filter(t => t.day && t.day < today)
+    .sort((a, b) => a.day.localeCompare(b.day))
+
+  const upcomingTasks = allTasksData
+    .filter(t => t.day && t.day >= today && t.day <= addDays(today, 7))
+    .sort((a, b) => a.day.localeCompare(b.day))
+
+  const projectSummaries = projects.map(p => {
+    const openPhases = projectTasks.filter(pt => pt.project_id === p.id && pt.status !== 'done').length
+    const totalPhases = projectTasks.filter(pt => pt.project_id === p.id).length
+    const routineCount = routines.filter(r => r.project_id === p.id && (!r.end_date || r.end_date >= today)).length
+    return { ...p, openPhases, totalPhases, routineCount }
+  })
 
   const priorityOrder = { high: 0, medium: 1, low: 2 }
   function sortItems(arr) {
@@ -367,106 +372,180 @@ const routineEnd = rangeEnd
   }
 
   return (
-    <div style={{ color: 'var(--text)' }}>
-      <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Görevler</h2>
+    <div style={{ color: 'var(--text)', display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
+      <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+        <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Görevler</h2>
 
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '20px', maxWidth: '680px' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-          <input
-            value={newTask}
-            onChange={e => setNewTask(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addTask()}
-            placeholder="Görev ekle..."
-            style={inputStyle}
-          />
-          <button onClick={addTask} style={buttonStyle}>Ekle</button>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <input
+              value={newTask}
+              onChange={e => setNewTask(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addTask()}
+              placeholder="Görev ekle..."
+              style={inputStyle}
+            />
+            <button onClick={addTask} style={buttonStyle}>Ekle</button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="date"
+              value={newDeadline}
+              onChange={e => setNewDeadline(e.target.value)}
+              style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
+            />
+            <PrioritySelect value={newPriority} onChange={setNewPriority} />
+            <button
+              onClick={() => setShowDetail(!showDetail)}
+              style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}
+            >
+              {showDetail ? '− Detay' : '+ Detay'}
+            </button>
+          </div>
+          {showDetail && (
+            <textarea
+              value={newDetail}
+              onChange={e => setNewDetail(e.target.value)}
+              placeholder="Detay ekle..."
+              rows={2}
+              style={{ ...inputStyle, width: '100%', resize: 'vertical', marginTop: '8px', fontSize: '13px' }}
+            />
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            type="date"
-            value={newDeadline}
-            onChange={e => setNewDeadline(e.target.value)}
-            style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
-          />
-          <PrioritySelect value={newPriority} onChange={setNewPriority} />
-          <button
-            onClick={() => setShowDetail(!showDetail)}
-            style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}
-          >
-            {showDetail ? '− Detay' : '+ Detay'}
-          </button>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {['today', 'week', 'month', 'all'].map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '6px 14px', borderRadius: '20px', border: '1px solid',
+              borderColor: filter === f ? 'var(--accent)' : 'var(--border-strong)',
+              background: filter === f ? 'var(--accent)' : 'transparent',
+              color: filter === f ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
+            }}>
+              {f === 'today' ? 'Bugün' : f === 'week' ? 'Bu Hafta' : f === 'month' ? 'Bu Ay' : 'Tümü'}
+            </button>
+          ))}
         </div>
-        {showDetail && (
-          <textarea
-            value={newDetail}
-            onChange={e => setNewDetail(e.target.value)}
-            placeholder="Detay ekle..."
-            rows={2}
-            style={{ ...inputStyle, width: '100%', resize: 'vertical', marginTop: '8px', fontSize: '13px' }}
-          />
+
+        {!grouped && (
+          <div>
+            {sortItems(activeItems).map(t => (
+              <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
+            ))}
+            {activeItems.length === 0 && doneItems.length === 0 && (
+              <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>
+            )}
+            {doneItems.length > 0 && (
+              <div style={{ marginTop: '20px' }}>
+                <button
+                  onClick={() => setShowDone(!showDone)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}
+                >
+                  {showDone ? '▲' : '▼'} Tamamlananlar ({doneItems.length})
+                </button>
+                {showDone && sortItems(doneItems).map(t => (
+                  <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {grouped && (
+          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
+            {Object.keys(grouped).sort().map(day => (
+              <div key={day} style={{
+                minWidth: '240px', maxWidth: '240px',
+                background: 'var(--bg-card)',
+                border: day === today ? '1px solid var(--accent)' : '1px solid var(--border)',
+                borderRadius: '12px', padding: '14px'
+              }}>
+                <div style={{
+                  fontSize: '11px',
+                  color: day === today ? 'var(--accent)' : 'var(--text-dim)',
+                  marginBottom: '12px', fontWeight: '600',
+                  textTransform: 'uppercase', letterSpacing: '0.5px'
+                }}>
+                  {formatDate(day)}
+                </div>
+                {sortItems(grouped[day]).map(t => (
+                  <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} compact />
+                ))}
+              </div>
+            ))}
+            {Object.keys(grouped).length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
+          </div>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {['today', 'week', 'month', 'all'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '6px 14px', borderRadius: '20px', border: '1px solid',
-            borderColor: filter === f ? 'var(--accent)' : 'var(--border-strong)',
-            background: filter === f ? 'var(--accent)' : 'transparent',
-            color: filter === f ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
-          }}>
-            {f === 'today' ? 'Bugün' : f === 'week' ? 'Bu Hafta' : f === 'month' ? 'Bu Ay' : 'Tümü'}
-          </button>
-        ))}
-      </div>
+      <TaskSidebar
+        isMobile={isMobile}
+        overdueTasks={overdueTasks}
+        upcomingTasks={upcomingTasks}
+        projectSummaries={projectSummaries}
+        formatDate={formatDate}
+      />
+    </div>
+  )
+}
 
-      {!grouped && (
-        <div style={{ maxWidth: '680px' }}>
-          {sortItems(activeItems).map(t => (
-            <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
-          ))}
-          {activeItems.length === 0 && doneItems.length === 0 && (
-            <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>
-          )}
-          {doneItems.length > 0 && (
-            <div style={{ marginTop: '20px' }}>
-              <button
-                onClick={() => setShowDone(!showDone)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}
-              >
-                {showDone ? '▲' : '▼'} Tamamlananlar ({doneItems.length})
-              </button>
-              {showDone && sortItems(doneItems).map(t => (
-                <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
-              ))}
+function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, formatDate }) {
+  return (
+    <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {projectSummaries.length > 0 && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>Projeler</div>
+          {projectSummaries.map(p => (
+            <div key={p.id} style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                {p.icon && <span style={{ fontSize: '14px' }}>{p.icon}</span>}
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{p.progress}%</span>
+              </div>
+              <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '4px', marginBottom: '5px' }}>
+                <div style={{ width: `${p.progress}%`, height: '4px', borderRadius: '99px', background: p.color }} />
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                {p.openPhases > 0 ? `${p.openPhases} açık aşama` : 'Aşama yok'}
+                {p.routineCount > 0 ? ` · ${p.routineCount} rutin` : ''}
+              </div>
             </div>
-          )}
+          ))}
         </div>
       )}
 
-      {grouped && (
-        <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '12px', alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
-          {Object.keys(grouped).sort().map(day => (
-            <div key={day} style={{
-              minWidth: '240px', maxWidth: '240px',
-              background: 'var(--bg-card)',
-              border: day === today ? '1px solid var(--accent)' : '1px solid var(--border)',
-              borderRadius: '12px', padding: '14px'
-            }}>
-              <div style={{
-                fontSize: '11px',
-                color: day === today ? 'var(--accent)' : 'var(--text-dim)',
-                marginBottom: '12px', fontWeight: '600',
-                textTransform: 'uppercase', letterSpacing: '0.5px'
-              }}>
-                {formatDate(day)}
-              </div>
-              {sortItems(grouped[day]).map(t => (
-                <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} compact />
-              ))}
+      {overdueTasks.length > 0 && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--danger)', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>
+            Gecikmiş ({overdueTasks.length})
+          </div>
+          {overdueTasks.slice(0, 6).map(t => (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
+              <span style={{ fontSize: '11px', color: 'var(--danger)', flexShrink: 0 }}>{formatDate(t.day)}</span>
             </div>
           ))}
-          {Object.keys(grouped).length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
+          {overdueTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{overdueTasks.length - 6} daha</div>}
+        </div>
+      )}
+
+      {upcomingTasks.length > 0 && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>
+            Yaklaşan (7 gün)
+          </div>
+          {upcomingTasks.slice(0, 6).map(t => (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.day)}</span>
+            </div>
+          ))}
+          {upcomingTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{upcomingTasks.length - 6} daha</div>}
+        </div>
+      )}
+
+      {overdueTasks.length === 0 && upcomingTasks.length === 0 && projectSummaries.length === 0 && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>Henüz özet yok</span>
         </div>
       )}
     </div>
