@@ -35,29 +35,28 @@ function Stocks() {
       setHoldings(data)
       if (data.length > 0) {
         fetchQuotes(data)
-        fetchMonthly(data)
+        
       }
     }
     setLoading(false)
   }
 
-  async function fetchQuotes(items) {
-    const symbols = [...new Set(items.map(h => h.symbol))].join(',')
-    try {
-      const res = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols)}`)
-      const data = await res.json()
-      setQuotes(data)
-    } catch (err) { console.error(err) }
-  }
-
-  async function fetchMonthly(items) {
-    const symbols = [...new Set(items.map(h => h.symbol))].join(',')
-    try {
-      const res = await fetch(`${BACKEND}/api/monthly-change?symbols=${encodeURIComponent(symbols)}`)
-      const data = await res.json()
-      setMonthly(data)
-    } catch (err) { console.error(err) }
-  }
+async function fetchQuotes(items) {
+  const uniqueItems = [...new Map(items.map(h => [h.symbol, h])).values()]
+  const symbols = uniqueItems.map(h => h.symbol).join(',')
+  const hints = uniqueItems.map(h => h.type === 'BIST' ? 'BIST' : '').join(',')
+  try {
+    const res = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols)}&hints=${encodeURIComponent(hints)}&history=1`)
+    const data = await res.json()
+    setQuotes(data)
+    // Aylık değişimi de aynı yanıttan çıkar
+    const monthlyData = {}
+    Object.entries(data).forEach(([sym, val]) => {
+      monthlyData[sym] = { monthly_change: val.monthly_change, sparkline: val.sparkline }
+    })
+    setMonthly(monthlyData)
+  } catch (err) { console.error(err) }
+}
 
   async function searchSymbol() {
     if (!search.trim()) return
@@ -91,7 +90,6 @@ function Stocks() {
   function refresh() {
     if (holdings.length > 0) {
       fetchQuotes(holdings)
-      fetchMonthly(holdings)
     }
   }
 
