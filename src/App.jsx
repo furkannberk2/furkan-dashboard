@@ -11,6 +11,7 @@ import Habits from './pages/Habits'
 import Calories from './pages/Calories'
 import Mail from './pages/Mail'
 import Stocks from './pages/Stocks'
+import Coach from './pages/Coach'
 
 function App() {
   const { user, loading } = useAuth()
@@ -48,6 +49,7 @@ function App() {
           <Route path="/stocks" element={<Stocks />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/finance" element={<Finance />} />
+          <Route path="/coach" element={<Coach />} />
         </Routes>
       </main>
     </div>

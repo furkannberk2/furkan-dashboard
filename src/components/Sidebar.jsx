@@ -1,7 +1,7 @@
 import { useAuth } from './AuthProvider'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Home, CheckSquare, ListTodo, Apple, Mail, TrendingUp, FolderKanban, Wallet, Sun, Moon, MoreHorizontal, X } from 'lucide-react'
+import { Home, CheckSquare, ListTodo, Apple, Mail, TrendingUp, FolderKanban, Wallet, Sun, Moon, MoreHorizontal, X, Sparkles } from 'lucide-react'
 import { applyTheme, getInitialTheme } from '../theme'
 
 const ALL_ITEMS = [
@@ -15,7 +15,6 @@ const ALL_ITEMS = [
   { to: '/projects', label: 'Projeler', icon: FolderKanban },
 ]
 
-// Bottom nav: ilk 4 + Daha
 const BOTTOM_ITEMS = ALL_ITEMS.slice(0, 4)
 const EXTRA_ITEMS = ALL_ITEMS.slice(4)
 
@@ -29,23 +28,71 @@ function useIsMobile() {
   return isMobile
 }
 
+// Işıltı animasyonu için stil (bir kez enjekte edilir)
+function injectGlowKeyframes() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('coach-glow-style')) return
+  const style = document.createElement('style')
+  style.id = 'coach-glow-style'
+  style.textContent = `
+    @keyframes coachGlow {
+      0%, 100% { box-shadow: 0 0 12px rgba(139, 92, 246, 0.5), 0 0 24px rgba(99, 102, 241, 0.3); }
+      50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 40px rgba(99, 102, 241, 0.5); }
+    }
+    @keyframes coachShine {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .coach-fab {
+      animation: coachGlow 2.5s ease-in-out infinite;
+    }
+    .coach-desktop-btn:hover {
+      transform: translateY(-1px);
+    }
+  `
+  document.head.appendChild(style)
+}
+
 function Sidebar() {
   const { signOut } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [theme, setTheme] = useState(getInitialTheme())
   const [moreOpen, setMoreOpen] = useState(false)
   const isMobile = useIsMobile()
 
+  useEffect(() => { injectGlowKeyframes() }, [])
 
-  
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
     applyTheme(next)
   }
 
+  const coachActive = location.pathname === '/coach'
+
   if (isMobile) {
     return (
       <>
+        {/* Yüzen Koç butonu (FAB) — Koç sayfasında gizle */}
+        {!coachActive && (
+          <button
+            className="coach-fab"
+            onClick={() => navigate('/coach')}
+            style={{
+              position: 'fixed', bottom: '82px', right: '18px', zIndex: 60,
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff'
+            }}
+            aria-label="Koç"
+          >
+            <Sparkles size={24} strokeWidth={2} />
+          </button>
+        )}
+
         {/* Bottom Navigation */}
         <nav style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -102,7 +149,7 @@ function Sidebar() {
                   <NavLink key={to} to={to} end={end} onClick={() => setMoreOpen(false)} style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '12px 14px', borderRadius: '10px',
-                    background: isActive ? 'var(--bg-item)' : 'var(--bg-item)',
+                    background: 'var(--bg-item)',
                     border: '1px solid var(--border)',
                     textDecoration: 'none', fontSize: '13.5px',
                     fontWeight: isActive ? '600' : '500',
@@ -152,7 +199,7 @@ function Sidebar() {
       display: 'flex', flexDirection: 'column', gap: '2px',
       position: 'sticky', top: 0, alignSelf: 'flex-start'
     }}>
-      <div style={{ padding: '0 8px 28px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ padding: '0 8px 24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div style={{
           width: '32px', height: '32px', borderRadius: '8px',
           background: 'var(--accent)',
@@ -164,6 +211,32 @@ function Sidebar() {
           <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: '1.2', marginTop: '2px' }}>Furkan</div>
         </div>
       </div>
+
+      {/* Işıltılı Koç butonu — menünün en üstünde */}
+      <NavLink
+        to="/coach"
+        className="coach-desktop-btn"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '11px 14px', borderRadius: '10px', marginBottom: '10px',
+          textDecoration: 'none', fontSize: '14px', fontWeight: '600',
+          color: '#fff',
+          background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+          boxShadow: coachActive
+            ? '0 0 16px rgba(139, 92, 246, 0.6)'
+            : '0 0 10px rgba(139, 92, 246, 0.35)',
+          transition: 'transform 0.15s, box-shadow 0.3s',
+          position: 'relative', overflow: 'hidden'
+        }}
+      >
+        <Sparkles size={18} strokeWidth={2.2} />
+        <span>Koç</span>
+        <span style={{
+          marginLeft: 'auto', fontSize: '9px', fontWeight: '700',
+          background: 'rgba(255,255,255,0.25)', padding: '2px 6px',
+          borderRadius: '5px', letterSpacing: '0.5px'
+        }}>AI</span>
+      </NavLink>
 
       <div style={{
         fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px',
