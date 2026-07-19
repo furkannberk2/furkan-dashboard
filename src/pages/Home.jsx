@@ -5,6 +5,7 @@ import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange } from '../utils/finance'
+import { formatMoney } from '../utils/format'
 
 function Home() {
   const { user } = useAuth()
@@ -143,6 +144,7 @@ function Home() {
 
   // Portföy — baseCurrency şimdilik sabit 'TRY' (Finance ile aynı yaklaşım)
   const baseCurrency = 'TRY'
+  const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, {})
   }
@@ -200,8 +202,8 @@ function Home() {
         <StatCard
           to="/finance"
           label="Bugünkü Harcama"
-          value={`₺${todayExp.toLocaleString('tr-TR')}`}
-          sub={`/ ₺${dailyBudget.toLocaleString('tr-TR')} limit`}
+          value={fmt(todayExp)}
+          sub={`/ ${fmt(dailyBudget)} limit`}
           percent={expPercent}
           color={expPercent > 80 ? 'var(--danger)' : expPercent > 50 ? 'var(--warning)' : 'var(--success)'}
         />
@@ -213,7 +215,7 @@ function Home() {
           : '—'}
           valueColor={portfolioChange !== null ? (portfolioChange >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text)'}
           sub={portfolioChange !== null && portfolioTotal > 0
-          ? `${portfolioChange >= 0 ? '+' : ''}₺${Math.round(portfolioTotal * portfolioChange / 100).toLocaleString('tr-TR')} bugün`
+          ? `${portfolioChange >= 0 ? '+' : ''}${fmt(Math.round(portfolioTotal * portfolioChange / 100))} bugün`
           : ''}
           />
       </div>
