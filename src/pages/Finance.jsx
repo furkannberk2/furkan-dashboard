@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays } from '../utils/finance'
+import { formatMoney } from '../utils/format'
 
 const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
@@ -170,6 +171,7 @@ async function fetchPrices(forceRefresh = false) {
   // baseCurrency şimdilik sabit 'TRY' — user_preferences bağlanınca dinamik olacak.
   // getBaseCurrencyValue('TRY') eski getTRYValue ile birebir aynı sonucu verir.
   const baseCurrency = 'TRY'
+  const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, tefasQuotes)
   }
@@ -373,9 +375,9 @@ const categoryDistribution = (() => {
       <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Finans</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <SummaryCard title="Bugünkü Harcama" value={`₺${todayTotal.toLocaleString('tr-TR')}`} sub={`Limit: ₺${dailyBudget.toLocaleString('tr-TR')} · ${remainingDays} gün`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
-        <SummaryCard title="Bu Ay Harcama" value={`₺${monthTotal.toLocaleString('tr-TR')}`} sub={`Gelir: ₺${totalIncome.toLocaleString('tr-TR')}`} />
-        <SummaryCard title="Yatırım Portföyü" value={`₺${Math.round(investTotal).toLocaleString('tr-TR')}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
+        <SummaryCard title="Bugünkü Harcama" value={`${fmt(todayTotal)}`} sub={`Limit: ${fmt(dailyBudget)} · ${remainingDays} gün`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
+        <SummaryCard title="Bu Ay Harcama" value={`${fmt(monthTotal)}`} sub={`Gelir: ${fmt(totalIncome)}`} />
+        <SummaryCard title="Yatırım Portföyü" value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
       </div>
 
       <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -427,7 +429,7 @@ const categoryDistribution = (() => {
               <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{e.category}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || '—'}</span>
               {!isMobile && <span style={{ fontSize: '12px', color: 'var(--text-faint)', flexShrink: 0 }}>{new Date(e.date + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}</span>}
-              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>₺{Number(e.amount).toLocaleString('tr-TR')}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'daily')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✏️</span>
               <span onClick={() => deleteDaily(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}>✕</span>
             </div>
@@ -475,7 +477,7 @@ const categoryDistribution = (() => {
               <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{e.category}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: '80px' }}>{e.name}</span>
               {e.due_day && !isMobile && <span style={{ fontSize: '12px', color: !paidStatus[e.id] && new Date().getDate() >= e.due_day - 2 ? 'var(--warning)' : 'var(--text-faint)', flexShrink: 0 }}>{!paidStatus[e.id] && new Date().getDate() >= e.due_day - 2 ? '⚠️ ' : '📅 '}{e.due_day}'i</span>}
-              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>₺{Number(e.amount).toLocaleString('tr-TR')}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'recurring')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
               <span onClick={() => deleteRecurring(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
             </div>
@@ -506,7 +508,7 @@ const categoryDistribution = (() => {
           ) : (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</span>
-              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>₺{Number(e.amount).toLocaleString('tr-TR')}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'variable')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
               <span onClick={() => deleteVariable(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
             </div>
@@ -515,7 +517,7 @@ const categoryDistribution = (() => {
             <div style={{ marginTop: '14px', padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: '13px' }}>Toplam Değişken Bütçe</span>
-                <span style={{ color: 'var(--text)', fontWeight: '700' }}>₺{totalVariable.toLocaleString('tr-TR')}</span>
+                <span style={{ color: 'var(--text)', fontWeight: '700' }}>{fmt(totalVariable)}</span>
               </div>
             </div>
           )}
@@ -548,7 +550,7 @@ const categoryDistribution = (() => {
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: '17px', fontWeight: '700', flexShrink: 0 }}>₺{Math.round(g.totalTRY).toLocaleString('tr-TR')}</div>
+                <div style={{ fontSize: '17px', fontWeight: '700', flexShrink: 0 }}>{fmt(Math.round(g.totalTRY))}</div>
               </div>
 
               {g.items.map(i => editingId === i.id ? (
@@ -568,7 +570,7 @@ const categoryDistribution = (() => {
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {Number(i.quantity).toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {g.unit}
                   </span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>₺{Math.round(getTRYValue(i)).toLocaleString('tr-TR')}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{fmt(Math.round(getTRYValue(i)))}</span>
                   <span onClick={() => startEdit(i, 'investment')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
                   <span onClick={() => deleteInvestment(i.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>✕</span>
                 </div>
@@ -585,7 +587,7 @@ const categoryDistribution = (() => {
           {investments.length > 0 && (
             <div style={{ marginTop: '14px', padding: '14px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '600' }}>Toplam Portföy</span>
-              <span style={{ color: 'var(--text)', fontWeight: '700', fontSize: '18px' }}>₺{Math.round(investTotal).toLocaleString('tr-TR')}</span>
+              <span style={{ color: 'var(--text)', fontWeight: '700', fontSize: '18px' }}>{fmt(Math.round(investTotal))}</span>
             </div>
           )}
         </div>
@@ -621,15 +623,15 @@ const categoryDistribution = (() => {
           {totalIncome > 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Bu Ay</div>
-              <Row label="Aylık Maaş" value={`₺${totalIncome.toLocaleString('tr-TR')}`} color="var(--success)" />
+              <Row label="Aylık Maaş" value={`${fmt(totalIncome)}`} color="var(--success)" />
               {useBalance && income?.balance && (
-                <Row label="Mevcut Bakiye (baz alınan)" value={`₺${Number(income.balance).toLocaleString('tr-TR')}`} color="var(--purple)" />
+                <Row label="Mevcut Bakiye (baz alınan)" value={`${fmt(Number(income.balance))}`} color="var(--purple)" />
               )}
-              <Row label="Sabit Giderler (kalan dönem)" value={`− ₺${totalRecurring.toLocaleString('tr-TR')}`} color="var(--danger)" />
-              <Row label="Değişken Bütçe" value={`− ₺${totalVariable.toLocaleString('tr-TR')}`} color="var(--warning)" />
+              <Row label="Sabit Giderler (kalan dönem)" value={`− ${fmt(totalRecurring)}`} color="var(--danger)" />
+              <Row label="Değişken Bütçe" value={`− ${fmt(totalVariable)}`} color="var(--warning)" />
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '4px' }}>
-                <Row label="Kullanılabilir Bütçe" value={`₺${(baseAmount - totalRecurring - totalVariable).toLocaleString('tr-TR')}`} bold />
-                <Row label={`Günlük Limit (${remainingDays} gün kaldı)`} value={`₺${dailyBudget.toLocaleString('tr-TR')}`} color="var(--accent)" bold large />
+                <Row label="Kullanılabilir Bütçe" value={`${fmt((baseAmount - totalRecurring - totalVariable))}`} bold />
+                <Row label={`Günlük Limit (${remainingDays} gün kaldı)`} value={`${fmt(dailyBudget)}`} color="var(--accent)" bold large />
               </div>
             </div>
           )}
@@ -641,11 +643,11 @@ const categoryDistribution = (() => {
                 {projection.map((p, i) => (
                   <div key={i} style={{ background: i === 0 ? 'var(--accent-soft)' : 'var(--bg-card)', border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
                     <div style={{ fontSize: '12px', color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', fontWeight: '600', marginBottom: '10px' }}>{p.label} {i === 0 ? '(bu ay)' : ''}</div>
-                    <Row label="Gelir" value={`₺${p.income.toLocaleString('tr-TR')}`} color="var(--success)" small />
-                    <Row label="Sabit Gider" value={`− ₺${p.recurring.toLocaleString('tr-TR')}`} color="var(--danger)" small />
-                    <Row label="Değişken" value={`− ₺${p.variable.toLocaleString('tr-TR')}`} color="var(--warning)" small />
+                    <Row label="Gelir" value={`${fmt(p.income)}`} color="var(--success)" small />
+                    <Row label="Sabit Gider" value={`− ${fmt(p.recurring)}`} color="var(--danger)" small />
+                    <Row label="Değişken" value={`− ${fmt(p.variable)}`} color="var(--warning)" small />
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '4px' }}>
-                      <Row label="Serbest" value={`₺${p.free.toLocaleString('tr-TR')}`} color={p.free >= 0 ? 'var(--text)' : 'var(--danger)'} bold small />
+                      <Row label="Serbest" value={`${fmt(p.free)}`} color={p.free >= 0 ? 'var(--text)' : 'var(--danger)'} bold small />
                     </div>
                   </div>
                 ))}
@@ -834,7 +836,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 ))}
               </Pie>
               <RTooltip
-                formatter={(value) => `₺${value.toLocaleString('tr-TR')}`}
+                formatter={(value) => `${fmt(value)}`}
                 contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '13px' }}
                 itemStyle={{ color: 'var(--text)' }}
               />
@@ -850,7 +852,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>{d.name}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{percent}%</span>
                 <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '600', minWidth: '90px', textAlign: 'right' }}>
-                  ₺{d.value.toLocaleString('tr-TR')}
+                  {fmt(d.value)}
                 </span>
               </div>
             )
