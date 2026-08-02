@@ -3,6 +3,7 @@
 // Bölge, para birimi, dil, birim sistemi ayarlanır.
 // Bölge değişince diğerleri otomatik önerilir ama kullanıcı override edebilir.
 
+import { createPortal } from 'react-dom'
 import { useAuth } from './AuthProvider'
 import { usePreferences } from './PreferencesProvider'
 import { getRegionDefaults, REGIONS } from '../utils/regions'
@@ -58,7 +59,7 @@ function ProfilePanel({ open, onClose }) {
     prefs.updatePreference('weekStart', defaults.week_start)
   }
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -145,7 +146,8 @@ function ProfilePanel({ open, onClose }) {
           Çıkış yap
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
