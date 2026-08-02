@@ -6,6 +6,7 @@ import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange } from '../utils/finance'
 import { formatMoney } from '../utils/format'
+import { usePreferences } from '../components/PreferencesProvider'
 
 function Home() {
   const { user } = useAuth()
@@ -143,7 +144,7 @@ function Home() {
   const expPercent = dailyBudget > 0 ? Math.min((todayExp / dailyBudget) * 100, 100) : 0
 
   // Portföy — baseCurrency şimdilik sabit 'TRY' (Finance ile aynı yaklaşım)
-  const baseCurrency = 'TRY'
+  const { baseCurrency } = usePreferences()
   const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, {})
