@@ -6,6 +6,7 @@ import { BACKEND } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays } from '../utils/finance'
 import { formatMoney } from '../utils/format'
+import { usePreferences } from '../components/PreferencesProvider'
 
 const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
 const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
@@ -170,7 +171,7 @@ async function fetchPrices(forceRefresh = false) {
 
   // baseCurrency şimdilik sabit 'TRY' — user_preferences bağlanınca dinamik olacak.
   // getBaseCurrencyValue('TRY') eski getTRYValue ile birebir aynı sonucu verir.
-  const baseCurrency = 'TRY'
+  const { baseCurrency } = usePreferences()
   const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, tefasQuotes)
@@ -535,7 +536,7 @@ const categoryDistribution = (() => {
             <button onClick={() => fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
           </div>
-          <PortfolioPie data={categoryDistribution} total={investTotal} isMobile={isMobile} />
+          <PortfolioPie data={categoryDistribution} total={investTotal} isMobile={isMobile} baseCurrency={baseCurrency} />
           {Object.values(grouped).map(g => (
             <div key={g.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px', gap: '8px' }}>
@@ -810,7 +811,7 @@ function SummaryCard({ title, value, sub, percent, color }) {
   )
 }
 
-function PortfolioPie({ data, total, isMobile }) {
+function PortfolioPie({ data, total, isMobile, baseCurrency = 'TRY' }) {
   if (data.length === 0) return null
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
@@ -836,7 +837,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 ))}
               </Pie>
               <RTooltip
-                formatter={(value) => `${formatMoney(value, 'TRY')}`}
+                formatter={(value) => `${formatMoney(value, baseCurrency)}`}
                 contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '13px' }}
                 itemStyle={{ color: 'var(--text)' }}
               />
@@ -852,7 +853,7 @@ function PortfolioPie({ data, total, isMobile }) {
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>{d.name}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{percent}%</span>
                 <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '600', minWidth: '90px', textAlign: 'right' }}>
-                  {formatMoney(d.value, 'TRY')}
+                  {formatMoney(d.value, baseCurrency)}
                 </span>
               </div>
             )
