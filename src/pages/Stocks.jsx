@@ -2,6 +2,7 @@ import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
+import { formatMoney } from '../utils/format'
 
 const TYPE_LABELS = {
   'BIST': 'BIST',
@@ -178,7 +179,6 @@ function Stocks() {
                 const monthChange = monthly[h.symbol]?.monthly_change
                 const sparkline = monthly[h.symbol]?.sparkline || []
                 const currency = q?.currency || (h.type === 'BIST' ? 'TRY' : 'USD')
-                const curSym = currency === 'TRY' ? '₺' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
                 const changeColor = change >= 0 ? 'var(--success)' : 'var(--danger)'
 
                 return (
@@ -192,7 +192,7 @@ function Stocks() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '3px' }}>
-                          {curSym}{price.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}
+                          {formatMoney(price, currency, { maximumFractionDigits: 2 })}
                         </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '11.5px', color: changeColor, fontWeight: '600' }}>
