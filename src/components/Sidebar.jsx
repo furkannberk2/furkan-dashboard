@@ -1,168 +1,292 @@
-// components/ProfilePanel.jsx
-// Sağdan açılan profil/tercihler paneli.
-// Bölge, para birimi, dil, birim sistemi ayarlanır.
-// Bölge değişince diğerleri otomatik önerilir ama kullanıcı override edebilir.
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Home, CheckSquare, ListTodo, Apple, Mail, TrendingUp, FolderKanban, Wallet, Sun, Moon, MoreHorizontal, X, Sparkles, User } from 'lucide-react'
+import { applyTheme, getInitialTheme } from '../theme'
+import ProfilePanel from './ProfilePanel'
 
-import { useAuth } from './AuthProvider'
-import { usePreferences } from './PreferencesProvider'
-import { getRegionDefaults, REGIONS } from '../utils/regions'
-
-const CURRENCIES = [
-  { code: 'TRY', label: '₺ Türk Lirası' },
-  { code: 'USD', label: '$ ABD Doları' },
-  { code: 'EUR', label: '€ Euro' },
-  { code: 'GBP', label: '£ İngiliz Sterlini' },
-  { code: 'INR', label: '₹ Hindistan Rupisi' },
-  { code: 'JPY', label: '¥ Japon Yeni' },
-  { code: 'CHF', label: 'CHF İsviçre Frangı' },
-  { code: 'CAD', label: 'C$ Kanada Doları' },
-  { code: 'AUD', label: 'A$ Avustralya Doları' },
-  { code: 'AED', label: 'AED BAE Dirhemi' },
-  { code: 'SAR', label: 'SAR Suudi Riyali' },
-  { code: 'CNY', label: '¥ Çin Yuanı' },
+const ALL_ITEMS = [
+  { to: '/', label: 'Ana Sayfa', icon: Home, end: true },
+  { to: '/tasks', label: 'Görevler', icon: ListTodo },
+  { to: '/habits', label: 'Alışkanlıklar', icon: CheckSquare },
+  { to: '/finance', label: 'Finans', icon: Wallet },
+  { to: '/calories', label: 'Kalori', icon: Apple },
+  { to: '/stocks', label: 'Borsa', icon: TrendingUp },
+  { to: '/mail', label: 'Mail Özeti', icon: Mail },
+  { to: '/projects', label: 'Projeler', icon: FolderKanban },
 ]
 
-const LANGUAGES = [
-  { code: 'tr', label: 'Türkçe' },
-  { code: 'en', label: 'English' },
-]
+const BOTTOM_ITEMS = ALL_ITEMS.slice(0, 4)
+const EXTRA_ITEMS = ALL_ITEMS.slice(4)
 
-const REGION_LABELS = {
-  TR: '🇹🇷 Türkiye',
-  US: '🇺🇸 Amerika',
-  IN: '🇮🇳 Hindistan',
-  _default: '🌍 Diğer / Genel',
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+  useEffect(() => {
+    function handle() { setIsMobile(window.innerWidth <= 768) }
+    window.addEventListener('resize', handle)
+    return () => window.removeEventListener('resize', handle)
+  }, [])
+  return isMobile
 }
 
-const UNIT_SYSTEMS = [
-  { code: 'metric', label: 'Metrik (gram, kg, kcal)' },
-  { code: 'imperial', label: 'İmperial (oz, lb)' },
-]
+// Işıltı animasyonu için stil (bir kez enjekte edilir)
+function injectGlowKeyframes() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('coach-glow-style')) return
+  const style = document.createElement('style')
+  style.id = 'coach-glow-style'
+  style.textContent = `
+    @keyframes coachGlow {
+      0%, 100% { box-shadow: 0 0 12px rgba(139, 92, 246, 0.5), 0 0 24px rgba(99, 102, 241, 0.3); }
+      50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 40px rgba(99, 102, 241, 0.5); }
+    }
+    @keyframes coachShine {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .coach-fab {
+      animation: coachGlow 2.5s ease-in-out infinite;
+    }
+    .coach-desktop-btn:hover {
+      transform: translateY(-1px);
+    }
+  `
+  document.head.appendChild(style)
+}
 
-function ProfilePanel({ open, onClose }) {
-  const { user, signOut } = useAuth()
-  const prefs = usePreferences()
+function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [theme, setTheme] = useState(getInitialTheme())
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+  const isMobile = useIsMobile()
 
-  if (!open) return null
+  useEffect(() => { injectGlowKeyframes() }, [])
 
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0]
-    || user?.email?.split('@')[0] || 'Kullanıcı'
-
-  // Bölge değişince: o bölgenin varsayılanlarını uygula (kullanıcı sonra override edebilir)
-  function handleRegionChange(regionCode) {
-    const defaults = getRegionDefaults(regionCode)
-    prefs.updatePreference('region', regionCode)
-    prefs.updatePreference('baseCurrency', defaults.base_currency)
-    prefs.updatePreference('language', defaults.language)
-    prefs.updatePreference('unitSystem', defaults.unit_system)
-    prefs.updatePreference('weekStart', defaults.week_start)
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    applyTheme(next)
   }
 
+  const coachActive = location.pathname === '/coach'
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Yüzen Koç butonu (FAB) — Koç sayfasında gizle */}
+        {!coachActive && (
+          <button
+            className="coach-fab"
+            onClick={() => navigate('/coach')}
+            style={{
+              position: 'fixed', bottom: '82px', right: '18px', zIndex: 60,
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff'
+            }}
+            aria-label="Koç"
+          >
+            <Sparkles size={24} strokeWidth={2} />
+          </button>
+        )}
+
+        {/* Bottom Navigation */}
+        <nav style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: 'var(--bg-card)', borderTop: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-around', alignItems: 'stretch',
+          padding: '6px 4px 10px', zIndex: 50
+        }}>
+          {BOTTOM_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} style={({ isActive }) => ({
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: '3px', padding: '6px 4px', textDecoration: 'none',
+              color: isActive ? 'var(--accent)' : 'var(--text-dim)',
+              fontSize: '10.5px', fontWeight: '500'
+            })}>
+              {({ isActive }) => (
+                <>
+                  <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+          <button onClick={() => setMoreOpen(true)} style={{
+            flex: 1, background: 'transparent', border: 'none',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+            padding: '6px 4px', color: 'var(--text-dim)', fontSize: '10.5px',
+            fontWeight: '500', cursor: 'pointer'
+          }}>
+            <MoreHorizontal size={20} strokeWidth={1.8} />
+            <span>Daha</span>
+          </button>
+        </nav>
+
+        {/* "Daha" sheet */}
+        {moreOpen && (
+          <div onClick={() => setMoreOpen(false)} style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100,
+            display: 'flex', alignItems: 'flex-end'
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              width: '100%', background: 'var(--bg-card)',
+              borderTopLeftRadius: '16px', borderTopRightRadius: '16px',
+              padding: '20px 16px 28px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text)' }}>Daha fazla</div>
+                <button onClick={() => setMoreOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+                {EXTRA_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink key={to} to={to} end={end} onClick={() => setMoreOpen(false)} style={({ isActive }) => ({
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '12px 14px', borderRadius: '10px',
+                    background: 'var(--bg-item)',
+                    border: '1px solid var(--border)',
+                    textDecoration: 'none', fontSize: '13.5px',
+                    fontWeight: isActive ? '600' : '500',
+                    color: isActive ? 'var(--text)' : 'var(--text-secondary)'
+                  })}>
+                    {({ isActive }) => (
+                      <>
+                        <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
+                        <span>{label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+
+              <button onClick={toggleTheme} style={{
+                width: '100%', padding: '12px', borderRadius: '10px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', fontSize: '13.5px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                fontWeight: '500'
+              }}>
+                {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
+                {theme === 'dark' ? 'Aydınlık tema' : 'Karanlık tema'}
+              </button>
+              <button onClick={() => { setShowProfile(true); setMoreOpen(false) }} style={{
+                width: '100%', padding: '12px', borderRadius: '10px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', fontSize: '13.5px', cursor: 'pointer',
+                marginTop: '8px', fontWeight: '500',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}>
+                <User size={15} strokeWidth={1.8} />
+                Profil ve Ayarlar
+              </button>
+            </div>
+          </div>
+        )}
+        <ProfilePanel open={showProfile} onClose={() => setShowProfile(false)} />
+      </>
+    )
+  }
+
+  // Desktop sidebar
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200,
-        display: 'flex', justifyContent: 'flex-end'
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
+    <nav style={{
+      width: '232px', minHeight: '100vh',
+      background: 'var(--bg-card)', borderRight: '1px solid var(--border)',
+      padding: '28px 16px 20px',
+      display: 'flex', flexDirection: 'column', gap: '2px',
+      position: 'sticky', top: 0, alignSelf: 'flex-start'
+    }}>
+      <div style={{ padding: '0 8px 24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '8px',
+          background: 'var(--accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontWeight: '700', fontSize: '14px'
+        }}>F</div>
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', lineHeight: '1.2' }}>Dashboard</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: '1.2', marginTop: '2px' }}>Furkan</div>
+        </div>
+      </div>
+
+      {/* Işıltılı Koç butonu — menünün en üstünde */}
+      <NavLink
+        to="/coach"
+        className="coach-desktop-btn"
         style={{
-          width: '380px', maxWidth: '90vw', height: '100%',
-          background: 'var(--bg-card)', borderLeft: '1px solid var(--border-strong)',
-          padding: '24px', overflowY: 'auto',
-          display: 'flex', flexDirection: 'column', gap: '22px'
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '11px 14px', borderRadius: '10px', marginBottom: '10px',
+          textDecoration: 'none', fontSize: '14px', fontWeight: '600',
+          color: '#fff',
+          background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+          boxShadow: coachActive
+            ? '0 0 16px rgba(139, 92, 246, 0.6)'
+            : '0 0 10px rgba(139, 92, 246, 0.35)',
+          transition: 'transform 0.15s, box-shadow 0.3s',
+          position: 'relative', overflow: 'hidden'
         }}
       >
-        {/* Başlık */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Profil</h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }}>✕</button>
-        </div>
+        <Sparkles size={18} strokeWidth={2.2} />
+        <span>Koç</span>
+        <span style={{
+          marginLeft: 'auto', fontSize: '9px', fontWeight: '700',
+          background: 'rgba(255,255,255,0.25)', padding: '2px 6px',
+          borderRadius: '5px', letterSpacing: '0.5px'
+        }}>AI</span>
+      </NavLink>
 
-        {/* Kullanıcı bilgisi */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '46px', height: '46px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: '700', fontSize: '18px'
-          }}>
-            {firstName[0]?.toUpperCase()}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{firstName}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
-          </div>
-        </div>
+      <div style={{
+        fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px',
+        color: 'var(--text-faded)', padding: '0 12px 8px', fontWeight: '600'
+      }}>Menü</div>
 
-        <div style={{ height: '1px', background: 'var(--border)' }} />
+      {ALL_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        <NavLink key={to} to={to} end={end} style={({ isActive }) => ({
+          display: 'flex', alignItems: 'center', gap: '11px',
+          padding: '9px 12px', borderRadius: '8px',
+          textDecoration: 'none', fontSize: '13.5px',
+          fontWeight: isActive ? '600' : '500',
+          color: isActive ? 'var(--text)' : 'var(--text-dim)',
+          background: isActive ? 'var(--bg-item)' : 'transparent'
+        })}>
+          {({ isActive }) => (
+            <>
+              <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
+              <span>{label}</span>
+            </>
+          )}
+        </NavLink>
+      ))}
+      <button onClick={() => setShowProfile(true)} style={{
+        marginTop: 'auto', padding: '9px 12px', borderRadius: '8px',
+        background: 'transparent', border: 'none',
+        color: 'var(--text-dim)', fontSize: '12.5px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
+      }}>
+        <User size={15} strokeWidth={1.8} />
+        Profil ve Ayarlar
+      </button>
 
-        {/* Tercihler */}
-        <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: '600' }}>
-          Tercihler
-        </div>
+      <button onClick={toggleTheme} style={{
+        padding: '9px 12px', borderRadius: '8px',
+        background: 'transparent', border: '1px solid var(--border)',
+        color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: '8px', fontWeight: '500'
+      }}>
+        {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
+        {theme === 'dark' ? 'Aydınlık' : 'Karanlık'}
+      </button>
 
-        {/* Bölge */}
-        <Field label="Bölge" hint="Bölge seçince para birimi, dil ve birim otomatik ayarlanır.">
-          <select value={prefs.region} onChange={e => handleRegionChange(e.target.value)} style={selectStyle}>
-            {Object.keys(REGIONS).map(code => (
-              <option key={code} value={code}>{REGION_LABELS[code] || code}</option>
-            ))}
-          </select>
-        </Field>
-
-        {/* Para birimi */}
-        <Field label="Ana Para Birimi" hint="Portföy ve finans değerleri bu birimde gösterilir.">
-          <select value={prefs.baseCurrency} onChange={e => prefs.updatePreference('baseCurrency', e.target.value)} style={selectStyle}>
-            {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-          </select>
-        </Field>
-
-        {/* Dil */}
-        <Field label="Dil">
-          <select value={prefs.language} onChange={e => prefs.updatePreference('language', e.target.value)} style={selectStyle}>
-            {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-          </select>
-        </Field>
-
-        {/* Birim sistemi */}
-        <Field label="Birim Sistemi">
-          <select value={prefs.unitSystem} onChange={e => prefs.updatePreference('unitSystem', e.target.value)} style={selectStyle}>
-            {UNIT_SYSTEMS.map(u => <option key={u.code} value={u.code}>{u.label}</option>)}
-          </select>
-        </Field>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Çıkış */}
-        <button onClick={signOut} style={{
-          padding: '11px', borderRadius: '10px', background: 'transparent',
-          border: '1px solid var(--border-strong)', color: 'var(--danger)',
-          fontSize: '14px', cursor: 'pointer', fontWeight: '500'
-        }}>
-          Çıkış yap
-        </button>
-      </div>
-    </div>
+      <ProfilePanel open={showProfile} onClose={() => setShowProfile(false)} />
+    </nav>
   )
 }
 
-function Field({ label, hint, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '6px' }}>{label}</div>
-      {children}
-      {hint && <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '5px', lineHeight: '1.5' }}>{hint}</div>}
-    </div>
-  )
-}
-
-const selectStyle = {
-  width: '100%', padding: '10px 12px', background: 'var(--bg-item)',
-  border: '1px solid var(--border-strong)', borderRadius: '8px',
-  color: 'var(--text)', fontSize: '14px', outline: 'none', cursor: 'pointer'
-}
-
-export default ProfilePanel
+export default Sidebar
