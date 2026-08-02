@@ -62,7 +62,7 @@ function ProfilePanel({ open, onClose }) {
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
         display: 'flex', justifyContent: 'flex-end'
       }}
     >
