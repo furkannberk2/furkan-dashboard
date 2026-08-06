@@ -132,18 +132,42 @@ async function buildTaskContext(userId) {
 
 async function buildHabitContext(userId) {
   const today = todayStr()
-  const [habits, logs] = await Promise.all([
+  const monthAgo = addDays(today, -30)
+  const [habits, todayLogs, monthLogs] = await Promise.all([
     supabase.from('habits').select('*').eq('user_id', userId),
-    supabase.from('habit_logs').select('*').eq('user_id', userId).eq('date', today)
+    supabase.from('habit_logs').select('*').eq('user_id', userId).eq('date', today),
+    supabase.from('habit_logs').select('*').eq('user_id', userId).gte('date', monthAgo).lte('date', today)
   ])
   const habitList = habits.data || []
-  const doneToday = (logs.data || []).filter(l => l.done).map(l => l.habit_id)
+  if (habitList.length === 0) return 'ALIŞKANLIKLAR: Henüz yok.'
+
+  const doneToday = (todayLogs.data || []).filter(l => l.done).map(l => l.habit_id)
   const done = habitList.filter(h => doneToday.includes(h.id))
   const missed = habitList.filter(h => !doneToday.includes(h.id))
 
-  if (habitList.length === 0) return 'ALIŞKANLIKLAR: Henüz yok.'
+  // Son 30 gün: her alışkanlık için tamamlanma sayısı + güncel streak
+  const logs = monthLogs.data || []
+  const perHabit = habitList.map(h => {
+    const hLogs = logs.filter(l => l.habit_id === h.id && l.done)
+    const count30 = hLogs.length
+    // Güncel streak: bugünden geriye kesintisiz tamamlanan gün sayısı
+    const doneDates = new Set(hLogs.map(l => l.date))
+    let streak = 0
+    let cursor = today
+    while (doneDates.has(cursor) && streak < 60) {
+      streak++
+      cursor = addDays(cursor, -1)
+    }
+    return { name: h.name, count30, streak }
+  })
+
+  const summary = perHabit
+    .map(p => `${p.name} (son 30 günde ${p.count30} kez${p.streak > 1 ? `, ${p.streak} gün seri` : ''})`)
+    .join('; ')
+
   return `ALIŞKANLIKLAR: Bugün ${done.length}/${habitList.length} tamamlandı. ` +
-    (missed.length > 0 ? `Kaçırılan: ${missed.map(h => h.name).join(', ')}.` : 'Hepsi tamam!')
+    (missed.length > 0 ? `Bugün kaçırılan: ${missed.map(h => h.name).join(', ')}. ` : 'Bugün hepsi tamam! ') +
+    `Son 30 gün özeti: ${summary}.`
 }
 
 async function buildProjectContext(userId) {
