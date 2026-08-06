@@ -301,6 +301,7 @@ function Tasks() {
     routines.forEach(r => {
       const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
       const matchingDates = generateRoutineDates(r, routineStart, endDate)
+      console.log('RUTIN:', r.title, 'frekans:', JSON.stringify(r.frequency), 'günler:', JSON.stringify(r.days_of_week), 'start:', routineStart, 'end:', endDate, 'üretilen:', matchingDates)
       matchingDates.forEach(date => {
         if (date < rangeStart) return
         const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
