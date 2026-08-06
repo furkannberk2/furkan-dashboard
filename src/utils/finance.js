@@ -115,6 +115,26 @@ export function isDueInCurrentCycle(dueDay, currentDay, payday) {
 /**
  * Maaş dönemine kalan gün sayısı.
  */
+/**
+ * İçinde bulunulan maaş dönemini 'YYYY-MM' olarak döndürür.
+ * Dönem, maaş gününden bir sonraki maaş gününe kadardır ve başladığı
+ * ayın etiketini taşır.
+ * - Bugün maaş gününde veya sonrasındaysa → içinde bulunulan ay
+ * - Bugün maaş gününden önceyse → bir önceki ay (hâlâ o dönemdeyiz)
+ */
+export function getCurrentPeriod(payday, now = new Date()) {
+  const currentDay = now.getDate()
+  let year = now.getFullYear()
+  let month = now.getMonth() // 0-11
+  if (currentDay < payday) {
+    // Henüz bu ayın maaşı gelmedi → önceki dönemdeyiz
+    month -= 1
+    if (month < 0) { month = 11; year -= 1 }
+  }
+  const mm = String(month + 1).padStart(2, '0')
+  return `${year}-${mm}`
+}
+
 export function getRemainingDays(payday, now = new Date()) {
   const currentDay = now.getDate()
   if (currentDay <= payday) return payday - currentDay + 1

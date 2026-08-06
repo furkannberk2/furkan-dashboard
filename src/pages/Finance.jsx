@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
-import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays } from '../utils/finance'
+import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays, getCurrentPeriod } from '../utils/finance'
 import { formatMoney } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 
@@ -99,12 +99,14 @@ function Finance() {
   const [rDueDay, setRDueDay] = useState('')
   const [vName, setVName] = useState('')
   const [vAmount, setVAmount] = useState('')
+  const [vRecurring, setVRecurring] = useState(null) // null=seçilmedi, true=kalıcı, false=aya özel
   const [incomeInput, setIncomeInput] = useState('')
   const [balanceInput, setBalanceInput] = useState('')
   const [useBalance, setUseBalance] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
   const currentMonth = today.slice(0, 7)
+  const currentPeriod = getCurrentPeriod(payday)
   const remainingDays = calcRemainingDays(payday)
   useEffect(() => { fetchAll() }, [])
   useEffect(() => { if (investments.length > 0) fetchPrices() }, [investments])
@@ -113,7 +115,7 @@ async function fetchAll() {
     const [daily, recurring, variable, inv, inc, settings] = await Promise.all([
       supabase.from('daily_expenses').select('*').order('date', { ascending: false }),
       supabase.from('recurring_expenses').select('*').order('due_day', { ascending: true }),
-      supabase.from('variable_budgets').select('*').eq('month', currentMonth),
+      supabase.from('variable_budgets').select('*'),
       supabase.from('investments').select('*'),
       supabase.from('income').select('*').eq('month', currentMonth).maybeSingle(),
       supabase.from('user_settings').select('*').eq('key', 'payday').maybeSingle()
@@ -302,8 +304,17 @@ async function fetchPrices(forceRefresh = false) {
 
   async function addVariableBudget() {
     if (!vAmount || !vName) return
-    await supabase.from('variable_budgets').insert({ user_id: user.id, month: currentMonth, name: vName, amount: Number(vAmount) })
-    setVName(''); setVAmount(''); fetchAll()
+    if (vRecurring === null) { alert('Kalıcı mı yoksa bu döneme özel mi seç'); return }
+    await supabase.from('variable_budgets').insert({
+      user_id: user.id,
+      month: currentPeriod,
+      name: vName,
+      amount: Number(vAmount),
+      is_recurring: vRecurring,
+      active: true
+    })
+    setVName(''); setVAmount(''); setVRecurring(null)
+    fetchAll()
   }
 
   async function deleteDaily(id) { await supabase.from('daily_expenses').delete().eq('id', id); fetchAll() }
@@ -317,7 +328,11 @@ async function fetchPrices(forceRefresh = false) {
     .filter(e => isDue(e.due_day, currentDay, payday))
     .reduce((s, e) => s + Number(e.amount), 0)
   const totalRecurringFull = recurringExpenses.reduce((s, e) => s + Number(e.amount), 0)
-  const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
+  // Aktif değişken giderler: kalıcı (is_recurring && active) VEYA bu maaş dönemine özel (month === currentPeriod)
+  const activeVariableBudgets = variableBudgets.filter(e =>
+    (e.is_recurring && e.active !== false) || e.month === currentPeriod
+  )
+  const totalVariable = activeVariableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = useBalance && income?.balance ? Number(income.balance) : totalIncome
   const dailyBudget = baseAmount > 0 ? Math.round((baseAmount - totalRecurring - totalVariable) / remainingDays) : 0
   const todayTotal = dailyExpenses.filter(e => e.date === today).reduce((s, e) => s + Number(e.amount), 0)
@@ -491,13 +506,27 @@ const categoryDistribution = (() => {
       {tab === 'variable' && (
         <div style={{ maxWidth: '680px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
               <input value={vName} onChange={e => setVName(e.target.value)} placeholder="İsim (örn. Yatırım)" style={inputStyle} />
               <input value={vAmount} onChange={e => setVAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
               <button onClick={addVariableBudget} style={buttonStyle}>Ekle</button>
             </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setVRecurring(true)} style={{
+                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12.5px', cursor: 'pointer',
+                border: '1px solid', borderColor: vRecurring === true ? 'var(--accent)' : 'var(--border-strong)',
+                background: vRecurring === true ? 'var(--accent)' : 'transparent',
+                color: vRecurring === true ? '#fff' : 'var(--text-dim)'
+              }}>🔁 Kalıcı (her dönem devreder)</button>
+              <button onClick={() => setVRecurring(false)} style={{
+                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12.5px', cursor: 'pointer',
+                border: '1px solid', borderColor: vRecurring === false ? 'var(--accent)' : 'var(--border-strong)',
+                background: vRecurring === false ? 'var(--accent)' : 'transparent',
+                color: vRecurring === false ? '#fff' : 'var(--text-dim)'
+              }}>📅 Bu döneme özel</button>
+            </div>
           </div>
-          {variableBudgets.map(e => editingId === e.id ? (
+          {activeVariableBudgets.map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder="İsim" style={inputStyle} />
@@ -509,12 +538,13 @@ const categoryDistribution = (() => {
           ) : (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</span>
+              {e.is_recurring && <span style={{ fontSize: '10px', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: '4px', padding: '1px 5px', flexShrink: 0 }}>🔁 Kalıcı</span>}
               <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'variable')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
               <span onClick={() => deleteVariable(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
             </div>
           ))}
-          {variableBudgets.length > 0 && (
+          {activeVariableBudgets.length > 0 && (
             <div style={{ marginTop: '14px', padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: '13px' }}>Toplam Değişken Bütçe</span>
@@ -522,7 +552,7 @@ const categoryDistribution = (() => {
               </div>
             </div>
           )}
-          {variableBudgets.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Değişken bütçe yok.</p>}
+          {activeVariableBudgets.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Değişken bütçe yok.</p>}
         </div>
       )}
 
