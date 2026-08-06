@@ -277,6 +277,7 @@ function Tasks() {
   }
 
   function buildAllItems() {
+    console.log('BUILD:', 'filter:', filter, 'rangeStart:', rangeStart, 'rangeEnd:', rangeEnd)
     const [rangeStart, rangeEnd] = getDateRange()
     const items = []
 
