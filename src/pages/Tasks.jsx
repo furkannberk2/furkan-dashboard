@@ -39,15 +39,15 @@ function generateRoutineDates(routine, start, end) {
     return dates
   }
 
-  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
+if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
     const days = (routine.days_of_week || []).map(Number)
-    console.log('  HAFTADA1 girdi. days:', JSON.stringify(days), 'start:', start, 'end:', end)
     if (days.length === 0) return dates
     let cursor = start
     let safety = 100
     while (cursor <= end && safety > 0) {
       const dow = new Date(cursor + 'T00:00:00').getDay()
       const dowMon = dow === 0 ? 7 : dow
+      if (safety > 96) console.log('  LOOP:', 'cursor:', cursor, 'dow:', dow, 'dowMon:', dowMon, 'eşleşme:', days.includes(dowMon))
       if (days.includes(dowMon)) dates.push(cursor)
       cursor = addDays(cursor, 1)
       safety--
