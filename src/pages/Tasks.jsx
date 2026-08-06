@@ -41,6 +41,7 @@ function generateRoutineDates(routine, start, end) {
 
   if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
     const days = (routine.days_of_week || []).map(Number)
+    console.log('  HAFTADA1 girdi. days:', JSON.stringify(days), 'start:', start, 'end:', end)
     if (days.length === 0) return dates
     let cursor = start
     let safety = 100
