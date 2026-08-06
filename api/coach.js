@@ -132,11 +132,18 @@ async function buildTaskContext(userId) {
 
 async function buildHabitContext(userId) {
   const today = todayStr()
-  const monthAgo = addDays(today, -30)
-  const [habits, todayLogs, monthLogs] = await Promise.all([
+  const now = new Date()
+  const currentDay = now.getDate()
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+
+  // Son 4 takvim ayının başlangıcı
+  const fourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  const rangeStart = fourMonthsAgo.toISOString().split('T')[0]
+
+  const [habits, todayLogs, rangeLogs] = await Promise.all([
     supabase.from('habits').select('*').eq('user_id', userId),
     supabase.from('habit_logs').select('*').eq('user_id', userId).eq('date', today),
-    supabase.from('habit_logs').select('*').eq('user_id', userId).gte('date', monthAgo).lte('date', today)
+    supabase.from('habit_logs').select('*').eq('user_id', userId).gte('date', rangeStart).lte('date', today)
   ])
   const habitList = habits.data || []
   if (habitList.length === 0) return 'ALIŞKANLIKLAR: Henüz yok.'
@@ -145,29 +152,31 @@ async function buildHabitContext(userId) {
   const done = habitList.filter(h => doneToday.includes(h.id))
   const missed = habitList.filter(h => !doneToday.includes(h.id))
 
-  // Son 30 gün: her alışkanlık için tamamlanma sayısı + güncel streak
-  const logs = monthLogs.data || []
-  const perHabit = habitList.map(h => {
-    const hLogs = logs.filter(l => l.habit_id === h.id && l.done)
-    const count30 = hLogs.length
-    // Güncel streak: bugünden geriye kesintisiz tamamlanan gün sayısı
-    const doneDates = new Set(hLogs.map(l => l.date))
-    let streak = 0
-    let cursor = today
-    while (doneDates.has(cursor) && streak < 60) {
-      streak++
-      cursor = addDays(cursor, -1)
-    }
-    return { name: h.name, count30, streak }
+  const logs = (rangeLogs.data || []).filter(l => l.done)
+  const currentMonthKey = today.slice(0, 7)
+
+  // Ay listesi (son 4 ay), her ay için ay-anahtarı ve etiket
+  const monthKeys = []
+  for (let i = 3; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    monthKeys.push(d.toISOString().slice(0, 7))
+  }
+
+  // Her alışkanlık × her ay tamamlanma sayısı
+  const lines = habitList.map(h => {
+    const parts = monthKeys.map(mk => {
+      const count = logs.filter(l => l.habit_id === h.id && l.date.startsWith(mk)).length
+      const isCurrent = mk === currentMonthKey
+      return `${mk}: ${count}${isCurrent ? ` (ay devam ediyor, ${currentDay}/${daysInCurrentMonth} gün)` : ''}`
+    })
+    return `${h.name} → ${parts.join(' | ')}`
   })
 
-  const summary = perHabit
-    .map(p => `${p.name} (son 30 günde ${p.count30} kez${p.streak > 1 ? `, ${p.streak} gün seri` : ''})`)
-    .join('; ')
-
-  return `ALIŞKANLIKLAR: Bugün ${done.length}/${habitList.length} tamamlandı. ` +
-    (missed.length > 0 ? `Bugün kaçırılan: ${missed.map(h => h.name).join(', ')}. ` : 'Bugün hepsi tamam! ') +
-    `Son 30 gün özeti: ${summary}.`
+  return `ALIŞKANLIKLAR (ay ay tamamlanma sayıları): Bugün ${done.length}/${habitList.length} tamamlandı.` +
+    (missed.length > 0 ? ` Bugün kaçırılan: ${missed.map(h => h.name).join(', ')}.` : '') +
+    `\n${lines.join('\n')}\n` +
+    `NOT: İçinde bulunulan ay (${currentMonthKey}) henüz bitmedi (${currentDay}/${daysInCurrentMonth} gün geçti). ` +
+    `Tamamlanmış aylarla birebir sayı kıyaslaması yapma; mevcut ayın tempo/projeksiyonuna ve ayın kalanında nelerin yakalanabileceğine odaklan.`
 }
 
 async function buildProjectContext(userId) {
@@ -371,6 +380,7 @@ KURALLAR:
 - Türkçe, samimi ama saygılı konuş. Kısa ve doğal, madde madde değil.
 - Kullanıcı bir şey eklemek/ayarlamak isterse ilgili aracı (function) kullan. Aracı kullandıktan sonra ne yaptığını doğal dille kısaca söyle.
 - Emin olmadığın durumda kullanıcıya sor, tahminle aksiyon alma.
+- Aylık verileri kıyaslarken içinde bulunulan ay henüz bitmemişse onu tamamlanmış aylarla ham sayı olarak kıyaslama. Bunun yerine mevcut ayın gidişatını (tempo, projeksiyon) değerlendir ve ayın kalan günlerinde önceki ayların seviyesini yakalamak için nelere odaklanılması gerektiğini söyle.
 
 KULLANICININ GÜNCEL DURUMU:
 ${context}`
