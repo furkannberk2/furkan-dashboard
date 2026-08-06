@@ -332,7 +332,6 @@ async function fetchPrices(forceRefresh = false) {
   const activeVariableBudgets = variableBudgets.filter(e =>
     (e.is_recurring && e.active !== false) || e.month === currentPeriod
   )
-  console.log('VAR DEBUG:', 'currentPeriod:', currentPeriod, 'tüm budgets:', variableBudgets.length, 'aktif:', activeVariableBudgets.length, JSON.stringify(variableBudgets.map(e => ({n:e.name, rec:e.is_recurring, m:e.month}))))
   const totalVariable = activeVariableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = useBalance && income?.balance ? Number(income.balance) : totalIncome
   const dailyBudget = baseAmount > 0 ? Math.round((baseAmount - totalRecurring - totalVariable) / remainingDays) : 0
@@ -381,8 +380,15 @@ const categoryDistribution = (() => {
   const paidRecurring = recurringExpenses.filter(e => paidStatus[e.id])
   const unpaidRecurring = recurringExpenses.filter(e => !paidStatus[e.id])
   const monthlyFree = totalIncome - totalRecurringFull - totalVariable
+  // Kalıcı değişken giderler toplamı (her ay devreder)
+  const totalRecurringVariable = variableBudgets
+    .filter(e => e.is_recurring && e.active !== false)
+    .reduce((s, e) => s + Number(e.amount), 0)
+
   const projection = [0, 1, 2].map(offset => {
-    const variable = offset === 0 ? totalVariable : 0
+    // Bu ay: tüm aktif değişkenler (kalıcı + bu döneme özel)
+    // Sonraki aylar: sadece kalıcı değişkenler devreder
+    const variable = offset === 0 ? totalVariable : totalRecurringVariable
     const free = totalIncome - totalRecurringFull - variable
     return { label: getMonthLabel(offset), income: totalIncome, recurring: totalRecurringFull, variable, free }
   })
