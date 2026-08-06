@@ -332,6 +332,7 @@ async function fetchPrices(forceRefresh = false) {
   const activeVariableBudgets = variableBudgets.filter(e =>
     (e.is_recurring && e.active !== false) || e.month === currentPeriod
   )
+  console.log('VAR DEBUG:', 'currentPeriod:', currentPeriod, 'tüm budgets:', variableBudgets.length, 'aktif:', activeVariableBudgets.length, JSON.stringify(variableBudgets.map(e => ({n:e.name, rec:e.is_recurring, m:e.month}))))
   const totalVariable = activeVariableBudgets.reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = useBalance && income?.balance ? Number(income.balance) : totalIncome
   const dailyBudget = baseAmount > 0 ? Math.round((baseAmount - totalRecurring - totalVariable) / remainingDays) : 0
