@@ -25,6 +25,7 @@ function addDays(dateStr, days) {
 
 function generateRoutineDates(routine, start, end) {
   const dates = []
+  console.log('  GEN:', 'freq:', JSON.stringify(routine.frequency), 'dow ham:', JSON.stringify(routine.days_of_week), 'tip:', typeof routine.days_of_week, 'array mı:', Array.isArray(routine.days_of_week))
   if (start > end) return dates
 
   if (routine.frequency === 'Her gün') {
@@ -301,7 +302,6 @@ function Tasks() {
     routines.forEach(r => {
       const endDate = r.end_date && r.end_date < routineEnd ? r.end_date : routineEnd
       const matchingDates = generateRoutineDates(r, routineStart, endDate)
-      console.log('RUTIN:', r.title, 'frekans:', JSON.stringify(r.frequency), 'günler:', JSON.stringify(r.days_of_week), 'start:', routineStart, 'end:', endDate, 'üretilen:', matchingDates)
       matchingDates.forEach(date => {
         if (date < rangeStart) return
         const log = routineLogs.find(l => l.routine_id === r.id && l.date === date)
