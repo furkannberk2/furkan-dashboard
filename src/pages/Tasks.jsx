@@ -25,64 +25,55 @@ function addDays(dateStr, days) {
 
 function generateRoutineDates(routine, start, end) {
   const dates = []
-  console.log('  GEN:', 'freq:', JSON.stringify(routine.frequency), 'dow ham:', JSON.stringify(routine.days_of_week), 'tip:', typeof routine.days_of_week, 'array mı:', Array.isArray(routine.days_of_week))
-  if (start > end) return dates
+  if (!start || !end || start > end) return dates
 
-  if (routine.frequency === 'Her gün') {
-    let cursor = start
-    let safety = 100
-    while (cursor <= end && safety > 0) {
-      dates.push(cursor)
-      cursor = addDays(cursor, 1)
-      safety--
-    }
+  // Gün sayısına göre güvenli iterasyon (string karşılaştırması yerine)
+  const startDate = new Date(start + 'T00:00:00')
+  const endDate = new Date(end + 'T00:00:00')
+  const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24))
+  if (totalDays < 0 || totalDays > 400) return dates // güvenlik sınırı
+
+  const freq = routine.frequency
+
+  if (freq === 'Her gün') {
+    for (let i = 0; i <= totalDays; i++) dates.push(addDays(start, i))
     return dates
   }
 
-if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
+  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(freq)) {
     const days = (routine.days_of_week || []).map(Number)
     if (days.length === 0) return dates
-    let cursor = start
-    let safety = 100
-    while (cursor <= end && safety > 0) {
+    for (let i = 0; i <= totalDays; i++) {
+      const cursor = addDays(start, i)
       const dow = new Date(cursor + 'T00:00:00').getDay()
       const dowMon = dow === 0 ? 7 : dow
-      if (safety > 90) console.log('  LOOP:', 'cursor:', cursor, 'end:', end, 'cursor<=end:', cursor <= end, 'dowMon:', dowMon)
       if (days.includes(dowMon)) dates.push(cursor)
-      cursor = addDays(cursor, 1)
-      safety--
     }
     return dates
   }
 
-  if (routine.frequency === '2 haftada 1') {
+  if (freq === '2 haftada 1') {
     const days = (routine.days_of_week || []).map(Number)
     const anchor = routine.biweekly_anchor || start
     if (days.length === 0) return dates
-    let cursor = start
-    let safety = 100
-    while (cursor <= end && safety > 0) {
+    for (let i = 0; i <= totalDays; i++) {
+      const cursor = addDays(start, i)
       const dow = new Date(cursor + 'T00:00:00').getDay()
       const dowMon = dow === 0 ? 7 : dow
-      const diffDays = Math.floor((new Date(cursor) - new Date(anchor)) / (1000 * 60 * 60 * 24))
+      const diffDays = Math.round((new Date(cursor + 'T00:00:00') - new Date(anchor + 'T00:00:00')) / (1000 * 60 * 60 * 24))
       const weekNum = Math.floor(diffDays / 7)
       if (days.includes(dowMon) && weekNum % 2 === 0) dates.push(cursor)
-      cursor = addDays(cursor, 1)
-      safety--
     }
     return dates
   }
 
-  if (['Ayda 1', 'Ayda 2'].includes(routine.frequency)) {
+  if (['Ayda 1', 'Ayda 2'].includes(freq)) {
     const monthDays = (routine.days_of_month || []).map(Number)
     if (monthDays.length === 0) return dates
-    let cursor = start
-    let safety = 100
-    while (cursor <= end && safety > 0) {
+    for (let i = 0; i <= totalDays; i++) {
+      const cursor = addDays(start, i)
       const d = new Date(cursor + 'T00:00:00').getDate()
       if (monthDays.includes(d)) dates.push(cursor)
-      cursor = addDays(cursor, 1)
-      safety--
     }
     return dates
   }
@@ -277,7 +268,6 @@ function Tasks() {
   }
 
   function buildAllItems() {
-    console.log('BUILD:', 'filter:', filter, 'rangeStart:', rangeStart, 'rangeEnd:', rangeEnd)
     const [rangeStart, rangeEnd] = getDateRange()
     const items = []
 
