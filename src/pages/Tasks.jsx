@@ -47,7 +47,7 @@ if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(routine.frequency)) {
     while (cursor <= end && safety > 0) {
       const dow = new Date(cursor + 'T00:00:00').getDay()
       const dowMon = dow === 0 ? 7 : dow
-      if (safety > 96) console.log('  LOOP:', 'cursor:', cursor, 'dow:', dow, 'dowMon:', dowMon, 'eşleşme:', days.includes(dowMon))
+      if (safety > 90) console.log('  LOOP:', 'cursor:', cursor, 'end:', end, 'cursor<=end:', cursor <= end, 'dowMon:', dowMon)
       if (days.includes(dowMon)) dates.push(cursor)
       cursor = addDays(cursor, 1)
       safety--
