@@ -264,7 +264,9 @@ function Tasks() {
     if (filter === 'today') return [today, today]
     if (filter === 'week') return [getWeekStart(), getWeekEnd()]
     if (filter === 'month') return [getMonthStart(), getMonthEnd()]
-    return [today, addDays(today, 30)]
+    // Tümü: bugünden yıl sonuna kadar (bitişsiz rutinler o yılla sınırlı)
+    const yearEnd = `${new Date().getFullYear()}-12-31`
+    return [today, yearEnd]
   }
 
   function buildAllItems() {
