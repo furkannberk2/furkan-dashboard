@@ -106,10 +106,37 @@ export function getDailyChange(inv, quotes = {}, tefasQuotes = {}) {
  * Bir sabit giderin, mevcut maaş döneminde ödenmesi gerekip gerekmediğini söyler.
  * (Finance.jsx'teki isDueInCurrentCycle mantığı — tek yerde.)
  */
-export function isDueInCurrentCycle(dueDay, currentDay, payday) {
+/**
+ * Bir sabit gider, mevcut maaş döneminde BUGÜNDEN SONRA (henüz gelmemiş)
+ * bir ödemesi varsa true döner.
+ * Kural: giderin bir sonraki ödeme tarihi, bugün ile dönem sonu (bir sonraki
+ * maaş günü) arasındaysa bakiyeden düşülür. Ödeme günü geçtiyse düşülmez.
+ */
+export function isDueInCurrentCycle(dueDay, currentDay, payday, now = new Date()) {
   if (!dueDay) return true
-  if (currentDay <= payday) return dueDay >= currentDay && dueDay <= payday
-  return dueDay >= currentDay || dueDay <= payday
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Dönem sonu = bir sonraki maaş günü
+  let periodEnd
+  if (currentDay < payday) {
+    // Henüz bu ayın maaşı gelmedi → dönem bu ayın maaş gününde biter
+    periodEnd = new Date(now.getFullYear(), now.getMonth(), payday)
+  } else {
+    // Maaş geldi → dönem gelecek ayın maaş gününde biter
+    periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, payday)
+  }
+
+  // Giderin bir sonraki ödeme tarihi: bugünden sonraki en yakın dueDay
+  // Bu ayki dueDay'i dene
+  let nextDue = new Date(now.getFullYear(), now.getMonth(), dueDay)
+  if (nextDue <= today) {
+    // Bu ayki geçti → gelecek ayki
+    nextDue = new Date(now.getFullYear(), now.getMonth() + 1, dueDay)
+  }
+
+  // Bir sonraki ödeme, bugünden sonra VE dönem sonundan önce/eşitse → düş
+  return nextDue > today && nextDue <= periodEnd
 }
 
 /**
