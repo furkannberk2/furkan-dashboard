@@ -56,12 +56,13 @@ function Calories() {
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
   useEffect(() => { fetchMeals() }, [])
 
-  // Arama debounce: kullanıcı yazmayı bırakınca 400ms sonra otomatik ara
+  // Arama debounce: kullanıcı yazmayı bırakınca 600ms sonra otomatik ara
   useEffect(() => {
     if (!showAdd || addMode !== 'search') return
     const q = search.trim()
-    if (!q) { setResults([]); return }
-    const t = setTimeout(() => { searchFood() }, 400)
+    if (!q) { setResults([]); setSearching(false); return }
+    setSearching(true) // yazar yazmaz "aranıyor" göster (bulunamadı erken çıkmasın)
+    const t = setTimeout(() => { searchFood() }, 600)
     return () => clearTimeout(t)
   }, [search, showAdd, addMode])
 
@@ -148,6 +149,7 @@ async function fetchMeals() {
     .from('custom_meals').select('*')
     .eq('user_id', user.id)
     .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
   if (!error && data) setCustomMeals(data)
 }
 
@@ -168,30 +170,44 @@ async function deleteCustomMeal(id) {
   fetchMeals()
 }
 
-// Özel öğünü yukarı/aşağı taşı (sort_order değiştir)
+// Özel öğünü yukarı/aşağı taşı — tüm listeyi yeniden indeksleyerek (sort_order çakışmalarına dayanıklı)
 async function moveMeal(id, direction) {
   const idx = customMeals.findIndex(m => m.id === id)
   if (idx < 0) return
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1
   if (swapIdx < 0 || swapIdx >= customMeals.length) return
-  const a = customMeals[idx], b = customMeals[swapIdx]
-  // sort_order değerlerini takas et
-  await Promise.all([
-    supabase.from('custom_meals').update({ sort_order: b.sort_order }).eq('id', a.id).eq('user_id', user.id),
-    supabase.from('custom_meals').update({ sort_order: a.sort_order }).eq('id', b.id).eq('user_id', user.id),
-  ])
+
+  // Diziyi kopyala, elemanları takas et
+  const reordered = [...customMeals]
+  ;[reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]]
+
+  // Yeni sırayı hemen ekranda göster (iyimser)
+  setCustomMeals(reordered.map((m, i) => ({ ...m, sort_order: i })))
+
+  // Her öğüne indeksine göre yeni sort_order yaz
+  await Promise.all(reordered.map((m, i) =>
+    supabase.from('custom_meals').update({ sort_order: i }).eq('id', m.id).eq('user_id', user.id)
+  ))
   fetchMeals()
 }
 
+  const searchSeq = useRef(0)
   async function searchFood() {
     if (!search.trim()) return
+    const seq = ++searchSeq.current
     setSearching(true)
     try {
       const res = await fetch(`${BACKEND}/api/food-search?q=${encodeURIComponent(search)}`)
       const data = await res.json()
-      setResults(data.products || [])
-    } catch (err) { console.error(err) }
-    finally { setSearching(false) }
+      // Sadece en son aramanın sonucunu göster (eski/geç gelenleri yok say)
+      if (seq === searchSeq.current) {
+        setResults(data.products || [])
+        setSearching(false)
+      }
+    } catch (err) {
+      console.error(err)
+      if (seq === searchSeq.current) setSearching(false)
+    }
   }
 
   async function addFood(food, quantity) {
