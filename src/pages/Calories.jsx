@@ -4,14 +4,24 @@ import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 
-const MEALS = ['Kahvaltı', 'Öğle', 'Akşam', 'Atıştırmalık']
+// Öğünler anahtar tabanlı: veriye 'key' yazılır, gösterimde 'label'.
+// (label'lar ileride i18n ile dile göre gelecek.)
+const DEFAULT_MEALS = [
+  { key: 'breakfast', label: 'Kahvaltı' },
+  { key: 'lunch', label: 'Öğle' },
+  { key: 'dinner', label: 'Akşam' },
+  { key: 'snack', label: 'Atıştırmalık' },
+]
 
 function Calories() {
   const { user } = useAuth()
   const [entries, setEntries] = useState([])
   const [goal, setGoal] = useState(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [selectedMeal, setSelectedMeal] = useState('Kahvaltı')
+  const [selectedMeal, setSelectedMeal] = useState('breakfast')
+  const [customMeals, setCustomMeals] = useState([])
+  const [showMealAdd, setShowMealAdd] = useState(false)
+  const [newMealLabel, setNewMealLabel] = useState('')
 
   const [showAdd, setShowAdd] = useState(false)
   const [addMode, setAddMode] = useState('search') // 'search' | 'manual' | 'barcode'
@@ -39,7 +49,12 @@ function Calories() {
   const [showGoal, setShowGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
 
+  // Varsayılan öğünler + kullanıcının özel öğünleri
+  const MEALS = [...DEFAULT_MEALS, ...customMeals.map(m => ({ key: m.key, label: m.label, custom: true, id: m.id }))]
+  const mealLabel = (key) => MEALS.find(m => m.key === key)?.label || key
+
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
+  useEffect(() => { fetchMeals() }, [])
 
   // Barkod tarayıcı kontrolü
   useEffect(() => {
@@ -119,6 +134,31 @@ async function fetchGoal() {
   if (!error && data) { setGoal(data); setGoalInput(data.daily_calories) }
 }
 
+async function fetchMeals() {
+  const { data, error } = await supabase
+    .from('custom_meals').select('*')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: true })
+  if (!error && data) setCustomMeals(data)
+}
+
+async function addCustomMeal() {
+  const label = newMealLabel.trim()
+  if (!label) return
+  const key = 'custom_' + Date.now()
+  await supabase.from('custom_meals').insert({
+    user_id: user.id, key, label, sort_order: customMeals.length
+  })
+  setNewMealLabel(''); setShowMealAdd(false)
+  fetchMeals()
+}
+
+async function deleteCustomMeal(id) {
+  if (!confirm('Bu öğünü silmek istediğine emin misin? (Girişleri kalır)')) return
+  await supabase.from('custom_meals').delete().eq('id', id).eq('user_id', user.id)
+  fetchMeals()
+}
+
   async function searchFood() {
     if (!search.trim()) return
     setSearching(true)
@@ -161,7 +201,7 @@ async function fetchGoal() {
   }
 
   async function deleteEntry(id) {
-    await supabase.from('food_entries').delete().eq('id', id)
+    await supabase.from('food_entries').delete().eq('id', id).eq('user_id', user.id)
     fetchEntries()
   }
 
@@ -209,17 +249,20 @@ async function fetchGoal() {
       </div>
 
       <div style={{ maxWidth: '680px' }}>
-        {MEALS.map(meal => {
-          const mealEntries = entries.filter(e => e.meal === meal)
+        {MEALS.map(m => {
+          const mealEntries = entries.filter(e => e.meal === m.key)
           const mealTotal = mealEntries.reduce((s, e) => s + Number(e.calories), 0)
           return (
-            <div key={meal} style={{ marginBottom: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+            <div key={m.key} style={{ marginBottom: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: mealEntries.length > 0 ? '10px' : '0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{meal}</span>
+                  <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{m.label}</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{mealTotal} kcal</span>
                 </div>
-                <button onClick={() => { setSelectedMeal(meal); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {m.custom && <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>🗑️</span>}
+                  <button onClick={() => { setSelectedMeal(m.key); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
+                </div>
               </div>
               {mealEntries.map(e => (
                 <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
@@ -233,11 +276,33 @@ async function fetchGoal() {
             </div>
           )
         })}
+        <button onClick={() => setShowMealAdd(true)} style={{
+          width: '100%', padding: '11px', borderRadius: '10px', marginTop: '4px',
+          background: 'transparent', border: '1px dashed var(--border-strong)',
+          color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
+        }}>+ Öğün Ekle</button>
       </div>
+
+      {showMealAdd && (
+        <Modal onClose={() => { setShowMealAdd(false); setNewMealLabel('') }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>Yeni Öğün</h3>
+          <input
+            value={newMealLabel}
+            onChange={e => setNewMealLabel(e.target.value)}
+            placeholder="örn. Antrenman Öncesi"
+            style={{ width: '100%', padding: '11px 12px', background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', outline: 'none', marginBottom: '14px' }}
+            onKeyDown={e => e.key === 'Enter' && addCustomMeal()}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={addCustomMeal} style={{ ...buttonStyle, flex: 1 }}>Ekle</button>
+            <button onClick={() => { setShowMealAdd(false); setNewMealLabel('') }} style={{ ...buttonStyle, flex: 1, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+          </div>
+        </Modal>
+      )}
 
       {showAdd && (
         <Modal onClose={resetAdd}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{selectedMeal} — Ekle</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{mealLabel(selectedMeal)} — Ekle</h3>
 
           <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
             {[['search', '🔍 Ara'], ['manual', '✏️ Manuel'], ['barcode', '📷 Barkod']].map(([val, label]) => (
