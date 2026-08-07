@@ -56,6 +56,15 @@ function Calories() {
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
   useEffect(() => { fetchMeals() }, [])
 
+  // Arama debounce: kullanıcı yazmayı bırakınca 400ms sonra otomatik ara
+  useEffect(() => {
+    if (!showAdd || addMode !== 'search') return
+    const q = search.trim()
+    if (!q) { setResults([]); return }
+    const t = setTimeout(() => { searchFood() }, 400)
+    return () => clearTimeout(t)
+  }, [search, showAdd, addMode])
+
   // Barkod tarayıcı kontrolü
   useEffect(() => {
     if (showAdd && addMode === 'barcode' && !scanResult) {
@@ -156,6 +165,21 @@ async function addCustomMeal() {
 async function deleteCustomMeal(id) {
   if (!confirm('Bu öğünü silmek istediğine emin misin? (Girişleri kalır)')) return
   await supabase.from('custom_meals').delete().eq('id', id).eq('user_id', user.id)
+  fetchMeals()
+}
+
+// Özel öğünü yukarı/aşağı taşı (sort_order değiştir)
+async function moveMeal(id, direction) {
+  const idx = customMeals.findIndex(m => m.id === id)
+  if (idx < 0) return
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+  if (swapIdx < 0 || swapIdx >= customMeals.length) return
+  const a = customMeals[idx], b = customMeals[swapIdx]
+  // sort_order değerlerini takas et
+  await Promise.all([
+    supabase.from('custom_meals').update({ sort_order: b.sort_order }).eq('id', a.id).eq('user_id', user.id),
+    supabase.from('custom_meals').update({ sort_order: a.sort_order }).eq('id', b.id).eq('user_id', user.id),
+  ])
   fetchMeals()
 }
 
@@ -260,7 +284,16 @@ async function deleteCustomMeal(id) {
                   <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{mealTotal} kcal</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {m.custom && <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>🗑️</span>}
+                  {m.custom && (() => {
+                    const ci = customMeals.findIndex(cm => cm.id === m.id)
+                    return (
+                      <>
+                        <span onClick={() => moveMeal(m.id, 'up')} title="Yukarı" style={{ color: ci > 0 ? 'var(--text-dim)' : 'var(--text-faded)', cursor: ci > 0 ? 'pointer' : 'default', fontSize: '13px' }}>↑</span>
+                        <span onClick={() => moveMeal(m.id, 'down')} title="Aşağı" style={{ color: ci < customMeals.length - 1 ? 'var(--text-dim)' : 'var(--text-faded)', cursor: ci < customMeals.length - 1 ? 'pointer' : 'default', fontSize: '13px' }}>↓</span>
+                        <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>🗑️</span>
+                      </>
+                    )
+                  })()}
                   <button onClick={() => { setSelectedMeal(m.key); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
                 </div>
               </div>
@@ -324,9 +357,12 @@ async function deleteCustomMeal(id) {
                 <button onClick={searchFood} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
               </div>
               <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-                {results.map((food, i) => <FoodResult key={i} food={food} onAdd={addFood} />)}
-                {results.length === 0 && !searching && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Aramak için yukarıya yazın.</p>}
+                {searching && <p style={{ color: 'var(--text-dim)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid var(--border-strong)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Aranıyor...</p>}
+                {!searching && results.map((food, i) => <FoodResult key={i} food={food} onAdd={addFood} />)}
+                {!searching && search.trim() && results.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Sonuç bulunamadı. Farklı bir arama deneyin veya "Manuel" ile ekleyin.</p>}
+                {!searching && !search.trim() && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Yemek adı yazın, otomatik aranır.</p>}
               </div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
             </>
           )}
 
