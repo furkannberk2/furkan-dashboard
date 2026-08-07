@@ -112,6 +112,30 @@ export function getDailyChange(inv, quotes = {}, tefasQuotes = {}) {
  * Kural: giderin bir sonraki ödeme tarihi, bugün ile dönem sonu (bir sonraki
  * maaş günü) arasındaysa bakiyeden düşülür. Ödeme günü geçtiyse düşülmez.
  */
+/**
+ * Bir sabit giderin bugünden sonraki ilk ödeme tarihini Date olarak döndürür.
+ * (Gösterim ve "kaç gün kaldı" hesabı için.)
+ */
+export function getNextDueDate(dueDay, now = new Date()) {
+  if (!dueDay) return null
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let nextDue = new Date(now.getFullYear(), now.getMonth(), dueDay)
+  if (nextDue <= today) {
+    nextDue = new Date(now.getFullYear(), now.getMonth() + 1, dueDay)
+  }
+  return nextDue
+}
+
+/**
+ * Bir sonraki ödemeye kaç gün kaldığını döndürür (bugün=0).
+ */
+export function daysUntilDue(dueDay, now = new Date()) {
+  const nextDue = getNextDueDate(dueDay, now)
+  if (!nextDue) return null
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((nextDue - today) / (1000 * 60 * 60 * 24))
+}
+
 export function isDueInCurrentCycle(dueDay, currentDay, payday, now = new Date()) {
   if (!dueDay) return true
 

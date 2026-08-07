@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
-import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays, getCurrentPeriod } from '../utils/finance'
+import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays, getCurrentPeriod, getNextDueDate, daysUntilDue } from '../utils/finance'
 import { formatMoney } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 
@@ -499,7 +499,19 @@ const categoryDistribution = (() => {
               </div>
               <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{e.category}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: '80px' }}>{e.name}</span>
-              {e.due_day && !isMobile && <span style={{ fontSize: '12px', color: !paidStatus[e.id] && new Date().getDate() >= e.due_day - 2 ? 'var(--warning)' : 'var(--text-faint)', flexShrink: 0 }}>{!paidStatus[e.id] && new Date().getDate() >= e.due_day - 2 ? '⚠️ ' : '📅 '}{e.due_day}'i</span>}
+              {e.due_day && !isMobile && (() => {
+                const inCycle = isDue(e.due_day, currentDay, payday)
+                const days = daysUntilDue(e.due_day)
+                const nextDate = getNextDueDate(e.due_day)
+                const dateStr = nextDate ? nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) : ''
+                // Uyarı: bu dönemde ödenecek VE 3 gün veya daha az kala VE ödenmemiş
+                const warn = inCycle && !paidStatus[e.id] && days !== null && days <= 3
+                return (
+                  <span style={{ fontSize: '12px', color: warn ? 'var(--warning)' : 'var(--text-faint)', flexShrink: 0 }}>
+                    {warn ? '⚠️ ' : '📅 '}{dateStr}{warn ? ` (${days} gün)` : ''}
+                  </span>
+                )
+              })()}
               <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'recurring')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
               <span onClick={() => deleteRecurring(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
