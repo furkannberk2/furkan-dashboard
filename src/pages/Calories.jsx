@@ -22,6 +22,7 @@ function Calories() {
   const [customMeals, setCustomMeals] = useState([])
   const [showMealAdd, setShowMealAdd] = useState(false)
   const [newMealLabel, setNewMealLabel] = useState('')
+  const [editingMealId, setEditingMealId] = useState(null)
 
   const [showAdd, setShowAdd] = useState(false)
   const [addMode, setAddMode] = useState('search') // 'search' | 'manual' | 'barcode'
@@ -50,7 +51,9 @@ function Calories() {
   const [goalInput, setGoalInput] = useState('')
 
   // Varsayılan öğünler + kullanıcının özel öğünleri
-  const MEALS = [...DEFAULT_MEALS, ...customMeals.map(m => ({ key: m.key, label: m.label, custom: true, id: m.id }))]
+  // Tüm öğünler custom_meals'te (varsayılanlar ilk girişte seed edilir).
+  // Hepsi eşit: silinebilir, adı değişir, sıralanır.
+  const MEALS = customMeals.map(m => ({ key: m.key, label: m.label, id: m.id }))
   const mealLabel = (key) => MEALS.find(m => m.key === key)?.label || key
 
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
@@ -150,7 +153,17 @@ async function fetchMeals() {
     .eq('user_id', user.id)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
-  if (!error && data) setCustomMeals(data)
+  if (error) return
+  if (data && data.length > 0) {
+    setCustomMeals(data)
+  } else {
+    // İlk giriş: 4 varsayılan öğünü seed et (eski girişler bağlı kalsın diye aynı key'ler)
+    const seed = DEFAULT_MEALS.map((m, i) => ({
+      user_id: user.id, key: m.key, label: m.label, sort_order: i
+    }))
+    const { data: inserted } = await supabase.from('custom_meals').insert(seed).select().order('sort_order', { ascending: true })
+    if (inserted) setCustomMeals(inserted)
+  }
 }
 
 async function addCustomMeal() {
@@ -164,30 +177,47 @@ async function addCustomMeal() {
   fetchMeals()
 }
 
-async function deleteCustomMeal(id) {
-  if (!confirm('Bu öğünü silmek istediğine emin misin? (Girişleri kalır)')) return
+async function deleteCustomMeal(id, mealKey) {
+  // Bu öğüne ait giriş sayısını bul
+  const { data: mealEntries } = await supabase.from('food_entries')
+    .select('id').eq('user_id', user.id).eq('meal', mealKey)
+  const count = mealEntries?.length || 0
+  const msg = count > 0
+    ? `Bu öğünü silmek istediğine emin misin? İçindeki ${count} yemek girişi de silinecek.`
+    : 'Bu öğünü silmek istediğine emin misin?'
+  if (!confirm(msg)) return
+
+  // Önce girişleri sil (kalori artığı kalmasın), sonra öğünü
+  if (count > 0) {
+    await supabase.from('food_entries').delete().eq('user_id', user.id).eq('meal', mealKey)
+  }
   await supabase.from('custom_meals').delete().eq('id', id).eq('user_id', user.id)
   fetchMeals()
+  fetchEntries()
 }
 
 // Özel öğünü yukarı/aşağı taşı — tüm listeyi yeniden indeksleyerek (sort_order çakışmalarına dayanıklı)
+async function renameMeal(id, newLabel) {
+  const label = (newLabel || '').trim()
+  if (!label) return
+  setCustomMeals(prev => prev.map(m => m.id === id ? { ...m, label } : m))
+  await supabase.from('custom_meals').update({ label }).eq('id', id).eq('user_id', user.id)
+}
+
 async function moveMeal(id, direction) {
   const idx = customMeals.findIndex(m => m.id === id)
-  console.log('moveMeal:', id, direction, 'idx:', idx, 'toplam:', customMeals.length)
   if (idx < 0) return
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-  if (swapIdx < 0 || swapIdx >= customMeals.length) { console.log('sınır dışı, swapIdx:', swapIdx); return }
+  if (swapIdx < 0 || swapIdx >= customMeals.length) return
 
   const reordered = [...customMeals]
   ;[reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]]
-  console.log('yeni sıra:', reordered.map(m => m.label))
 
   setCustomMeals(reordered.map((m, i) => ({ ...m, sort_order: i })))
 
-  const res = await Promise.all(reordered.map((m, i) =>
+  await Promise.all(reordered.map((m, i) =>
     supabase.from('custom_meals').update({ sort_order: i }).eq('id', m.id).eq('user_id', user.id)
   ))
-  console.log('DB güncelleme sonucu:', res.map(r => r.error ? r.error.message : 'ok'))
   fetchMeals()
 }
 
@@ -295,20 +325,30 @@ async function moveMeal(id, direction) {
           return (
             <div key={m.key} style={{ marginBottom: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: mealEntries.length > 0 ? '10px' : '0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{m.label}</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{mealTotal} kcal</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                  {editingMealId === m.id ? (
+                    <input
+                      autoFocus
+                      defaultValue={m.label}
+                      onBlur={e => { renameMeal(m.id, e.target.value); setEditingMealId(null) }}
+                      onKeyDown={e => { if (e.key === 'Enter') { renameMeal(m.id, e.target.value); setEditingMealId(null) } }}
+                      style={{ ...inputStyle, flex: 0, width: '160px', fontSize: '15px', padding: '4px 8px' }}
+                    />
+                  ) : (
+                    <span onClick={() => setEditingMealId(m.id)} title="Adı düzenle" style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', cursor: 'pointer' }}>{m.label}</span>
+                  )}
+                  <span style={{ fontSize: '12px', color: 'var(--text-faint)', flexShrink: 0 }}>{mealTotal} kcal</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {m.custom && (() => {
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {(() => {
                     const ci = customMeals.findIndex(cm => cm.id === m.id)
                     const canUp = ci > 0
                     const canDown = ci < customMeals.length - 1
                     return (
                       <>
-                        <button onClick={() => { console.log('MOVE UP', m.id, 'ci:', ci); moveMeal(m.id, 'up') }} disabled={!canUp} title="Yukarı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '30px', height: '30px', color: canUp ? 'var(--text)' : 'var(--text-faded)', cursor: canUp ? 'pointer' : 'default', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↑</button>
-                        <button onClick={() => { console.log('MOVE DOWN', m.id, 'ci:', ci); moveMeal(m.id, 'down') }} disabled={!canDown} title="Aşağı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '30px', height: '30px', color: canDown ? 'var(--text)' : 'var(--text-faded)', cursor: canDown ? 'pointer' : 'default', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↓</button>
-                        <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '15px', padding: '0 4px' }}>🗑️</span>
+                        <button onClick={() => moveMeal(m.id, 'up')} disabled={!canUp} title="Yukarı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canUp ? 'var(--text)' : 'var(--text-faded)', cursor: canUp ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↑</button>
+                        <button onClick={() => moveMeal(m.id, 'down')} disabled={!canDown} title="Aşağı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canDown ? 'var(--text)' : 'var(--text-faded)', cursor: canDown ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↓</button>
+                        <span onClick={() => deleteCustomMeal(m.id, m.key)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}>🗑️</span>
                       </>
                     )
                   })()}
