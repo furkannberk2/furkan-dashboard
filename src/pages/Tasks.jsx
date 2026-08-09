@@ -9,12 +9,12 @@ const PRIORITIES = {
 }
 
 const FREQ_DAYS = {
-  'Her gün': 1,
-  'Haftada 1': 7,
-  'Haftada 2': 4,
-  'Haftada 3': 3,
-  'Ayda 1': 30,
-  'Ayda 2': 15
+  daily: 1,
+  weekly_1: 7,
+  weekly_2: 4,
+  weekly_3: 3,
+  monthly_1: 30,
+  monthly_2: 15
 }
 
 function addDays(dateStr, days) {
@@ -35,12 +35,12 @@ function generateRoutineDates(routine, start, end) {
 
   const freq = routine.frequency
 
-  if (freq === 'Her gün') {
+  if (freq === 'daily') {
     for (let i = 0; i <= totalDays; i++) dates.push(addDays(start, i))
     return dates
   }
 
-  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(freq)) {
+  if (['weekly_1', 'weekly_2', 'weekly_3'].includes(freq)) {
     const days = (routine.days_of_week || []).map(Number)
     if (days.length === 0) return dates
     for (let i = 0; i <= totalDays; i++) {
@@ -52,7 +52,7 @@ function generateRoutineDates(routine, start, end) {
     return dates
   }
 
-  if (freq === '2 haftada 1') {
+  if (freq === 'biweekly_1') {
     const days = (routine.days_of_week || []).map(Number)
     const anchor = routine.biweekly_anchor || start
     if (days.length === 0) return dates
@@ -67,7 +67,7 @@ function generateRoutineDates(routine, start, end) {
     return dates
   }
 
-  if (['Ayda 1', 'Ayda 2'].includes(freq)) {
+  if (['monthly_1', 'monthly_2'].includes(freq)) {
     const monthDays = (routine.days_of_month || []).map(Number)
     if (monthDays.length === 0) return dates
     for (let i = 0; i <= totalDays; i++) {

@@ -3,7 +3,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const COLORS = ['#6366f1', '#f472b6', '#fb923c', '#60a5fa', '#a78bfa', '#6ee7b7', '#fbbf24', '#f87171']
-const FREQUENCIES = ['Her gün', 'Haftada 1', 'Haftada 2', 'Haftada 3', '2 haftada 1', 'Ayda 1', 'Ayda 2']
+const FREQUENCIES = [
+  { key: 'daily', label: 'Her gün' },
+  { key: 'weekly_1', label: 'Haftada 1' },
+  { key: 'weekly_2', label: 'Haftada 2' },
+  { key: 'weekly_3', label: 'Haftada 3' },
+  { key: 'biweekly_1', label: '2 haftada 1' },
+  { key: 'monthly_1', label: 'Ayda 1' },
+  { key: 'monthly_2', label: 'Ayda 2' },
+]
+const freqLabel = (key) => FREQUENCIES.find(f => f.key === key)?.label || key
 
 // Proje durumu anahtar tabanlı: veriye 'key' yazılır, gösterimde 'label'
 const STATUSES = [
@@ -43,7 +52,7 @@ function Projects() {
   const [newPhase, setNewPhase] = useState('')
   const [newPhaseDate, setNewPhaseDate] = useState('')
   const [newRoutine, setNewRoutine] = useState('')
-  const [newFrequency, setNewFrequency] = useState('Haftada 1')
+  const [newFrequency, setNewFrequency] = useState('weekly_1')
   const [newRoutineEnd, setNewRoutineEnd] = useState('')
   const [newRoutineDays, setNewRoutineDays] = useState([])
   const [newRoutineMonthDays, setNewRoutineMonthDays] = useState([])
@@ -145,14 +154,14 @@ async function addRoutine() {
     days_of_month: null,
     biweekly_anchor: null
   }
-  if (['Haftada 1', 'Haftada 2', 'Haftada 3'].includes(newFrequency)) {
+  if (['weekly_1', 'weekly_2', 'weekly_3'].includes(newFrequency)) {
     payload.days_of_week = newRoutineDays
   }
-  if (newFrequency === '2 haftada 1') {
+  if (newFrequency === 'biweekly_1') {
     payload.days_of_week = newRoutineDays
     payload.biweekly_anchor = newBiweeklyAnchor || today
   }
-  if (['Ayda 1', 'Ayda 2'].includes(newFrequency)) {
+  if (['monthly_1', 'monthly_2'].includes(newFrequency)) {
     payload.days_of_month = newRoutineMonthDays
   }
   await supabase.from('project_routines').insert(payload)
@@ -188,21 +197,21 @@ async function addRoutine() {
     if (routine.end_date && routine.end_date < today) return false
     if (!routine.last_done) return true
     const diff = Math.floor((new Date() - new Date(routine.last_done)) / (1000 * 60 * 60 * 24))
-    if (routine.frequency === 'Her gün') return diff >= 1
-    if (routine.frequency === 'Haftada 1') return diff >= 7
-    if (routine.frequency === 'Haftada 2') return diff >= 4
-    if (routine.frequency === 'Haftada 3') return diff >= 3
-    if (routine.frequency === 'Ayda 1') return diff >= 30
-    if (routine.frequency === 'Ayda 2') return diff >= 15
+    if (routine.frequency === 'daily') return diff >= 1
+    if (routine.frequency === 'weekly_1') return diff >= 7
+    if (routine.frequency === 'weekly_2') return diff >= 4
+    if (routine.frequency === 'weekly_3') return diff >= 3
+    if (routine.frequency === 'monthly_1') return diff >= 30
+    if (routine.frequency === 'monthly_2') return diff >= 15
     return false
   }
 
   function getMaxDays(freq) {
-  if (freq === 'Haftada 1' || freq === '2 haftada 1') return 1
-  if (freq === 'Haftada 2') return 2
-  if (freq === 'Haftada 3') return 3
-  if (freq === 'Ayda 1') return 1
-  if (freq === 'Ayda 2') return 2
+  if (freq === 'weekly_1' || freq === 'biweekly_1') return 1
+  if (freq === 'weekly_2') return 2
+  if (freq === 'weekly_3') return 3
+  if (freq === 'monthly_1') return 1
+  if (freq === 'monthly_2') return 2
   return 0
 }
 
@@ -350,12 +359,12 @@ function toggleMonthDay(v) {
     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
       <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
       <select value={newFrequency} onChange={e => { setNewFrequency(e.target.value); setNewRoutineDays([]); setNewRoutineMonthDays([]) }} style={{ ...selectStyle, fontSize: '13px' }}>
-        {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+        {FREQUENCIES.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
       </select>
     </div>
 
     {/* Haftalık frekanslar için gün seçimi */}
-    {(['Haftada 1', 'Haftada 2', 'Haftada 3', '2 haftada 1'].includes(newFrequency)) && (
+    {(['weekly_1', 'weekly_2', 'weekly_3', 'biweekly_1'].includes(newFrequency)) && (
       <div style={{ marginBottom: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
           Hangi gün(ler)? ({newRoutineDays.length}/{getMaxDays(newFrequency)})
@@ -371,7 +380,7 @@ function toggleMonthDay(v) {
             }}>{d.label}</button>
           ))}
         </div>
-        {newFrequency === '2 haftada 1' && (
+        {newFrequency === 'biweekly_1' && (
           <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Başlangıç haftası:</span>
             <input type="date" value={newBiweeklyAnchor} onChange={e => setNewBiweeklyAnchor(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
@@ -381,7 +390,7 @@ function toggleMonthDay(v) {
     )}
 
     {/* Aylık frekanslar için ay günü seçimi */}
-    {['Ayda 1', 'Ayda 2'].includes(newFrequency) && (
+    {['monthly_1', 'monthly_2'].includes(newFrequency) && (
       <div style={{ marginBottom: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
           Ayın hangi gün(ler)? ({newRoutineMonthDays.length}/{getMaxDays(newFrequency)})
@@ -414,7 +423,7 @@ function toggleMonthDay(v) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '3px' }}>{r.title}</div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{r.frequency}</span>
+              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '4px', padding: '2px 6px', color: 'var(--text-dim)' }}>{freqLabel(r.frequency)}</span>
               {r.days_of_week?.length > 0 && (
                 <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
                   {r.days_of_week.map(v => WEEKDAYS.find(d => d.v === v)?.label).join(', ')}
