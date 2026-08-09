@@ -173,21 +173,21 @@ async function deleteCustomMeal(id) {
 // Özel öğünü yukarı/aşağı taşı — tüm listeyi yeniden indeksleyerek (sort_order çakışmalarına dayanıklı)
 async function moveMeal(id, direction) {
   const idx = customMeals.findIndex(m => m.id === id)
+  console.log('moveMeal:', id, direction, 'idx:', idx, 'toplam:', customMeals.length)
   if (idx < 0) return
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-  if (swapIdx < 0 || swapIdx >= customMeals.length) return
+  if (swapIdx < 0 || swapIdx >= customMeals.length) { console.log('sınır dışı, swapIdx:', swapIdx); return }
 
-  // Diziyi kopyala, elemanları takas et
   const reordered = [...customMeals]
   ;[reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]]
+  console.log('yeni sıra:', reordered.map(m => m.label))
 
-  // Yeni sırayı hemen ekranda göster (iyimser)
   setCustomMeals(reordered.map((m, i) => ({ ...m, sort_order: i })))
 
-  // Her öğüne indeksine göre yeni sort_order yaz
-  await Promise.all(reordered.map((m, i) =>
+  const res = await Promise.all(reordered.map((m, i) =>
     supabase.from('custom_meals').update({ sort_order: i }).eq('id', m.id).eq('user_id', user.id)
   ))
+  console.log('DB güncelleme sonucu:', res.map(r => r.error ? r.error.message : 'ok'))
   fetchMeals()
 }
 
@@ -302,11 +302,13 @@ async function moveMeal(id, direction) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {m.custom && (() => {
                     const ci = customMeals.findIndex(cm => cm.id === m.id)
+                    const canUp = ci > 0
+                    const canDown = ci < customMeals.length - 1
                     return (
                       <>
-                        <span onClick={() => moveMeal(m.id, 'up')} title="Yukarı" style={{ color: ci > 0 ? 'var(--text-dim)' : 'var(--text-faded)', cursor: ci > 0 ? 'pointer' : 'default', fontSize: '13px' }}>↑</span>
-                        <span onClick={() => moveMeal(m.id, 'down')} title="Aşağı" style={{ color: ci < customMeals.length - 1 ? 'var(--text-dim)' : 'var(--text-faded)', cursor: ci < customMeals.length - 1 ? 'pointer' : 'default', fontSize: '13px' }}>↓</span>
-                        <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px' }}>🗑️</span>
+                        <button onClick={() => { console.log('MOVE UP', m.id, 'ci:', ci); moveMeal(m.id, 'up') }} disabled={!canUp} title="Yukarı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '30px', height: '30px', color: canUp ? 'var(--text)' : 'var(--text-faded)', cursor: canUp ? 'pointer' : 'default', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↑</button>
+                        <button onClick={() => { console.log('MOVE DOWN', m.id, 'ci:', ci); moveMeal(m.id, 'down') }} disabled={!canDown} title="Aşağı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '30px', height: '30px', color: canDown ? 'var(--text)' : 'var(--text-faded)', cursor: canDown ? 'pointer' : 'default', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↓</button>
+                        <span onClick={() => deleteCustomMeal(m.id)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '15px', padding: '0 4px' }}>🗑️</span>
                       </>
                     )
                   })()}
