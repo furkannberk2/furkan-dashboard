@@ -15,6 +15,7 @@ export default async function handler(req, res) {
         page_size: 40,
         // Popülerliğe göre sırala (daha alakalı/bilinen ürünler öne)
         sort_by: 'unique_scans_n',
+        lc: 'tr',
         fields: 'product_name,product_name_tr,brands,nutriments,code'
       },
       headers: {
