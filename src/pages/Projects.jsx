@@ -4,6 +4,14 @@ import { supabase } from '../lib/supabase'
 
 const COLORS = ['#6366f1', '#f472b6', '#fb923c', '#60a5fa', '#a78bfa', '#6ee7b7', '#fbbf24', '#f87171']
 const FREQUENCIES = ['Her gün', 'Haftada 1', 'Haftada 2', 'Haftada 3', '2 haftada 1', 'Ayda 1', 'Ayda 2']
+
+// Proje durumu anahtar tabanlı: veriye 'key' yazılır, gösterimde 'label'
+const STATUSES = [
+  { key: 'active', label: 'Aktif' },
+  { key: 'paused', label: 'Beklemede' },
+  { key: 'completed', label: 'Tamamlandı' },
+]
+const statusLabel = (key) => STATUSES.find(s => s.key === key)?.label || key
 const WEEKDAYS = [
   { v: 1, label: 'Pzt' }, { v: 2, label: 'Sal' }, { v: 3, label: 'Çar' },
   { v: 4, label: 'Per' }, { v: 5, label: 'Cum' }, { v: 6, label: 'Cmt' }, { v: 7, label: 'Paz' }
@@ -62,7 +70,7 @@ function Projects() {
 
   async function addProject() {
     if (!newName.trim()) return
-    await supabase.from('projects').insert({ user_id: user.id, name: newName, color: newColor, icon: newIcon || null, status: 'aktif', progress: 0, progress_manual: false })
+    await supabase.from('projects').insert({ user_id: user.id, name: newName, color: newColor, icon: newIcon || null, status: 'active', progress: 0, progress_manual: false })
     setNewName(''); setNewIcon(''); setShowAddProject(false)
     fetchProjects()
   }
@@ -97,7 +105,7 @@ function Projects() {
   }
 
   async function deleteProject(id) {
-    await supabase.from('projects').delete().eq('id', id)
+    await supabase.from('projects').delete().eq('id', id).eq('user_id', user.id)
     setSelectedProject(null)
     fetchProjects()
   }
@@ -119,7 +127,7 @@ function Projects() {
   }
 
   async function deletePhase(id) {
-    await supabase.from('project_tasks').delete().eq('id', id)
+    await supabase.from('project_tasks').delete().eq('id', id).eq('user_id', user.id)
     const { data } = await supabase.from('project_tasks').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true })
     setPhases(data || [])
     recalcAutoProgress(selectedProject.id, data || [])
@@ -158,7 +166,7 @@ async function addRoutine() {
   }
 
   async function deleteRoutine(id) {
-    await supabase.from('project_routines').delete().eq('id', id)
+    await supabase.from('project_routines').delete().eq('id', id).eq('user_id', user.id)
     fetchProjectDetails(selectedProject.id)
   }
 
@@ -234,7 +242,7 @@ function toggleMonthDay(v) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               {p.icon && <span style={{ fontSize: '18px' }}>{p.icon}</span>}
               <span style={{ fontSize: '14.5px', fontWeight: '600', color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-              <span style={{ fontSize: '10px', color: p.status === 'aktif' ? 'var(--success)' : p.status === 'tamamlandı' ? 'var(--accent)' : 'var(--text-faint)', background: 'var(--bg-item)', padding: '2px 6px', borderRadius: '4px' }}>{p.status}</span>
+              <span style={{ fontSize: '10px', color: p.status === 'active' ? 'var(--success)' : p.status === 'completed' ? 'var(--accent)' : 'var(--text-faint)', background: 'var(--bg-item)', padding: '2px 6px', borderRadius: '4px' }}>{statusLabel(p.status)}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ flex: 1, background: 'var(--bg-item)', borderRadius: '99px', height: '4px' }}>
@@ -288,9 +296,7 @@ function toggleMonthDay(v) {
                 </button>
               )}
               <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
-                <option value="aktif">Aktif</option>
-                <option value="beklemede">Beklemede</option>
-                <option value="tamamlandı">Tamamlandı</option>
+                {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
             </div>
             {!selectedProject.progress_manual && phases.length > 0 && (
