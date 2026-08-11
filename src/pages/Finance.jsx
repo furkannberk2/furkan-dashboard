@@ -8,8 +8,27 @@ import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrent
 import { formatMoney } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 
-const EXPENSE_CATEGORIES = ['Market', 'Yemek', 'Ulaşım', 'Kafe', 'Giyim', 'Sağlık', 'Eğlence', 'Diğer']
-const RECURRING_CATEGORIES = ['Kira', 'Fatura', 'Borç', 'Abonelik', 'Diğer']
+const EXPENSE_CATEGORIES = [
+  { key: 'groceries', label: 'Market' },
+  { key: 'food', label: 'Yemek' },
+  { key: 'transport', label: 'Ulaşım' },
+  { key: 'cafe', label: 'Kafe' },
+  { key: 'clothing', label: 'Giyim' },
+  { key: 'health', label: 'Sağlık' },
+  { key: 'entertainment', label: 'Eğlence' },
+  { key: 'other', label: 'Diğer' },
+]
+const RECURRING_CATEGORIES = [
+  { key: 'rent', label: 'Kira' },
+  { key: 'bills', label: 'Fatura' },
+  { key: 'debt', label: 'Borç' },
+  { key: 'subscription', label: 'Abonelik' },
+  { key: 'other', label: 'Diğer' },
+]
+const catLabel = (key) => {
+  const all = [...EXPENSE_CATEGORIES, ...RECURRING_CATEGORIES]
+  return all.find(c => c.key === key)?.label || key
+}
 const LOCATIONS = ['Fiziksel', 'Vakıfbank', 'Yapı Kredi', 'Midas']
 
 const ASSET_TYPES = [
@@ -90,11 +109,11 @@ function Finance() {
   const [invLocation, setInvLocation] = useState('Fiziksel')
 
   const [newAmount, setNewAmount] = useState('')
-  const [newCategory, setNewCategory] = useState('Market')
+  const [newCategory, setNewCategory] = useState('groceries')
   const [newDesc, setNewDesc] = useState('')
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0])
   const [rName, setRName] = useState('')
-  const [rCategory, setRCategory] = useState('Fatura')
+  const [rCategory, setRCategory] = useState('bills')
   const [rAmount, setRAmount] = useState('')
   const [rDueDay, setRDueDay] = useState('')
   const [vName, setVName] = useState('')
@@ -426,7 +445,7 @@ const categoryDistribution = (() => {
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={selectStyle}>
-                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
               <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }} />
               <button onClick={addDailyExpense} style={buttonStyle}>Ekle</button>
@@ -440,7 +459,7 @@ const categoryDistribution = (() => {
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
-                  {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
                 <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
                 <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
@@ -449,7 +468,7 @@ const categoryDistribution = (() => {
             </div>
           ) : (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{e.category}</span>
+              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || '—'}</span>
               {!isMobile && <span style={{ fontSize: '12px', color: 'var(--text-faint)', flexShrink: 0 }}>{new Date(e.date + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}</span>}
               <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
@@ -471,7 +490,7 @@ const categoryDistribution = (() => {
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={rCategory} onChange={e => setRCategory(e.target.value)} style={selectStyle}>
-                {RECURRING_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
               <input value={rDueDay} onChange={e => setRDueDay(e.target.value)} placeholder="Ödeme günü" type="number" min="1" max="31" style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '120px', fontSize: '13px' }} />
               <button onClick={addRecurring} style={buttonStyle}>Ekle</button>
@@ -485,7 +504,7 @@ const categoryDistribution = (() => {
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
-                  {RECURRING_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
                 <input value={editData.due_day} onChange={ev => setEditData(d => ({ ...d, due_day: ev.target.value }))} placeholder="Ödeme günü" type="number" min="1" max="31" style={{ ...inputStyle, flex: 0, width: '150px' }} />
                 <button onClick={() => saveEdit('recurring')} style={buttonStyle}>Kaydet</button>
@@ -497,7 +516,7 @@ const categoryDistribution = (() => {
               <div onClick={() => setPaidStatus(p => ({ ...p, [e.id]: !p[e.id] }))} style={{ width: '18px', height: '18px', borderRadius: '5px', border: '2px solid', borderColor: paidStatus[e.id] ? 'var(--success)' : 'var(--text-faint)', background: paidStatus[e.id] ? 'var(--success)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {paidStatus[e.id] && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </div>
-              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{e.category}</span>
+              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: '80px' }}>{e.name}</span>
               {e.due_day && !isMobile && (() => {
                 const inCycle = isDue(e.due_day, currentDay, payday)
