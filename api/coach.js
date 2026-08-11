@@ -256,7 +256,7 @@ const toolDeclarations = [
       properties: {
         amount: { type: 'number', description: 'Tutar (TL)' },
         category: { type: 'string', description: 'Kategori anahtarı (biri): groceries (market), food (yemek), transport (ulaşım), cafe (kafe), clothing (giyim), health (sağlık), entertainment (eğlence), other (diğer). Kullanıcı Türkçe söylese bile İngilizce anahtarı yaz.' },
-        description: { type: 'string', description: 'Açıklama' }
+        description: { type: 'string', description: 'Kısa açıklama. Kullanıcının mesajından çıkarabiliyorsan ekle (ör. "markette meyve aldım 250" → "meyve"). Mesajda yoksa boş bırak, kullanıcıya SORMA.' }
       },
       required: ['amount', 'category']
     }
