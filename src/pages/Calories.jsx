@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { BrowserMultiFormatReader } from '@zxing/browser'
+import { progressSummary } from '../utils/format'
 
 // Öğünler anahtar tabanlı: veriye 'key' yazılır, gösterimde 'label'.
 // (label'lar ileride i18n ile dile göre gelecek.)
@@ -308,9 +309,13 @@ async function moveMeal(id, direction) {
           <span style={{ fontSize: '28px', fontWeight: '700' }}>{totalCalories}</span>
           <span style={{ fontSize: '14px', color: 'var(--text-faint)' }}>/ {goalCalories} kcal</span>
         </div>
-        <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '8px', marginBottom: '16px' }}>
+        <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '8px', marginBottom: '8px' }}>
           <div style={{ width: `${percent}%`, height: '8px', borderRadius: '99px', background: percent > 100 ? 'var(--danger)' : percent > 85 ? 'var(--warning)' : 'var(--success)', transition: 'width 0.3s' }} />
         </div>
+        {(() => {
+          const p = progressSummary(totalCalories, goalCalories)
+          return <div style={{ fontSize: '12px', color: p.over ? 'var(--danger)' : 'var(--text-faint)', marginBottom: '16px' }}>{p.text}</div>
+        })()}
         <div style={{ display: 'flex', gap: '20px' }}>
           <MacroBox label="Protein" value={totalProtein} color="var(--info)" />
           <MacroBox label="Karb" value={totalCarbs} color="var(--warning)" />

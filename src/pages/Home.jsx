@@ -5,7 +5,7 @@ import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange } from '../utils/finance'
-import { formatMoney } from '../utils/format'
+import { formatMoney, progressSummary, budgetSummary } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 
 function Home() {
@@ -196,7 +196,7 @@ function Home() {
           to="/calories"
           label="Kalori"
           value={`${totalCal}`}
-          sub={`/ ${calGoal} kcal`}
+          sub={calGoal > 0 ? (totalCal <= calGoal ? `kalan ${(calGoal - totalCal).toLocaleString('tr-TR')}` : `${(totalCal - calGoal).toLocaleString('tr-TR')} aşıldı`) : `${totalCal} kcal`}
           percent={calPercent}
           color={calPercent > 100 ? 'var(--danger)' : calPercent > 85 ? 'var(--warning)' : 'var(--success)'}
         />
@@ -204,7 +204,7 @@ function Home() {
           to="/finance"
           label="Bugünkü Harcama"
           value={fmt(todayExp)}
-          sub={`/ ${fmt(dailyBudget)} limit`}
+          sub={dailyBudget > 0 ? (todayExp <= dailyBudget ? `${fmt(dailyBudget - todayExp)} kaldı` : `${fmt(todayExp - dailyBudget)} aşıldı`) : `limit yok`}
           percent={expPercent}
           color={expPercent > 80 ? 'var(--danger)' : expPercent > 50 ? 'var(--warning)' : 'var(--success)'}
         />

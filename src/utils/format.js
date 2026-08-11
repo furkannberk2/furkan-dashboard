@@ -75,8 +75,31 @@ export function formatDate(dateInput, locale = 'tr-TR', opts = { day: 'numeric',
 }
 
 /**
- * Uzun tarih formatı (Home başlığı gibi).
+ * "Tüketilen / hedef · kalan" özet metni üretir (kalori gibi sayısal hedefler için).
+ * consumed=1240, goal=2000 → { text: "1.240 / 2.000 · kalan 760", over: false }
+ * Aşılınca → { text: "2.040 / 2.000 · 40 aşıldı", over: true }
  */
-export function formatDateLong(dateInput, locale = 'tr-TR') {
-  return formatDate(dateInput, locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+export function progressSummary(consumed, goal, locale = 'tr-TR') {
+  const c = Number(consumed) || 0
+  const g = Number(goal) || 0
+  const cStr = c.toLocaleString(locale)
+  const gStr = g.toLocaleString(locale)
+  if (g <= 0) return { text: cStr, over: false }
+  const diff = g - c
+  if (diff >= 0) return { text: `${cStr} / ${gStr} · kalan ${diff.toLocaleString(locale)}`, over: false }
+  return { text: `${cStr} / ${gStr} · ${Math.abs(diff).toLocaleString(locale)} aşıldı`, over: true }
+}
+
+/**
+ * "X harcandı · Y kaldı" özet metni üretir (para hedefleri için).
+ * spent=340, budget=500, currency=TRY → { text: "₺340 harcandı · ₺160 kaldı", over: false }
+ * Aşılınca → { text: "₺540 harcandı · ₺40 aşıldı", over: true }
+ */
+export function budgetSummary(spent, budget, currency = 'TRY') {
+  const s = Number(spent) || 0
+  const b = Number(budget) || 0
+  if (b <= 0) return { text: `${formatMoney(s, currency)} harcandı`, over: false }
+  const diff = b - s
+  if (diff >= 0) return { text: `${formatMoney(s, currency)} harcandı · ${formatMoney(diff, currency)} kaldı`, over: false }
+  return { text: `${formatMoney(s, currency)} harcandı · ${formatMoney(Math.abs(diff), currency)} aşıldı`, over: true }
 }

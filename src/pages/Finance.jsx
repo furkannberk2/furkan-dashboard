@@ -418,7 +418,7 @@ const categoryDistribution = (() => {
       <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Finans</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <SummaryCard title="Bugünkü Harcama" value={`${fmt(todayTotal)}`} sub={`Limit: ${fmt(dailyBudget)} · ${remainingDays} gün`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
+        <SummaryCard title="Bugünkü Harcama" value={`${fmt(todayTotal)}`} sub={dailyBudget > 0 ? (todayTotal <= dailyBudget ? `${fmt(dailyBudget - todayTotal)} kaldı · ${remainingDays} gün` : `${fmt(todayTotal - dailyBudget)} aşıldı`) : `Limit: ${fmt(dailyBudget)}`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
         <SummaryCard title="Bu Ay Harcama" value={`${fmt(monthTotal)}`} sub={`Gelir: ${fmt(totalIncome)}`} />
         <SummaryCard title="Yatırım Portföyü" value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
       </div>
