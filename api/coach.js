@@ -6,6 +6,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 // ---------- Yardımcılar ----------
 const todayStr = () => new Date().toISOString().split('T')[0]
+
+// Kategori anahtarı → Türkçe etiket (context'te koça anlamlı gösterim için)
+const CAT_LABELS = {
+  groceries: 'Market', food: 'Yemek', transport: 'Ulaşım', cafe: 'Kafe',
+  clothing: 'Giyim', health: 'Sağlık', entertainment: 'Eğlence', other: 'Diğer',
+  rent: 'Kira', bills: 'Fatura', debt: 'Borç', subscription: 'Abonelik',
+}
+const catLabel = (key) => CAT_LABELS[key] || key
 const monthStr = () => todayStr().slice(0, 7)
 
 function addDays(dateStr, days) {
@@ -81,7 +89,7 @@ async function buildFinanceContext(userId) {
     `Sabit giderler (kalan döneme düşen): ${totalRecurring.toLocaleString('tr-TR')}₺` +
     `${totalRecurringFull !== totalRecurring ? ` (aylık toplam ${totalRecurringFull.toLocaleString('tr-TR')}₺)` : ''}. ` +
     `Değişken bütçe: ${totalVariable.toLocaleString('tr-TR')}₺. ` +
-    (topCat ? `En çok harcama kategorisi: ${topCat[0]} (${topCat[1].toLocaleString('tr-TR')}₺).` : '')
+    (topCat ? `En çok harcama kategorisi: ${catLabel(topCat[0])} (${topCat[1].toLocaleString('tr-TR')}₺).` : '')
 }
 
 async function buildInvestmentContext(userId) {
@@ -247,7 +255,7 @@ const toolDeclarations = [
       type: 'object',
       properties: {
         amount: { type: 'number', description: 'Tutar (TL)' },
-        category: { type: 'string', description: 'Kategori: Market, Yemek, Ulaşım, Kafe, Giyim, Sağlık, Eğlence, Diğer' },
+        category: { type: 'string', description: 'Kategori anahtarı (biri): groceries (market), food (yemek), transport (ulaşım), cafe (kafe), clothing (giyim), health (sağlık), entertainment (eğlence), other (diğer). Kullanıcı Türkçe söylese bile İngilizce anahtarı yaz.' },
         description: { type: 'string', description: 'Açıklama' }
       },
       required: ['amount', 'category']
@@ -261,7 +269,7 @@ const toolDeclarations = [
       properties: {
         name: { type: 'string', description: 'Gider adı' },
         amount: { type: 'number', description: 'Aylık tutar (TL)' },
-        category: { type: 'string', description: 'Kategori: Kira, Fatura, Borç, Abonelik, Diğer' },
+        category: { type: 'string', description: 'Kategori anahtarı (biri): rent (kira), bills (fatura), debt (borç), subscription (abonelik), other (diğer). Kullanıcı Türkçe söylese bile İngilizce anahtarı yaz.' },
         due_day: { type: 'number', description: 'Ayın kaçında ödeniyor (1-31), opsiyonel' }
       },
       required: ['name', 'amount', 'category']
@@ -328,7 +336,7 @@ async function executeAction(name, args, userId) {
         date: today, category: args.category, description: args.description || null,
         amount: args.amount, user_id: userId
       })
-      return `${args.amount}₺ ${args.category} harcaması eklendi`
+      return `${args.amount}₺ ${catLabel(args.category)} harcaması eklendi`
     }
     if (name === 'add_recurring_expense') {
       await supabase.from('recurring_expenses').insert({
