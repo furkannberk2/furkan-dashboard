@@ -33,8 +33,8 @@ function Habits() {
     const monthEnd = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
 
     const [h, l] = await Promise.all([
-      supabase.from('habits').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
-      supabase.from('habit_logs').select('*').gte('date', monthStart).lte('date', monthEnd)
+      supabase.from('habits').select('*').eq('user_id', user.id).order('position', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('habit_logs').select('*').eq('user_id', user.id).gte('date', monthStart).lte('date', monthEnd)
     ])
     if (!h.error) setHabits(h.data)
     if (!l.error) setLogs(l.data)
@@ -56,14 +56,14 @@ function Habits() {
 
   async function deleteHabit(id) {
     if (!confirm('Bu alışkanlığı ve tüm geçmiş kayıtlarını silmek istediğine emin misin?')) return
-    await supabase.from('habits').delete().eq('id', id)
+    await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id)
     fetchAll()
   }
 
   async function toggleLog(habitId, dateStr, currentDone) {
     if (currentDone) {
       // Var, sil
-      await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('date', dateStr)
+      await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('date', dateStr).eq('user_id', user.id)
     } else {
       // Yok, ekle
       await supabase.from('habit_logs').insert({
