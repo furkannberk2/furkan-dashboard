@@ -114,6 +114,7 @@ function Finance() {
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0])
   const [rName, setRName] = useState('')
   const [rCategory, setRCategory] = useState('bills')
+  const [showPast, setShowPast] = useState(false)
   const [rAmount, setRAmount] = useState('')
   const [rDueDay, setRDueDay] = useState('')
   const [vName, setVName] = useState('')
@@ -451,32 +452,80 @@ const categoryDistribution = (() => {
               <button onClick={addDailyExpense} style={buttonStyle}>Ekle</button>
             </div>
           </div>
-          {dailyExpenses.map(e => editingId === e.id ? (
-            <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <input value={editData.description} onChange={ev => setEditData(d => ({ ...d, description: ev.target.value }))} placeholder="Açıklama" style={inputStyle} />
-                <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
+          {(() => {
+            // Bir harcama satırını render eden yardımcı
+            const renderExpense = (e) => editingId === e.id ? (
+              <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  <input value={editData.description} onChange={ev => setEditData(d => ({ ...d, description: ev.target.value }))} placeholder="Açıklama" style={inputStyle} />
+                  <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
+                    {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                  <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
+                  <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
+                  <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
-                  {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
-                <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
-                <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
-                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+            ) : (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || '—'}</span>
+                <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
+                <span onClick={() => startEdit(e, 'daily')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✏️</span>
+                <span onClick={() => deleteDaily(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}>✕</span>
               </div>
-            </div>
-          ) : (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || '—'}</span>
-              {!isMobile && <span style={{ fontSize: '12px', color: 'var(--text-faint)', flexShrink: 0 }}>{new Date(e.date + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}</span>}
-              <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
-              <span onClick={() => startEdit(e, 'daily')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✏️</span>
-              <span onClick={() => deleteDaily(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}>✕</span>
-            </div>
-          ))}
-          {dailyExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Harcama yok.</p>}
+            )
+
+            const todayExpenses = dailyExpenses.filter(e => e.date === today)
+            const pastExpenses = dailyExpenses.filter(e => e.date !== today)
+
+            // Geçmişi tarihe göre grupla (en yeni üstte)
+            const pastByDate = {}
+            pastExpenses.forEach(e => { (pastByDate[e.date] = pastByDate[e.date] || []).push(e) })
+            const pastDates = Object.keys(pastByDate).sort((a, b) => b.localeCompare(a))
+
+            const dateLabel = (d) => new Date(d + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+            return (
+              <>
+                {/* Bugün */}
+                <div style={{ fontSize: '12px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', fontWeight: '600' }}>Bugün</div>
+                {todayExpenses.length > 0 ? todayExpenses.map(renderExpense)
+                  : <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '16px' }}>Bugün harcama yok.</p>}
+
+                {/* Geçmiş harcamalar butonu */}
+                {pastExpenses.length > 0 && (
+                  <button onClick={() => setShowPast(v => !v)} style={{
+                    width: '100%', padding: '11px', borderRadius: '10px', marginTop: '10px',
+                    background: 'transparent', border: '1px dashed var(--border-strong)',
+                    color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                  }}>
+                    {showPast ? '▲ Geçmişi gizle' : `▼ Geçmiş harcamalar (${pastExpenses.length})`}
+                  </button>
+                )}
+
+                {/* Geçmiş — tarih tarih gruplı */}
+                {showPast && pastDates.map(date => {
+                  const dayTotal = pastByDate[date].reduce((s, e) => s + Number(e.amount), 0)
+                  return (
+                    <div key={date} style={{ marginTop: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '600' }}>{dateLabel(date)}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{fmt(dayTotal)}</span>
+                      </div>
+                      {pastByDate[date].map(renderExpense)}
+                    </div>
+                  )
+                })}
+
+                {dailyExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Harcama yok.</p>}
+              </>
+            )
+          })()}
         </div>
       )}
 
