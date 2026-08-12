@@ -111,7 +111,7 @@ export default async function handler(req, res) {
         .select('*')
         .eq('user_id', userId)
         .eq('date', today)
-        .single()
+        .maybeSingle()
       if (cached) {
         return res.status(200).json({
           connected: true,
@@ -128,6 +128,14 @@ export default async function handler(req, res) {
       .select('*')
       .eq('user_id', userId)
 
+    // Kullanıcının dil tercihi (özet bu dilde olacak)
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('language')
+      .eq('user_id', userId)
+      .maybeSingle()
+    const lang = prefs?.language === 'en' ? 'en' : 'tr'
+
     if (!accounts || accounts.length === 0) {
       return res.status(200).json({ connected: false, summary: null, mails: [] })
     }
@@ -143,7 +151,8 @@ export default async function handler(req, res) {
     }
 
     if (allMails.length === 0) {
-      return res.status(200).json({ connected: true, summary: 'Bugün hiç mail gelmemiş.', mails: [], accounts: accounts.map(a => a.email) })
+      const noMail = lang === 'en' ? 'No emails received today.' : 'Bugün hiç mail gelmemiş.'
+      return res.status(200).json({ connected: true, summary: noMail, mails: [], accounts: accounts.map(a => a.email) })
     }
 
     const mailText = allMails.map((m, i) =>
@@ -152,7 +161,7 @@ export default async function handler(req, res) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const prompt = `Aşağıda bugün gelen e-postalar var. Türkçe özetle. SADECE düz metin kullan — yıldız (*), kare (#) gibi markdown işaretleri KULLANMA.
+    const promptTR = `Aşağıda bugün gelen e-postalar var. Türkçe özetle. SADECE düz metin kullan — yıldız (*), kare (#) gibi markdown işaretleri KULLANMA.
 
 Şu kategorilere ayır (bir kategoride mail yoksa o başlığı hiç yazma):
 
@@ -179,6 +188,35 @@ Her maddeyi yeni satıra yaz, kısa ve net tut, göndereni parantezde belirt.
 E-postalar:
 ${mailText}`
 
+    const promptEN = `Below are today's emails. Summarize them in English. Use PLAIN TEXT ONLY — do NOT use markdown symbols like asterisks (*) or hashes (#).
+
+Group into these categories (skip any category header that has no emails):
+
+👤 PERSONAL
+Emails from real people, written personally to you.
+
+📌 IMPORTANT & ACTION
+Invoices, verification codes, account confirmations, work/project related, things that need doing. State key details (code, date, amount).
+
+📰 NEWS & EVENTS
+Newsletters, event announcements, news digests.
+Some detail from the email can be included here.
+
+📱 SOCIAL MEDIA
+Platform notifications like LinkedIn, Instagram, X, Facebook.
+
+🔧 APPS
+App and system notifications (Vercel, hosting, developer services, etc.).
+
+VERY IMPORTANT RULE: Do NOT write explanations like "a newsletter arrived from X". Instead summarize the CONTENT of the email. Example: don't say "a newsletter arrived from Aposto" — instead write "Aposto: [the actual topic, headlines, what happened]". For news and newsletters, convey the actual information/headlines inside, and include key messages, not just who sent it.
+
+Write each item on a new line, keep it short and clear, note the sender in parentheses.
+
+Emails:
+${mailText}`
+
+    const prompt = lang === 'en' ? promptEN : promptTR
+
     const result = await model.generateContent(prompt)
     const summary = result.response.text()
 
@@ -203,4 +241,4 @@ ${mailText}`
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
-} 
+}
