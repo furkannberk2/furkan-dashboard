@@ -131,7 +131,7 @@ function Habits() {
           <button onClick={() => setShowAdd(true)} style={buttonStyle}>İlk alışkanlığını ekle</button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px', alignItems: 'flex-start', maxWidth: '900px' }}>
 
           {/* Sol: Takvim + Gün Detayı */}
           <div>
@@ -139,7 +139,19 @@ function Habits() {
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
                 {MONTHS_TR[currentMonthIndex]} {currentYear}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
+              {/* Hafta günü başlıkları */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(d => (
+                  <div key={d} style={{ fontSize: '10px', color: 'var(--text-faded)', textAlign: 'center', fontWeight: '600', paddingBottom: '2px' }}>{d}</div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                {(() => {
+                  // Ayın 1'i haftanın hangi günü? (Pzt=0 ... Paz=6)
+                  const firstDay = new Date(currentYear, currentMonthIndex, 1).getDay()
+                  const leadingBlanks = firstDay === 0 ? 6 : firstDay - 1
+                  return Array.from({ length: leadingBlanks }).map((_, i) => <div key={`blank-${i}`} />)
+                })()}
                 {Array.from({ length: maxDay }, (_, i) => i + 1).map(day => {
                   const dateStr = getDateStr(day)
                   const done = getDoneCountOn(dateStr)
@@ -150,17 +162,18 @@ function Habits() {
 
                   return (
                     <div key={day} onClick={() => setSelectedDay(day === selectedDay ? null : day)} style={{
-                      aspectRatio: '1', borderRadius: '8px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '13px', cursor: 'pointer',
+                      aspectRatio: '1', borderRadius: '7px',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '12px', cursor: 'pointer', gap: '2px',
                       background: isSelected ? 'var(--accent)' : allDone ? 'var(--accent-soft)' : 'var(--bg-item)',
-                      border: isToday ? '1px solid var(--accent)' : isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      border: isToday ? '1.5px solid var(--accent)' : isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                       color: isSelected ? '#fff' : isToday ? 'var(--accent)' : 'var(--text-secondary)',
+                      fontWeight: isToday ? '700' : '400',
                       position: 'relative'
                     }}>
                       {day}
                       {done > 0 && !isSelected && (
-                        <div style={{ position: 'absolute', bottom: '3px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '2px' }}>
+                        <div style={{ display: 'flex', gap: '2px' }}>
                           {Array.from({ length: Math.min(done, 4) }).map((_, i) => (
                             <div key={i} style={{ width: '3px', height: '3px', borderRadius: '50%', background: allDone ? 'var(--success)' : 'var(--warning)' }} />
                           ))}
