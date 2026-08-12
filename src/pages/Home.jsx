@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
-import { getBaseCurrencyValue, getDailyChange as calcDailyChange } from '../utils/finance'
+import { getBaseCurrencyValue, getDailyChange as calcDailyChange, getCurrentPeriod, isDueInCurrentCycle as isDue } from '../utils/finance'
 import { formatMoney, progressSummary, budgetSummary } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 
@@ -37,17 +37,17 @@ function Home() {
   async function fetchAll() {
     try {
       const [t, h, hl, daily, recurring, variable, inv, inc, food, goal, settings] = await Promise.all([
-        supabase.from('tasks').select('*'),
-        supabase.from('habits').select('*').order('position', { ascending: true }),
-        supabase.from('habit_logs').select('*').eq('date', todayStr),
-        supabase.from('daily_expenses').select('*'),
-        supabase.from('recurring_expenses').select('*'),
-        supabase.from('variable_budgets').select('*').eq('month', currentMonth),
-        supabase.from('investments').select('*'),
-        supabase.from('income').select('*').eq('month', currentMonth).single(),
-        supabase.from('food_entries').select('*').eq('date', todayStr),
-        supabase.from('calorie_goals').select('*').limit(1).single(),
-        supabase.from('user_settings').select('*').eq('key', 'payday').single()
+        supabase.from('tasks').select('*').eq('user_id', user.id),
+        supabase.from('habits').select('*').eq('user_id', user.id).order('position', { ascending: true }),
+        supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('date', todayStr),
+        supabase.from('daily_expenses').select('*').eq('user_id', user.id),
+        supabase.from('recurring_expenses').select('*').eq('user_id', user.id),
+        supabase.from('variable_budgets').select('*').eq('user_id', user.id),
+        supabase.from('investments').select('*').eq('user_id', user.id),
+        supabase.from('income').select('*').eq('user_id', user.id).eq('month', currentMonth).maybeSingle(),
+        supabase.from('food_entries').select('*').eq('user_id', user.id).eq('date', todayStr),
+        supabase.from('calorie_goals').select('*').eq('user_id', user.id).limit(1).maybeSingle(),
+        supabase.from('user_settings').select('*').eq('user_id', user.id).eq('key', 'payday').maybeSingle()
       ])
       if (!t.error) setTasks(t.data)
       if (!h.error) setHabits(h.data)
@@ -85,13 +85,13 @@ function Home() {
 
   async function toggleTask(t) {
     const newStatus = t.status === 'done' ? 'todo' : 'done'
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', t.id)
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', t.id).eq('user_id', user.id)
     fetchAll()
   }
 
   async function toggleHabit(habitId, isDone) {
     if (isDone) {
-      await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('date', todayStr)
+      await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('date', todayStr).eq('user_id', user.id)
     } else {
       await supabase.from('habit_logs').insert({
         habit_id: habitId, date: todayStr, done: true, user_id: user.id
@@ -131,8 +131,13 @@ function Home() {
   const todayExp = dailyExpenses.filter(e => e.date === todayStr).reduce((s, e) => s + Number(e.amount), 0)
   const totalIncome = income ? Number(income.amount) : 0
   const currentDay = today.getDate()
-  const totalRecurring = recurringExpenses.filter(e => !e.due_day || e.due_day >= currentDay || e.due_day < payday).reduce((s, e) => s + Number(e.amount), 0)
-  const totalVariable = variableBudgets.reduce((s, e) => s + Number(e.amount), 0)
+  const currentPeriod = getCurrentPeriod(payday)
+  // Sabit giderler: sadece bu dönemde ödenecekler (Finance ile aynı mantık)
+  const totalRecurring = recurringExpenses.filter(e => isDue(e.due_day, currentDay, payday)).reduce((s, e) => s + Number(e.amount), 0)
+  // Değişken giderler: kalıcı (is_recurring && active) VEYA bu döneme özel (month === currentPeriod)
+  const totalVariable = variableBudgets
+    .filter(e => (e.is_recurring && e.active !== false) || e.month === currentPeriod)
+    .reduce((s, e) => s + Number(e.amount), 0)
   const baseAmount = income?.balance ? Number(income.balance) : totalIncome
   const remainingDays = (() => {
     if (currentDay <= payday) return payday - currentDay + 1
