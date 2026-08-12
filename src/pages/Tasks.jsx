@@ -1,4 +1,5 @@
 import { useAuth } from '../components/AuthProvider'
+import { usePreferences } from '../components/PreferencesProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -93,6 +94,7 @@ function useIsMobile() {
 
 function Tasks() {
   const { user } = useAuth()
+  const { weekStart } = usePreferences()
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
   const [projectTasks, setProjectTasks] = useState([])
@@ -234,14 +236,16 @@ function Tasks() {
   }
 
   function getWeekStart() {
-    const d = new Date(); const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-    return new Date(new Date().setDate(diff)).toISOString().split('T')[0]
+    const d = new Date(); const day = d.getDay() // 0=Paz..6=Cmt
+    // Haftanın başına kaç gün geri gidilecek (weekStart: 1=Pzt, 0=Paz)
+    const back = (day - weekStart + 7) % 7
+    const s = new Date(d); s.setDate(d.getDate() - back)
+    return s.toISOString().split('T')[0]
   }
   function getWeekEnd() {
-    const d = new Date(); const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? 0 : 7)
-    return new Date(new Date().setDate(diff)).toISOString().split('T')[0]
+    const start = new Date(getWeekStart() + 'T00:00:00')
+    start.setDate(start.getDate() + 6)
+    return start.toISOString().split('T')[0]
   }
   function getMonthStart() {
     const d = new Date()
