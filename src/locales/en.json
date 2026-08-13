@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "home": "Home",
+    "tasks": "Tasks",
+    "habits": "Habits",
+    "finance": "Finance",
+    "calories": "Calories",
+    "stocks": "Stocks",
+    "mail": "Mail Digest",
+    "projects": "Projects",
+    "coach": "Coach",
+    "menu": "Menu",
+    "more": "More",
+    "moreTitle": "More",
+    "profileSettings": "Profile & Settings",
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "light": "Light",
+    "dark": "Dark",
+    "dashboard": "Dashboard"
+  },
+  "common": {
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "search": "Search",
+    "new": "New",
+    "all": "All",
+    "today": "Today",
+    "back": "Back",
+    "refresh": "Refresh",
+    "logout": "Log out"
+  }
+}

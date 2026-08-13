@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "home": "Ana Sayfa",
+    "tasks": "Görevler",
+    "habits": "Alışkanlıklar",
+    "finance": "Finans",
+    "calories": "Kalori",
+    "stocks": "Borsa",
+    "mail": "Mail Özeti",
+    "projects": "Projeler",
+    "coach": "Koç",
+    "menu": "Menü",
+    "more": "Daha",
+    "moreTitle": "Daha fazla",
+    "profileSettings": "Profil ve Ayarlar",
+    "lightTheme": "Aydınlık tema",
+    "darkTheme": "Karanlık tema",
+    "light": "Aydınlık",
+    "dark": "Karanlık",
+    "dashboard": "Dashboard"
+  },
+  "common": {
+    "add": "Ekle",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "loading": "Yükleniyor...",
+    "search": "Ara",
+    "new": "Yeni",
+    "all": "Tümü",
+    "today": "Bugün",
+    "back": "Geri",
+    "refresh": "Yenile",
+    "logout": "Çıkış yap"
+  }
+}

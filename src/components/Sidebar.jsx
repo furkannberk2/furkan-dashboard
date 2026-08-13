@@ -2,17 +2,18 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Home, CheckSquare, ListTodo, Apple, Mail, TrendingUp, FolderKanban, Wallet, Sun, Moon, MoreHorizontal, X, Sparkles, User } from 'lucide-react'
 import { applyTheme, getInitialTheme } from '../theme'
+import { useTranslation } from 'react-i18next'
 import ProfilePanel from './ProfilePanel'
 
 const ALL_ITEMS = [
-  { to: '/', label: 'Ana Sayfa', icon: Home, end: true },
-  { to: '/tasks', label: 'Görevler', icon: ListTodo },
-  { to: '/habits', label: 'Alışkanlıklar', icon: CheckSquare },
-  { to: '/finance', label: 'Finans', icon: Wallet },
-  { to: '/calories', label: 'Kalori', icon: Apple },
-  { to: '/stocks', label: 'Borsa', icon: TrendingUp },
-  { to: '/mail', label: 'Mail Özeti', icon: Mail },
-  { to: '/projects', label: 'Projeler', icon: FolderKanban },
+  { to: '/', key: 'home', icon: Home, end: true },
+  { to: '/tasks', key: 'tasks', icon: ListTodo },
+  { to: '/habits', key: 'habits', icon: CheckSquare },
+  { to: '/finance', key: 'finance', icon: Wallet },
+  { to: '/calories', key: 'calories', icon: Apple },
+  { to: '/stocks', key: 'stocks', icon: TrendingUp },
+  { to: '/mail', key: 'mail', icon: Mail },
+  { to: '/projects', key: 'projects', icon: FolderKanban },
 ]
 
 const BOTTOM_ITEMS = ALL_ITEMS.slice(0, 4)
@@ -54,6 +55,7 @@ function injectGlowKeyframes() {
 }
 
 function Sidebar() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [theme, setTheme] = useState(getInitialTheme())
@@ -100,7 +102,7 @@ function Sidebar() {
           display: 'flex', justifyContent: 'space-around', alignItems: 'stretch',
           padding: '6px 4px 10px', zIndex: 50
         }}>
-          {BOTTOM_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {BOTTOM_ITEMS.map(({ to, key, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} style={({ isActive }) => ({
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: '3px', padding: '6px 4px', textDecoration: 'none',
@@ -110,7 +112,7 @@ function Sidebar() {
               {({ isActive }) => (
                 <>
                   <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
-                  <span>{label}</span>
+                  <span>{t('nav.' + key)}</span>
                 </>
               )}
             </NavLink>
@@ -122,7 +124,7 @@ function Sidebar() {
             fontWeight: '500', cursor: 'pointer'
           }}>
             <MoreHorizontal size={20} strokeWidth={1.8} />
-            <span>Daha</span>
+            <span>{t('nav.more')}</span>
           </button>
         </nav>
 
@@ -138,14 +140,14 @@ function Sidebar() {
               padding: '20px 16px 28px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text)' }}>Daha fazla</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text)' }}>{t('nav.moreTitle')}</div>
                 <button onClick={() => setMoreOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>
                   <X size={20} />
                 </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-                {EXTRA_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                {EXTRA_ITEMS.map(({ to, key, icon: Icon, end }) => (
                   <NavLink key={to} to={to} end={end} onClick={() => setMoreOpen(false)} style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '12px 14px', borderRadius: '10px',
@@ -158,7 +160,7 @@ function Sidebar() {
                     {({ isActive }) => (
                       <>
                         <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
-                        <span>{label}</span>
+                        <span>{t('nav.' + key)}</span>
                       </>
                     )}
                   </NavLink>
@@ -173,7 +175,7 @@ function Sidebar() {
                 fontWeight: '500'
               }}>
                 {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
-                {theme === 'dark' ? 'Aydınlık tema' : 'Karanlık tema'}
+                {theme === 'dark' ? t('nav.lightTheme') : t('nav.darkTheme')}
               </button>
               <button onClick={() => { setShowProfile(true); setMoreOpen(false) }} style={{
                 width: '100%', padding: '12px', borderRadius: '10px',
@@ -183,7 +185,7 @@ function Sidebar() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}>
                 <User size={15} strokeWidth={1.8} />
-                Profil ve Ayarlar
+                {t('nav.profileSettings')}
               </button>
             </div>
           </div>
@@ -210,7 +212,7 @@ function Sidebar() {
           color: '#fff', fontWeight: '700', fontSize: '14px'
         }}>F</div>
         <div>
-          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', lineHeight: '1.2' }}>Dashboard</div>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', lineHeight: '1.2' }}>{t('nav.dashboard')}</div>
           <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: '1.2', marginTop: '2px' }}>Furkan</div>
         </div>
       </div>
@@ -233,7 +235,7 @@ function Sidebar() {
         }}
       >
         <Sparkles size={18} strokeWidth={2.2} />
-        <span>Koç</span>
+        <span>{t('nav.coach')}</span>
         <span style={{
           marginLeft: 'auto', fontSize: '9px', fontWeight: '700',
           background: 'rgba(255,255,255,0.25)', padding: '2px 6px',
@@ -244,9 +246,9 @@ function Sidebar() {
       <div style={{
         fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px',
         color: 'var(--text-faded)', padding: '0 12px 8px', fontWeight: '600'
-      }}>Menü</div>
+      }}>{t('nav.menu')}</div>
 
-      {ALL_ITEMS.map(({ to, label, icon: Icon, end }) => (
+      {ALL_ITEMS.map(({ to, key, icon: Icon, end }) => (
         <NavLink key={to} to={to} end={end} style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: '11px',
           padding: '9px 12px', borderRadius: '8px',
@@ -258,7 +260,7 @@ function Sidebar() {
           {({ isActive }) => (
             <>
               <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span>{label}</span>
+              <span>{t('nav.' + key)}</span>
             </>
           )}
         </NavLink>
@@ -270,7 +272,7 @@ function Sidebar() {
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px'
       }}>
         <User size={15} strokeWidth={1.8} />
-        Profil ve Ayarlar
+        {t('nav.profileSettings')}
       </button>
 
       <button onClick={toggleTheme} style={{
@@ -281,7 +283,7 @@ function Sidebar() {
         gap: '8px', fontWeight: '500'
       }}>
         {theme === 'dark' ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
-        {theme === 'dark' ? 'Aydınlık' : 'Karanlık'}
+        {theme === 'dark' ? t('nav.light') : t('nav.dark')}
       </button>
 
       <ProfilePanel open={showProfile} onClose={() => setShowProfile(false)} />

@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AuthProvider } from './components/AuthProvider'
 import { PreferencesProvider } from './components/PreferencesProvider'
 import './index.css'
+import './i18n'
 
 import { applyTheme, getInitialTheme } from './theme'
 applyTheme(getInitialTheme())

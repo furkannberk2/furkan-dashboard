@@ -14,6 +14,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
 import { guessRegion, getRegionDefaults } from '../utils/regions'
+import i18n from '../i18n'
 
 // Güvenli varsayılan — yüklenmeden önce ve hata durumunda kullanılır.
 const DEFAULT_PREFS = {
@@ -42,6 +43,13 @@ function rowToPrefs(row) {
 export function PreferencesProvider({ children }) {
   const { user } = useAuth()
   const [prefs, setPrefs] = useState(DEFAULT_PREFS)
+
+  // Dil tercihi değişince arayüz dilini (i18n) senkronize et
+  useEffect(() => {
+    if (prefs.language && i18n.language !== prefs.language) {
+      i18n.changeLanguage(prefs.language)
+    }
+  }, [prefs.language])
 
   useEffect(() => {
     if (!user) { setPrefs(DEFAULT_PREFS); return }
