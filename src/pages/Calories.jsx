@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { progressSummary } from '../utils/format'
+import { useTranslation } from 'react-i18next'
 
 // Öğünler anahtar tabanlı: veriye 'key' yazılır, gösterimde 'label'.
 // (label'lar ileride i18n ile dile göre gelecek.)
@@ -16,6 +17,7 @@ const DEFAULT_MEALS = [
 
 function Calories() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const [entries, setEntries] = useState([])
   const [goal, setGoal] = useState(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -54,7 +56,9 @@ function Calories() {
   // Varsayılan öğünler + kullanıcının özel öğünleri
   // Tüm öğünler custom_meals'te (varsayılanlar ilk girişte seed edilir).
   // Hepsi eşit: silinebilir, adı değişir, sıralanır.
-  const MEALS = customMeals.map(m => ({ key: m.key, label: m.label, id: m.id }))
+  // Varsayılan öğün key'leri (breakfast vb.) çeviriden, özel öğünler DB label'ından
+  const isDefaultMeal = (key) => ['breakfast', 'lunch', 'dinner', 'snack'].includes(key)
+  const MEALS = customMeals.map(m => ({ key: m.key, label: isDefaultMeal(m.key) ? t('meals.' + m.key) : m.label, id: m.id }))
   const mealLabel = (key) => MEALS.find(m => m.key === key)?.label || key
 
   useEffect(() => { fetchEntries(); fetchGoal() }, [selectedDate])
@@ -184,8 +188,8 @@ async function deleteCustomMeal(id, mealKey) {
     .select('id').eq('user_id', user.id).eq('meal', mealKey)
   const count = mealEntries?.length || 0
   const msg = count > 0
-    ? `Bu öğünü silmek istediğine emin misin? İçindeki ${count} yemek girişi de silinecek.`
-    : 'Bu öğünü silmek istediğine emin misin?'
+    ? t('calories.deleteMealConfirm', { count })
+    : t('calories.deleteMealConfirmEmpty')
   if (!confirm(msg)) return
 
   // Önce girişleri sil (kalori artığı kalmasın), sonra öğünü
@@ -296,11 +300,11 @@ async function moveMeal(id, direction) {
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Kalori</h2>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>{t('calories.title')}</h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
             style={{ ...inputStyle, flex: 1, minWidth: '140px', maxWidth: '200px', fontSize: '13px' }} />
-          <button onClick={() => setShowGoal(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>⚙ Hedef</button>
+          <button onClick={() => setShowGoal(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>⚙ {t('calories.goal')}</button>
         </div>
       </div>
 
@@ -319,7 +323,7 @@ async function moveMeal(id, direction) {
         <div style={{ display: 'flex', gap: '20px' }}>
           <MacroBox label="Protein" value={totalProtein} color="var(--info)" />
           <MacroBox label="Karb" value={totalCarbs} color="var(--warning)" />
-          <MacroBox label="Yağ" value={totalFat} color="var(--pink)" />
+          <MacroBox label={t('calories.fat')} value={totalFat} color="var(--pink)" />
         </div>
       </div>
 
@@ -340,7 +344,7 @@ async function moveMeal(id, direction) {
                       style={{ ...inputStyle, flex: 0, width: '160px', fontSize: '15px', padding: '4px 8px' }}
                     />
                   ) : (
-                    <span onClick={() => setEditingMealId(m.id)} title="Adı düzenle" style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', cursor: 'pointer' }}>{m.label}</span>
+                    <span onClick={() => setEditingMealId(m.id)} title={t('calories.editName')} style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', cursor: 'pointer' }}>{m.label}</span>
                   )}
                   <span style={{ fontSize: '12px', color: 'var(--text-faint)', flexShrink: 0 }}>{mealTotal} kcal</span>
                 </div>
@@ -351,13 +355,13 @@ async function moveMeal(id, direction) {
                     const canDown = ci < customMeals.length - 1
                     return (
                       <>
-                        <button onClick={() => moveMeal(m.id, 'up')} disabled={!canUp} title="Yukarı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canUp ? 'var(--text)' : 'var(--text-faded)', cursor: canUp ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↑</button>
-                        <button onClick={() => moveMeal(m.id, 'down')} disabled={!canDown} title="Aşağı" style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canDown ? 'var(--text)' : 'var(--text-faded)', cursor: canDown ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↓</button>
-                        <span onClick={() => deleteCustomMeal(m.id, m.key)} title="Öğünü sil" style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}>🗑️</span>
+                        <button onClick={() => moveMeal(m.id, 'up')} disabled={!canUp} title={t('calories.moveUp')} style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canUp ? 'var(--text)' : 'var(--text-faded)', cursor: canUp ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↑</button>
+                        <button onClick={() => moveMeal(m.id, 'down')} disabled={!canDown} title={t('calories.moveDown')} style={{ background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '6px', width: '28px', height: '28px', color: canDown ? 'var(--text)' : 'var(--text-faded)', cursor: canDown ? 'pointer' : 'default', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>↓</button>
+                        <span onClick={() => deleteCustomMeal(m.id, m.key)} title={t('calories.deleteMeal')} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}>🗑️</span>
                       </>
                     )
                   })()}
-                  <button onClick={() => { setSelectedMeal(m.key); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ Ekle</button>
+                  <button onClick={() => { setSelectedMeal(m.key); setShowAdd(true) }} style={{ ...buttonStyle, padding: '5px 12px', fontSize: '12px' }}>+ {t('calories.addSuffix')}</button>
                 </div>
               </div>
               {mealEntries.map(e => (
@@ -368,7 +372,7 @@ async function moveMeal(id, direction) {
                   <span onClick={() => deleteEntry(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
                 </div>
               ))}
-              {mealEntries.length === 0 && <p style={{ color: 'var(--text-faded)', fontSize: '12px', margin: '6px 0 0' }}>Boş</p>}
+              {mealEntries.length === 0 && <p style={{ color: 'var(--text-faded)', fontSize: '12px', margin: '6px 0 0' }}>{t('calories.empty')}</p>}
             </div>
           )
         })}
@@ -376,32 +380,32 @@ async function moveMeal(id, direction) {
           width: '100%', padding: '11px', borderRadius: '10px', marginTop: '4px',
           background: 'transparent', border: '1px dashed var(--border-strong)',
           color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
-        }}>+ Öğün Ekle</button>
+        }}>+ {t('calories.addMeal')}</button>
       </div>
 
       {showMealAdd && (
         <Modal onClose={() => { setShowMealAdd(false); setNewMealLabel('') }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>Yeni Öğün</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{t('calories.newMeal')}</h3>
           <input
             value={newMealLabel}
             onChange={e => setNewMealLabel(e.target.value)}
-            placeholder="örn. Antrenman Öncesi"
+            placeholder={t('calories.mealNamePlaceholder')}
             style={{ width: '100%', padding: '11px 12px', background: 'var(--bg-item)', border: '1px solid var(--border-strong)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', outline: 'none', marginBottom: '14px' }}
             onKeyDown={e => e.key === 'Enter' && addCustomMeal()}
           />
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addCustomMeal} style={{ ...buttonStyle, flex: 1 }}>Ekle</button>
-            <button onClick={() => { setShowMealAdd(false); setNewMealLabel('') }} style={{ ...buttonStyle, flex: 1, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+            <button onClick={addCustomMeal} style={{ ...buttonStyle, flex: 1 }}>{t('calories.addSuffix')}</button>
+            <button onClick={() => { setShowMealAdd(false); setNewMealLabel('') }} style={{ ...buttonStyle, flex: 1, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
           </div>
         </Modal>
       )}
 
       {showAdd && (
         <Modal onClose={resetAdd}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{mealLabel(selectedMeal)} — Ekle</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{mealLabel(selectedMeal)} — {t('calories.addSuffix')}</h3>
 
           <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-            {[['search', '🔍 Ara'], ['manual', '✏️ Manuel'], ['barcode', '📷 Barkod']].map(([val, label]) => (
+            {[['search', '🔍 ' + t('calories.search')], ['manual', '✏️ ' + t('calories.manual')], ['barcode', '📷 ' + t('calories.barcode')]].map(([val, label]) => (
               <button key={val} onClick={() => setAddMode(val)} style={{
                 flex: 1, padding: '7px 10px', borderRadius: '8px', border: '1px solid',
                 borderColor: addMode === val ? 'var(--accent)' : 'var(--border-strong)',
@@ -420,10 +424,10 @@ async function moveMeal(id, direction) {
                 <button onClick={searchFood} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
               </div>
               <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-                {searching && <p style={{ color: 'var(--text-dim)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid var(--border-strong)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Aranıyor...</p>}
+                {searching && <p style={{ color: 'var(--text-dim)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid var(--border-strong)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />{t('calories.searching')}</p>}
                 {!searching && results.map((food, i) => <FoodResult key={i} food={food} onAdd={addFood} />)}
-                {!searching && search.trim() && results.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Sonuç bulunamadı. Farklı bir arama deneyin veya "Manuel" ile ekleyin.</p>}
-                {!searching && !search.trim() && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Yemek adı yazın, otomatik aranır.</p>}
+                {!searching && search.trim() && results.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('calories.noResults')}</p>}
+                {!searching && !search.trim() && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('calories.typeToSearch')}</p>}
               </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
             </>
@@ -434,15 +438,15 @@ async function moveMeal(id, direction) {
             <>
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>İsim</label>
-                <input value={mName} onChange={e => setMName(e.target.value)} placeholder="örn. Pilav" style={{ ...inputStyle, width: '100%' }} autoFocus />
+                <input value={mName} onChange={e => setMName(e.target.value)} placeholder={t('calories.namePlaceholder')} style={{ ...inputStyle, width: '100%' }} autoFocus />
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Kalori (kcal)</label>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>{t('calories.calorieLabel')}</label>
                   <input value={mCalories} onChange={e => setMCalories(e.target.value)} type="number" placeholder="200" style={{ ...inputStyle, width: '100%' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Miktar (gr/adet)</label>
+                  <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>{t('calories.amountLabel')}</label>
                   <input value={mQuantity} onChange={e => setMQuantity(e.target.value)} type="number" placeholder="100" style={{ ...inputStyle, width: '100%' }} />
                 </div>
               </div>
@@ -450,9 +454,9 @@ async function moveMeal(id, direction) {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
                 <input value={mProtein} onChange={e => setMProtein(e.target.value)} type="number" placeholder="Protein (g)" style={{ ...inputStyle, fontSize: '13px' }} />
                 <input value={mCarbs} onChange={e => setMCarbs(e.target.value)} type="number" placeholder="Karb (g)" style={{ ...inputStyle, fontSize: '13px' }} />
-                <input value={mFat} onChange={e => setMFat(e.target.value)} type="number" placeholder="Yağ (g)" style={{ ...inputStyle, fontSize: '13px' }} />
+                <input value={mFat} onChange={e => setMFat(e.target.value)} type="number" placeholder={t('calories.fatG')} style={{ ...inputStyle, fontSize: '13px' }} />
               </div>
-              <button onClick={addManual} style={{ ...buttonStyle, width: '100%' }}>Ekle</button>
+              <button onClick={addManual} style={{ ...buttonStyle, width: '100%' }}>{t('calories.addSuffix')}</button>
             </>
           )}
 
@@ -466,10 +470,10 @@ async function moveMeal(id, direction) {
                     <div style={{ position: 'absolute', top: '50%', left: '10%', right: '10%', height: '1px', background: 'var(--danger)', boxShadow: '0 0 8px var(--danger)' }} />
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center', margin: 0 }}>
-                    {scanStatus === 'scanning' && '📷 Barkodu kameraya tut...'}
-                    {scanStatus === 'found' && '⏳ Aranıyor...'}
-                    {scanStatus === 'not_found' && '❌ Bu barkod veritabanında yok'}
-                    {scanStatus === 'error' && '⚠️ Kameraya erişilemedi — tarayıcı izni gerekli'}
+                    {scanStatus === 'scanning' && '📷 ' + t('calories.barcodeScan')}
+                    {scanStatus === 'found' && '⏳ ' + t('calories.barcodeSearching')}
+                    {scanStatus === 'not_found' && '❌ ' + t('calories.barcodeNotFound')}
+                    {scanStatus === 'error' && '⚠️ ' + t('calories.cameraError')}
                   </p>
                   {(scanStatus === 'not_found' || scanStatus === 'error') && (
                     <button onClick={() => { setScanStatus(''); startScan() }} style={{ ...buttonStyle, width: '100%', marginTop: '10px' }}>Tekrar Dene</button>
@@ -485,10 +489,10 @@ async function moveMeal(id, direction) {
 
       {showGoal && (
         <Modal onClose={() => setShowGoal(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>Günlük Kalori Hedefi</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>{t('calories.dailyGoal')}</h3>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input value={goalInput} onChange={e => setGoalInput(e.target.value)} type="number" placeholder="2000" style={inputStyle} />
-            <button onClick={saveGoal} style={buttonStyle}>Kaydet</button>
+            <button onClick={saveGoal} style={buttonStyle}>{t('common.save')}</button>
           </div>
         </Modal>
       )}
@@ -515,9 +519,9 @@ function FoodResult({ food, onAdd }) {
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} style={{ ...inputStyle, flex: 0, width: '70px', fontSize: '13px', padding: '6px 8px' }} />
-        <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>gram</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{t('calories.gram')}</span>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>= {Math.round(food.calories * qty / 100)} kcal</span>
-        <button onClick={() => onAdd(food, qty)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>Ekle</button>
+        <button onClick={() => onAdd(food, qty)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>{t('calories.addSuffix')}</button>
       </div>
     </div>
   )

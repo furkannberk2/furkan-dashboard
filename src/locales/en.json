@@ -53,5 +53,43 @@
     "mailLoading": "Loading mail status...",
     "allDone": "All done",
     "calories": "Calories"
+  },
+  "calories": {
+    "title": "Calories",
+    "goal": "Goal",
+    "dailyGoal": "Daily Calorie Goal",
+    "addMeal": "Add Meal",
+    "newMeal": "New Meal",
+    "mealNamePlaceholder": "e.g. Pre-Workout",
+    "editName": "Edit name",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "deleteMeal": "Delete meal",
+    "search": "Search",
+    "manual": "Manual",
+    "barcode": "Barcode",
+    "addSuffix": "Add",
+    "searching": "Searching...",
+    "typeToSearch": "Type a food name, it searches automatically.",
+    "noResults": "No results. Try a different search or add via \"Manual\".",
+    "calorieLabel": "Calories (kcal)",
+    "amountLabel": "Amount (g/pcs)",
+    "fat": "Fat",
+    "fatG": "Fat (g)",
+    "namePlaceholder": "e.g. Rice",
+    "gram": "grams",
+    "empty": "Empty",
+    "barcodeScan": "Point barcode at camera...",
+    "barcodeSearching": "Searching...",
+    "barcodeNotFound": "This barcode is not in the database",
+    "cameraError": "Camera not accessible — browser permission required",
+    "deleteMealConfirm": "Are you sure you want to delete this meal? Its {{count}} food entries will also be deleted.",
+    "deleteMealConfirmEmpty": "Are you sure you want to delete this meal?"
+  },
+  "meals": {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack"
   }
 }

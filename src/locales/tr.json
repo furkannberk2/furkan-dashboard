@@ -53,5 +53,43 @@
     "mailLoading": "Mail durumu yükleniyor...",
     "allDone": "Hepsi tamam",
     "calories": "Kalori"
+  },
+  "calories": {
+    "title": "Kalori",
+    "goal": "Hedef",
+    "dailyGoal": "Günlük Kalori Hedefi",
+    "addMeal": "Öğün Ekle",
+    "newMeal": "Yeni Öğün",
+    "mealNamePlaceholder": "örn. Antrenman Öncesi",
+    "editName": "Adı düzenle",
+    "moveUp": "Yukarı",
+    "moveDown": "Aşağı",
+    "deleteMeal": "Öğünü sil",
+    "search": "Ara",
+    "manual": "Manuel",
+    "barcode": "Barkod",
+    "addSuffix": "Ekle",
+    "searching": "Aranıyor...",
+    "typeToSearch": "Yemek adı yazın, otomatik aranır.",
+    "noResults": "Sonuç bulunamadı. Farklı bir arama deneyin veya \"Manuel\" ile ekleyin.",
+    "calorieLabel": "Kalori (kcal)",
+    "amountLabel": "Miktar (gr/adet)",
+    "fat": "Yağ",
+    "fatG": "Yağ (g)",
+    "namePlaceholder": "örn. Pilav",
+    "gram": "gram",
+    "empty": "Boş",
+    "barcodeScan": "Barkodu kameraya tut...",
+    "barcodeSearching": "Aranıyor...",
+    "barcodeNotFound": "Bu barkod veritabanında yok",
+    "cameraError": "Kameraya erişilemedi — tarayıcı izni gerekli",
+    "deleteMealConfirm": "Bu öğünü silmek istediğine emin misin? İçindeki {{count}} yemek girişi de silinecek.",
+    "deleteMealConfirmEmpty": "Bu öğünü silmek istediğine emin misin?"
+  },
+  "meals": {
+    "breakfast": "Kahvaltı",
+    "lunch": "Öğle",
+    "dinner": "Akşam",
+    "snack": "Atıştırmalık"
   }
 }
