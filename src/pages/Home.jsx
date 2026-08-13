@@ -7,9 +7,12 @@ import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, getCurrentPeriod, isDueInCurrentCycle as isDue } from '../utils/finance'
 import { formatMoney, progressSummary, budgetSummary } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
+import { useTranslation } from 'react-i18next'
 
 function Home() {
   const { user } = useAuth()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR'
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
   const currentMonth = todayStr.slice(0, 7)
@@ -174,16 +177,16 @@ function Home() {
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>İyi günler, {firstName}</h2>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>{t('home.greeting', { name: firstName })}</h2>
         <p style={{ fontSize: '13px', color: 'var(--text-faint)', margin: '4px 0 0' }}>
-          {today.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {today.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         <StatCard
           to="/tasks"
-          label="Bugünkü Görevler"
+          label={t('home.todaysTasks')}
           value={`${todayTasksDone}/${todayTasksTotal}`}
           sub={todayTasksTotal - todayTasksDone > 0 ? `${todayTasksTotal - todayTasksDone} kalan` : 'Tamam'}
           percent={todayTasksTotal > 0 ? (todayTasksDone / todayTasksTotal) * 100 : 0}
@@ -191,44 +194,44 @@ function Home() {
         />
         <StatCard
           to="/habits"
-          label="Alışkanlıklar"
+          label={t('home.habits')}
           value={habitsTotal > 0 ? `${habitsDone}/${habitsTotal}` : '—'}
-          sub={habitsTotal > 0 ? (habitsDone === habitsTotal ? 'Hepsi tamam' : `${habitsTotal - habitsDone} kalan`) : 'Henüz yok'}
+          sub={habitsTotal > 0 ? (habitsDone === habitsTotal ? t('home.allDone') : `${habitsTotal - habitsDone} ${t('common.remaining')}`) : t('common.none')}
           percent={habitsTotal > 0 ? (habitsDone / habitsTotal) * 100 : 0}
           color="var(--success)"
         />
         <StatCard
           to="/calories"
-          label="Kalori"
+          label={t('home.calories')}
           value={`${totalCal}`}
-          sub={calGoal > 0 ? (totalCal <= calGoal ? `kalan ${(calGoal - totalCal).toLocaleString('tr-TR')}` : `${(totalCal - calGoal).toLocaleString('tr-TR')} aşıldı`) : `${totalCal} kcal`}
+          sub={calGoal > 0 ? (totalCal <= calGoal ? `${t('common.remaining')} ${(calGoal - totalCal).toLocaleString(locale)}` : `${(totalCal - calGoal).toLocaleString(locale)} ${t('common.over')}`) : `${totalCal} kcal`}
           percent={calPercent}
           color={calPercent > 100 ? 'var(--danger)' : calPercent > 85 ? 'var(--warning)' : 'var(--success)'}
         />
         <StatCard
           to="/finance"
-          label="Bugünkü Harcama"
+          label={t('home.todaySpending')}
           value={fmt(todayExp)}
-          sub={dailyBudget > 0 ? (todayExp <= dailyBudget ? `${fmt(dailyBudget - todayExp)} kaldı` : `${fmt(todayExp - dailyBudget)} aşıldı`) : `limit yok`}
+          sub={dailyBudget > 0 ? (todayExp <= dailyBudget ? `${fmt(dailyBudget - todayExp)} ${t('common.remaining')}` : `${fmt(todayExp - dailyBudget)} ${t('common.over')}`) : t('common.noLimit')}
           percent={expPercent}
           color={expPercent > 80 ? 'var(--danger)' : expPercent > 50 ? 'var(--warning)' : 'var(--success)'}
         />
         <StatCard
           to="/finance"
-          label="Portföy"
+          label={t('home.portfolio')}
           value={portfolioChange !== null
           ? `${portfolioChange >= 0 ? '+' : ''}${portfolioChange.toFixed(2)}%`
           : '—'}
           valueColor={portfolioChange !== null ? (portfolioChange >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text)'}
           sub={portfolioChange !== null && portfolioTotal > 0
-          ? `${portfolioChange >= 0 ? '+' : ''}${fmt(Math.round(portfolioTotal * portfolioChange / 100))} bugün`
+          ? `${portfolioChange >= 0 ? '+' : ''}${fmt(Math.round(portfolioTotal * portfolioChange / 100))} ${t('home.todaySuffix')}`
           : ''}
           />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         <div style={cardStyle}>
-          <CardHeader title="Bugünün Görevleri" to="/tasks" />
+          <CardHeader title={t('home.tasksToday')} to="/tasks" />
           {openTasks.length === 0 ? (
             <p style={emptyStyle}>Bugün için açık görev yok.</p>
           ) : (
@@ -249,7 +252,7 @@ function Home() {
         </div>
 
         <div style={cardStyle}>
-          <CardHeader title="Bugünün Alışkanlıkları" to="/habits" />
+          <CardHeader title={t('home.habitsToday')} to="/habits" />
           {habits.length === 0 ? (
             <p style={emptyStyle}>Henüz alışkanlık eklenmedi.</p>
           ) : (
@@ -279,9 +282,9 @@ function Home() {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Mail</div>
           <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-            {mailData?.connected === false ? 'Henüz Gmail bağlı değil' :
-             mailData?.mails ? `Bugün ${mailData.mails.length} mail geldi` :
-             'Mail durumu yükleniyor...'}
+            {mailData?.connected === false ? t('home.noGmail') :
+             mailData?.mails ? t('home.mailCount', { count: mailData.mails.length }) :
+             t('home.mailLoading')}
           </div>
         </div>
         <Link to="/mail" style={{

@@ -33,6 +33,25 @@
     "today": "Bugün",
     "back": "Geri",
     "refresh": "Yenile",
-    "logout": "Çıkış yap"
+    "logout": "Çıkış yap",
+    "none": "Henüz yok",
+    "over": "aşıldı",
+    "remaining": "kaldı",
+    "noLimit": "limit yok"
+  },
+  "home": {
+    "greeting": "İyi günler, {{name}}",
+    "todaysTasks": "Bugünkü Görevler",
+    "habits": "Alışkanlıklar",
+    "todaySpending": "Bugünkü Harcama",
+    "portfolio": "Portföy",
+    "tasksToday": "Bugünün Görevleri",
+    "habitsToday": "Bugünün Alışkanlıkları",
+    "todaySuffix": "bugün",
+    "noGmail": "Henüz Gmail bağlı değil",
+    "mailCount": "Bugün {{count}} mail geldi",
+    "mailLoading": "Mail durumu yükleniyor...",
+    "allDone": "Hepsi tamam",
+    "calories": "Kalori"
   }
 }

@@ -33,6 +33,25 @@
     "today": "Today",
     "back": "Back",
     "refresh": "Refresh",
-    "logout": "Log out"
+    "logout": "Log out",
+    "none": "None yet",
+    "over": "over",
+    "remaining": "left",
+    "noLimit": "no limit"
+  },
+  "home": {
+    "greeting": "Good day, {{name}}",
+    "todaysTasks": "Today's Tasks",
+    "habits": "Habits",
+    "todaySpending": "Today's Spending",
+    "portfolio": "Portfolio",
+    "tasksToday": "Today's Tasks",
+    "habitsToday": "Today's Habits",
+    "todaySuffix": "today",
+    "noGmail": "No Gmail connected yet",
+    "mailCount": "{{count}} emails today",
+    "mailLoading": "Loading mail status...",
+    "allDone": "All done",
+    "calories": "Calories"
   }
 }
