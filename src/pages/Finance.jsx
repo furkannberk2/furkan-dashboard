@@ -198,6 +198,8 @@ async function fetchPrices(forceRefresh = false) {
   const { t } = useTranslation()
   // Kategori ve varlık label'ları çeviriden (global catLabel yerine)
   const catLabelT = (key) => t('categories.' + key, { defaultValue: key })
+  const assetName = (key) => t('assetNames.' + key, { defaultValue: key })
+  const assetCatT = (cat) => t('assetCategories.' + cat, { defaultValue: cat })
   const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, tefasQuotes)
@@ -253,7 +255,7 @@ async function fetchPrices(forceRefresh = false) {
       name = invSelectedSymbol.instrument_name || invSelectedSymbol.symbol
     } else {
       symbol = invAssetType.key
-      name = invAssetType.name
+      name = assetName(invAssetType.key)
     }
     await supabase.from('investments').insert({
       symbol, name, type: invAssetType.key,
@@ -369,10 +371,10 @@ const categoryDistribution = (() => {
   investments.forEach(i => {
     let label
     if (i.type?.startsWith('GOLD_')) {
-      label = 'Altın'
+      label = assetCatT('Altın')
     } else {
       const at = ASSET_TYPES.find(a => a.key === i.type)
-      label = at?.name || i.type
+      label = at ? assetCatT(at.category) : i.type
     }
     map[label] = (map[label] || 0) + getTRYValue(i)
   })
@@ -720,7 +722,7 @@ const categoryDistribution = (() => {
         <div style={{ maxWidth: '780px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>{currentMonth} — maaş günü:</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>{currentMonth} — {t('finance.salaryDay')}</span>
               <input
                 type="number" min="1" max="31"
                 value={payday}
@@ -734,7 +736,7 @@ const categoryDistribution = (() => {
               <div onClick={() => setUseBalance(!useBalance)} style={{ width: '18px', height: '18px', borderRadius: '5px', border: '2px solid', borderColor: useBalance ? 'var(--accent)' : 'var(--text-faint)', background: useBalance ? 'var(--accent)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {useBalance && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </div>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Maaş yerine mevcut bakiyemi kullan</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('finance.useBalance')}</span>
             </div>
             {useBalance && (
               <input value={balanceInput} onChange={e => setBalanceInput(e.target.value)} placeholder="₺ Mevcut bakiye" type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
@@ -793,8 +795,8 @@ const categoryDistribution = (() => {
                     padding: '12px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px',
                     color: 'var(--text)', textAlign: 'left', cursor: 'pointer'
                   }}>
-                    <div style={{ fontSize: '13px', fontWeight: '600' }}>{at.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>{at.category}</div>
+                    <div style={{ fontSize: '13px', fontWeight: '600' }}>{assetName(at.key)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>{assetCatT(at.category)}</div>
                   </button>
                 ))}
               </div>
@@ -802,7 +804,7 @@ const categoryDistribution = (() => {
           ) : invAssetType.manualCode && (!invManualPreview || invManualPreview.error) ? (
             <>
               <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600' }}>{invAssetType.name}</div>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>{assetName(invAssetType.key)}</div>
                 <button onClick={() => setInvAssetType(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Geri</button>
               </div>
               <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '10px' }}>Fon kodunu yaz (örn. BID, AAK, GO9):</p>
@@ -825,7 +827,7 @@ const categoryDistribution = (() => {
           ) : invAssetType.needsSymbol && !invAssetType.manualCode && !invSelectedSymbol ? (
             <>
               <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600' }}>{invAssetType.name}</div>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>{assetName(invAssetType.key)}</div>
                 <button onClick={() => setInvAssetType(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Geri</button>
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -851,7 +853,7 @@ const categoryDistribution = (() => {
             <>
               <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '600' }}>
-                  {invAssetType.manualCode ? invManualPreview.code : invAssetType.needsSymbol ? invSelectedSymbol.symbol : invAssetType.name}
+                  {invAssetType.manualCode ? invManualPreview.code : invAssetType.needsSymbol ? invSelectedSymbol.symbol : assetName(invAssetType.key)}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                   {invAssetType.manualCode ? invManualPreview.name :

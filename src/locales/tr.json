@@ -137,7 +137,9 @@
     "amountTRY": "Tutar (₺)",
     "gram": "Gram",
     "shareQty": "Pay adedi",
-    "qty": "Adet"
+    "qty": "Adet",
+    "salaryDay": "maaş günü:",
+    "useBalance": "Maaş yerine mevcut bakiyemi kullan"
   },
   "categories": {
     "groceries": "Market",
@@ -161,5 +163,28 @@
     "halfGold": "Yarım Altın",
     "fullGold": "Tam Altın",
     "gramSilver": "Gram Gümüş"
+  },
+  "assetNames": {
+    "TRY": "TL Nakit",
+    "USD": "Dolar",
+    "EUR": "Euro",
+    "GBP": "Sterlin",
+    "GOLD_GRAM": "Gram Altın",
+    "GOLD_QUARTER": "Çeyrek Altın",
+    "GOLD_HALF": "Yarım Altın",
+    "GOLD_FULL": "Tam Altın",
+    "SILVER_GRAM": "Gram Gümüş",
+    "CRYPTO": "Kripto",
+    "STOCK": "ABD Hisse",
+    "BIST": "BIST Hisse",
+    "TEFAS_FUND": "TEFAS Fonu"
+  },
+  "assetCategories": {
+    "Para": "Para",
+    "Altın": "Altın",
+    "Gümüş": "Gümüş",
+    "Kripto": "Kripto",
+    "Hisse": "Hisse",
+    "Fon": "Fon"
   }
 }

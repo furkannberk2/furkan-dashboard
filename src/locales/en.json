@@ -137,7 +137,9 @@
     "amountTRY": "Amount (₺)",
     "gram": "Grams",
     "shareQty": "Share count",
-    "qty": "Qty"
+    "qty": "Qty",
+    "salaryDay": "salary day:",
+    "useBalance": "Use my current balance instead of salary"
   },
   "categories": {
     "groceries": "Groceries",
@@ -161,5 +163,28 @@
     "halfGold": "Half Gold",
     "fullGold": "Full Gold",
     "gramSilver": "Gram Silver"
+  },
+  "assetNames": {
+    "TRY": "TL Cash",
+    "USD": "USD",
+    "EUR": "EUR",
+    "GBP": "GBP",
+    "GOLD_GRAM": "Gram Gold",
+    "GOLD_QUARTER": "Quarter Gold",
+    "GOLD_HALF": "Half Gold",
+    "GOLD_FULL": "Full Gold",
+    "SILVER_GRAM": "Gram Silver",
+    "CRYPTO": "Crypto",
+    "STOCK": "US Stock",
+    "BIST": "BIST Stock",
+    "TEFAS_FUND": "TEFAS Fund"
+  },
+  "assetCategories": {
+    "Para": "Cash",
+    "Altın": "Gold",
+    "Gümüş": "Silver",
+    "Kripto": "Crypto",
+    "Hisse": "Stocks",
+    "Fon": "Funds"
   }
 }
