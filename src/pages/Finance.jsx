@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'r
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays, getCurrentPeriod, getNextDueDate, daysUntilDue } from '../utils/finance'
 import { formatMoney } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
+import { useTranslation } from 'react-i18next'
 
 const EXPENSE_CATEGORIES = [
   { key: 'groceries', label: 'Market' },
@@ -194,6 +195,9 @@ async function fetchPrices(forceRefresh = false) {
   // baseCurrency şimdilik sabit 'TRY' — user_preferences bağlanınca dinamik olacak.
   // getBaseCurrencyValue('TRY') eski getTRYValue ile birebir aynı sonucu verir.
   const { baseCurrency } = usePreferences()
+  const { t } = useTranslation()
+  // Kategori ve varlık label'ları çeviriden (global catLabel yerine)
+  const catLabelT = (key) => t('categories.' + key, { defaultValue: key })
   const fmt = (v) => formatMoney(v, baseCurrency)
   function getTRYValue(inv) {
     return getBaseCurrencyValue(inv, baseCurrency, rates, quotes, tefasQuotes)
@@ -227,7 +231,7 @@ async function fetchPrices(forceRefresh = false) {
       if (entry && entry.close > 0) {
         setInvManualPreview({ code, name: entry.name, price: entry.close })
       } else {
-        setInvManualPreview({ error: 'Bu kodla bir fon bulunamadı' })
+        setInvManualPreview({ error: t('finance.fundNotFound') })
       }
     } catch (err) {
       setInvManualPreview({ error: err.message })
@@ -324,7 +328,7 @@ async function fetchPrices(forceRefresh = false) {
 
   async function addVariableBudget() {
     if (!vAmount || !vName) return
-    if (vRecurring === null) { alert('Kalıcı mı yoksa bu döneme özel mi seç'); return }
+    if (vRecurring === null) { alert(t('finance.selectRecurringType')); return }
     await supabase.from('variable_budgets').insert({
       user_id: user.id,
       month: currentPeriod,
@@ -418,20 +422,20 @@ const categoryDistribution = (() => {
       <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Finans</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <SummaryCard title="Bugünkü Harcama" value={`${fmt(todayTotal)}`} sub={dailyBudget > 0 ? (todayTotal <= dailyBudget ? `${fmt(dailyBudget - todayTotal)} kaldı · ${remainingDays} gün` : `${fmt(todayTotal - dailyBudget)} aşıldı`) : `Limit: ${fmt(dailyBudget)}`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
+        <SummaryCard title={t('finance.todaySpending')} value={`${fmt(todayTotal)}`} sub={dailyBudget > 0 ? (todayTotal <= dailyBudget ? `${fmt(dailyBudget - todayTotal)} ${t('finance.remaining')} · ${t('finance.daysLeft', { days: remainingDays })}` : `${fmt(todayTotal - dailyBudget)} ${t('finance.over')}`) : `Limit: ${fmt(dailyBudget)}`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
         <SummaryCard title="Bu Ay Harcama" value={`${fmt(monthTotal)}`} sub={`Gelir: ${fmt(totalIncome)}`} />
-        <SummaryCard title="Yatırım Portföyü" value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
+        <SummaryCard title={t('finance.investPortfolio')} value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
       </div>
 
       <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {['daily', 'recurring', 'variable', 'investments', 'income'].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
+        {['daily', 'recurring', 'variable', 'investments', 'income'].map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)} style={{
             padding: '6px 14px', borderRadius: '20px', border: '1px solid',
-            borderColor: tab === t ? 'var(--accent)' : 'var(--border-strong)',
-            background: tab === t ? 'var(--accent)' : 'transparent',
-            color: tab === t ? '#fff' : 'var(--text-dim)', fontSize: '12.5px', cursor: 'pointer'
+            borderColor: tab === tabKey ? 'var(--accent)' : 'var(--border-strong)',
+            background: tab === tabKey ? 'var(--accent)' : 'transparent',
+            color: tab === tabKey ? '#fff' : 'var(--text-dim)', fontSize: '12.5px', cursor: 'pointer'
           }}>
-            {t === 'daily' ? 'Günlük' : t === 'recurring' ? 'Sabit' : t === 'variable' ? 'Değişken' : t === 'investments' ? 'Yatırım' : 'Gelir'}
+            {tabKey === 'daily' ? t('finance.daily') : tabKey === 'recurring' ? t('finance.fixed') : tabKey === 'variable' ? t('finance.variable') : tabKey === 'investments' ? t('finance.investment') : t('finance.income')}
           </button>
         ))}
       </div>
@@ -441,12 +445,12 @@ const categoryDistribution = (() => {
         <div style={{ maxWidth: '680px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Açıklama..." style={inputStyle} />
+              <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder={t('finance.descriptionPlaceholder')} style={inputStyle} />
               <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={selectStyle}>
-                {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
               </select>
               <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }} />
               <button onClick={addDailyExpense} style={buttonStyle}>Ekle</button>
@@ -457,12 +461,12 @@ const categoryDistribution = (() => {
             const renderExpense = (e) => editingId === e.id ? (
               <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                  <input value={editData.description} onChange={ev => setEditData(d => ({ ...d, description: ev.target.value }))} placeholder="Açıklama" style={inputStyle} />
+                  <input value={editData.description} onChange={ev => setEditData(d => ({ ...d, description: ev.target.value }))} placeholder={t('finance.description')} style={inputStyle} />
                   <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
-                    {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
                   </select>
                   <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
                   <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
@@ -471,7 +475,7 @@ const categoryDistribution = (() => {
               </div>
             ) : (
               <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
+                <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabelT(e.category)}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || '—'}</span>
                 <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600', flexShrink: 0 }}>{fmt(Number(e.amount))}</span>
                 <span onClick={() => startEdit(e, 'daily')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✏️</span>
@@ -494,7 +498,7 @@ const categoryDistribution = (() => {
                 {/* Bugün */}
                 <div style={{ fontSize: '12px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', fontWeight: '600' }}>Bugün</div>
                 {todayExpenses.length > 0 ? todayExpenses.map(renderExpense)
-                  : <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '16px' }}>Bugün harcama yok.</p>}
+                  : <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '16px' }}>{t('finance.noExpenseToday')}</p>}
 
                 {/* Geçmiş harcamalar butonu */}
                 {pastExpenses.length > 0 && (
@@ -504,7 +508,7 @@ const categoryDistribution = (() => {
                     color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                   }}>
-                    {showPast ? '▲ Geçmişi gizle' : `▼ Geçmiş harcamalar (${pastExpenses.length})`}
+                    {showPast ? t('finance.hidePast') : t('finance.showPast', { count: pastExpenses.length })}
                   </button>
                 )}
 
@@ -534,28 +538,28 @@ const categoryDistribution = (() => {
         <div style={{ maxWidth: '680px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <input value={rName} onChange={e => setRName(e.target.value)} placeholder="İsim (örn. Elektrik)" style={inputStyle} />
+              <input value={rName} onChange={e => setRName(e.target.value)} placeholder={t('finance.namePlaceholderBill')} style={inputStyle} />
               <input value={rAmount} onChange={e => setRAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={rCategory} onChange={e => setRCategory(e.target.value)} style={selectStyle}>
-                {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
               </select>
-              <input value={rDueDay} onChange={e => setRDueDay(e.target.value)} placeholder="Ödeme günü" type="number" min="1" max="31" style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '120px', fontSize: '13px' }} />
+              <input value={rDueDay} onChange={e => setRDueDay(e.target.value)} placeholder={t('finance.dueDay')} type="number" min="1" max="31" style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '120px', fontSize: '13px' }} />
               <button onClick={addRecurring} style={buttonStyle}>Ekle</button>
             </div>
           </div>
           {[...unpaidRecurring, ...paidRecurring].map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder="İsim" style={inputStyle} />
+                <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder={t('finance.name')} style={inputStyle} />
                 <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <select value={editData.category} onChange={ev => setEditData(d => ({ ...d, category: ev.target.value }))} style={selectStyle}>
-                  {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
                 </select>
-                <input value={editData.due_day} onChange={ev => setEditData(d => ({ ...d, due_day: ev.target.value }))} placeholder="Ödeme günü" type="number" min="1" max="31" style={{ ...inputStyle, flex: 0, width: '150px' }} />
+                <input value={editData.due_day} onChange={ev => setEditData(d => ({ ...d, due_day: ev.target.value }))} placeholder={t('finance.dueDay')} type="number" min="1" max="31" style={{ ...inputStyle, flex: 0, width: '150px' }} />
                 <button onClick={() => saveEdit('recurring')} style={buttonStyle}>Kaydet</button>
                 <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
               </div>
@@ -565,7 +569,7 @@ const categoryDistribution = (() => {
               <div onClick={() => setPaidStatus(p => ({ ...p, [e.id]: !p[e.id] }))} style={{ width: '18px', height: '18px', borderRadius: '5px', border: '2px solid', borderColor: paidStatus[e.id] ? 'var(--success)' : 'var(--text-faint)', background: paidStatus[e.id] ? 'var(--success)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {paidStatus[e.id] && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </div>
-              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabel(e.category)}</span>
+              <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: "var(--text-muted)", flexShrink: 0 }}>{catLabelT(e.category)}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: '80px' }}>{e.name}</span>
               {e.due_day && !isMobile && (() => {
                 const inCycle = isDue(e.due_day, currentDay, payday)
@@ -576,7 +580,7 @@ const categoryDistribution = (() => {
                 const warn = inCycle && !paidStatus[e.id] && days !== null && days <= 3
                 return (
                   <span style={{ fontSize: '12px', color: warn ? 'var(--warning)' : 'var(--text-faint)', flexShrink: 0 }}>
-                    {warn ? '⚠️ ' : '📅 '}{dateStr}{warn ? ` (${days} gün)` : ''}
+                    {warn ? '⚠️ ' : '📅 '}{dateStr}{warn ? ` (${t('finance.daysLeft', { days })})` : ''}
                   </span>
                 )
               })()}
@@ -594,7 +598,7 @@ const categoryDistribution = (() => {
         <div style={{ maxWidth: '680px' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              <input value={vName} onChange={e => setVName(e.target.value)} placeholder="İsim (örn. Yatırım)" style={inputStyle} />
+              <input value={vName} onChange={e => setVName(e.target.value)} placeholder={t('finance.namePlaceholderInvest')} style={inputStyle} />
               <input value={vAmount} onChange={e => setVAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
               <button onClick={addVariableBudget} style={buttonStyle}>Ekle</button>
             </div>
@@ -604,19 +608,19 @@ const categoryDistribution = (() => {
                 border: '1px solid', borderColor: vRecurring === true ? 'var(--accent)' : 'var(--border-strong)',
                 background: vRecurring === true ? 'var(--accent)' : 'transparent',
                 color: vRecurring === true ? '#fff' : 'var(--text-dim)'
-              }}>🔁 Kalıcı (her dönem devreder)</button>
+              }}>{t('finance.recurring')}</button>
               <button onClick={() => setVRecurring(false)} style={{
                 flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12.5px', cursor: 'pointer',
                 border: '1px solid', borderColor: vRecurring === false ? 'var(--accent)' : 'var(--border-strong)',
                 background: vRecurring === false ? 'var(--accent)' : 'transparent',
                 color: vRecurring === false ? '#fff' : 'var(--text-dim)'
-              }}>📅 Bu döneme özel</button>
+              }}>{t('finance.periodOnly')}</button>
             </div>
           </div>
           {activeVariableBudgets.map(e => editingId === e.id ? (
             <div key={e.id} style={{ background: 'var(--bg-soft)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder="İsim" style={inputStyle} />
+                <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder={t('finance.name')} style={inputStyle} />
                 <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
                 <button onClick={() => saveEdit('variable')} style={buttonStyle}>Kaydet</button>
                 <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
@@ -625,7 +629,7 @@ const categoryDistribution = (() => {
           ) : (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '8px' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</span>
-              {e.is_recurring && <span style={{ fontSize: '10px', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: '4px', padding: '1px 5px', flexShrink: 0 }}>🔁 Kalıcı</span>}
+              {e.is_recurring && <span style={{ fontSize: '10px', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: '4px', padding: '1px 5px', flexShrink: 0 }}>{t('finance.recurringBadge')}</span>}
               <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '600' }}>{fmt(Number(e.amount))}</span>
               <span onClick={() => startEdit(e, 'variable')} style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px' }}>✏️</span>
               <span onClick={() => deleteVariable(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
@@ -634,12 +638,12 @@ const categoryDistribution = (() => {
           {activeVariableBudgets.length > 0 && (
             <div style={{ marginTop: '14px', padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-dim)', fontSize: '13px' }}>Toplam Değişken Bütçe</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: '13px' }}>{t('finance.totalVariableBudget')}</span>
                 <span style={{ color: 'var(--text)', fontWeight: '700' }}>{fmt(totalVariable)}</span>
               </div>
             </div>
           )}
-          {activeVariableBudgets.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Değişken bütçe yok.</p>}
+          {activeVariableBudgets.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('finance.noVariable')}</p>}
         </div>
       )}
 
@@ -648,7 +652,7 @@ const categoryDistribution = (() => {
         <div style={{ maxWidth: '780px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-faint)', flex: 1, minWidth: '160px' }}>
-              {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : 'Kurlar yükleniyor...'}
+              {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : t('finance.ratesLoading')}
             </div>
             <button onClick={() => fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
             <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
@@ -725,7 +729,7 @@ const categoryDistribution = (() => {
               />
               <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>her ayın</span>
             </div>
-            <input value={incomeInput} onChange={e => setIncomeInput(e.target.value)} placeholder="₺ Aylık maaş" type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
+            <input value={incomeInput} onChange={e => setIncomeInput(e.target.value)} placeholder={t('finance.monthlySalaryPlaceholder')} type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div onClick={() => setUseBalance(!useBalance)} style={{ width: '18px', height: '18px', borderRadius: '5px', border: '2px solid', borderColor: useBalance ? 'var(--accent)' : 'var(--text-faint)', background: useBalance ? 'var(--accent)' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {useBalance && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -741,15 +745,15 @@ const categoryDistribution = (() => {
           {totalIncome > 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Bu Ay</div>
-              <Row label="Aylık Maaş" value={`${fmt(totalIncome)}`} color="var(--success)" />
+              <Row label={t('finance.monthlySalary')} value={`${fmt(totalIncome)}`} color="var(--success)" />
               {useBalance && income?.balance && (
-                <Row label="Mevcut Bakiye (baz alınan)" value={`${fmt(Number(income.balance))}`} color="var(--purple)" />
+                <Row label={t('finance.currentBalance')} value={`${fmt(Number(income.balance))}`} color="var(--purple)" />
               )}
-              <Row label="Sabit Giderler (kalan dönem)" value={`− ${fmt(totalRecurring)}`} color="var(--danger)" />
-              <Row label="Değişken Bütçe" value={`− ${fmt(totalVariable)}`} color="var(--warning)" />
+              <Row label={t('finance.fixedExpenses')} value={`− ${fmt(totalRecurring)}`} color="var(--danger)" />
+              <Row label={t('finance.variableBudget')} value={`− ${fmt(totalVariable)}`} color="var(--warning)" />
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '4px' }}>
-                <Row label="Kullanılabilir Bütçe" value={`${fmt((baseAmount - totalRecurring - totalVariable))}`} bold />
-                <Row label={`Günlük Limit (${remainingDays} gün kaldı)`} value={`${fmt(dailyBudget)}`} color="var(--accent)" bold large />
+                <Row label={t('finance.availableBudget')} value={`${fmt((baseAmount - totalRecurring - totalVariable))}`} bold />
+                <Row label={t('finance.dailyLimit', { days: remainingDays })} value={`${fmt(dailyBudget)}`} color="var(--accent)" bold large />
               </div>
             </div>
           )}
@@ -763,7 +767,7 @@ const categoryDistribution = (() => {
                     <div style={{ fontSize: '12px', color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', fontWeight: '600', marginBottom: '10px' }}>{p.label} {i === 0 ? '(bu ay)' : ''}</div>
                     <Row label="Gelir" value={`${fmt(p.income)}`} color="var(--success)" small />
                     <Row label="Sabit Gider" value={`− ${fmt(p.recurring)}`} color="var(--danger)" small />
-                    <Row label="Değişken" value={`− ${fmt(p.variable)}`} color="var(--warning)" small />
+                    <Row label={t('finance.variable')} value={`− ${fmt(p.variable)}`} color="var(--warning)" small />
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '4px' }}>
                       <Row label="Serbest" value={`${fmt(p.free)}`} color={p.free >= 0 ? 'var(--text)' : 'var(--danger)'} bold small />
                     </div>
@@ -865,16 +869,16 @@ const categoryDistribution = (() => {
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>
-                  {invAssetType.key === 'TRY' ? 'Tutar (₺)' :
-                   invAssetType.key === 'GOLD_GRAM' || invAssetType.key === 'SILVER_GRAM' ? 'Gram' :
-                   invAssetType.key === 'GOLD_QUARTER' ? 'Çeyrek altın adedi' :
-                   invAssetType.key === 'GOLD_HALF' ? 'Yarım altın adedi' :
-                   invAssetType.key === 'GOLD_FULL' ? 'Tam altın adedi' :
-                   invAssetType.key === 'USD' ? 'Dolar miktarı ($)' :
-                   invAssetType.key === 'EUR' ? 'Euro miktarı (€)' :
-                   invAssetType.key === 'GBP' ? 'Sterlin miktarı (£)' :
-                   invAssetType.key === 'TEFAS_FUND' ? 'Pay adedi' :
-                   'Adet'}
+                  {invAssetType.key === 'TRY' ? t('finance.amountTRY') :
+                   invAssetType.key === 'GOLD_GRAM' || invAssetType.key === 'SILVER_GRAM' ? t('finance.gram') :
+                   invAssetType.key === 'GOLD_QUARTER' ? t('finance.quarterGoldQty') :
+                   invAssetType.key === 'GOLD_HALF' ? t('finance.halfGoldQty') :
+                   invAssetType.key === 'GOLD_FULL' ? t('finance.fullGoldQty') :
+                   invAssetType.key === 'USD' ? t('finance.usdAmount') :
+                   invAssetType.key === 'EUR' ? t('finance.eurAmount') :
+                   invAssetType.key === 'GBP' ? t('finance.gbpAmount') :
+                   invAssetType.key === 'TEFAS_FUND' ? t('finance.shareQty') :
+                   t('finance.qty')}
                 </label>
                 <input value={invQty} onChange={e => setInvQty(e.target.value)} type="number" step="0.000001" placeholder="0" style={{ ...inputStyle, width: '100%' }} autoFocus />
               </div>
