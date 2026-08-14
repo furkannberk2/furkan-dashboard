@@ -71,10 +71,10 @@ function useIsMobile() {
   return m
 }
 
-function getMonthLabel(offset) {
+function getMonthLabel(offset, locale = 'tr-TR') {
   const d = new Date()
   d.setMonth(d.getMonth() + offset)
-  return d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
 }
 
 
@@ -195,7 +195,8 @@ async function fetchPrices(forceRefresh = false) {
   // baseCurrency şimdilik sabit 'TRY' — user_preferences bağlanınca dinamik olacak.
   // getBaseCurrencyValue('TRY') eski getTRYValue ile birebir aynı sonucu verir.
   const { baseCurrency } = usePreferences()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR'
   // Kategori ve varlık label'ları çeviriden (global catLabel yerine)
   const catLabelT = (key) => t('categories.' + key, { defaultValue: key })
   const assetName = (key) => t('assetNames.' + key, { defaultValue: key })
@@ -374,7 +375,7 @@ const categoryDistribution = (() => {
       label = assetCatT('Altın')
     } else {
       const at = ASSET_TYPES.find(a => a.key === i.type)
-      label = at ? assetCatT(at.category) : i.type
+      label = at ? assetName(at.key) : i.type
     }
     map[label] = (map[label] || 0) + getTRYValue(i)
   })
@@ -416,7 +417,7 @@ const categoryDistribution = (() => {
     // Sonraki aylar: sadece kalıcı değişkenler devreder
     const variable = offset === 0 ? totalVariable : totalRecurringVariable
     const free = totalIncome - totalRecurringFull - variable
-    return { label: getMonthLabel(offset), income: totalIncome, recurring: totalRecurringFull, variable, free }
+    return { label: getMonthLabel(offset, locale), income: totalIncome, recurring: totalRecurringFull, variable, free }
   })
 
   return (
@@ -472,7 +473,7 @@ const categoryDistribution = (() => {
                   </select>
                   <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
                   <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
-                  <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+                  <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
                 </div>
               </div>
             ) : (
@@ -493,12 +494,12 @@ const categoryDistribution = (() => {
             pastExpenses.forEach(e => { (pastByDate[e.date] = pastByDate[e.date] || []).push(e) })
             const pastDates = Object.keys(pastByDate).sort((a, b) => b.localeCompare(a))
 
-            const dateLabel = (d) => new Date(d + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
+            const dateLabel = (d) => new Date(d + 'T00:00:00').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
 
             return (
               <>
                 {/* Bugün */}
-                <div style={{ fontSize: '12px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', fontWeight: '600' }}>Bugün</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', fontWeight: '600' }}>{t('common.today')}</div>
                 {todayExpenses.length > 0 ? todayExpenses.map(renderExpense)
                   : <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '16px' }}>{t('finance.noExpenseToday')}</p>}
 
@@ -563,7 +564,7 @@ const categoryDistribution = (() => {
                 </select>
                 <input value={editData.due_day} onChange={ev => setEditData(d => ({ ...d, due_day: ev.target.value }))} placeholder={t('finance.dueDay')} type="number" min="1" max="31" style={{ ...inputStyle, flex: 0, width: '150px' }} />
                 <button onClick={() => saveEdit('recurring')} style={buttonStyle}>Kaydet</button>
-                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
               </div>
             </div>
           ) : (
@@ -577,7 +578,7 @@ const categoryDistribution = (() => {
                 const inCycle = isDue(e.due_day, currentDay, payday)
                 const days = daysUntilDue(e.due_day)
                 const nextDate = getNextDueDate(e.due_day)
-                const dateStr = nextDate ? nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) : ''
+                const dateStr = nextDate ? nextDate.toLocaleDateString(locale, { day: 'numeric', month: 'short' }) : ''
                 // Uyarı: bu dönemde ödenecek VE 3 gün veya daha az kala VE ödenmemiş
                 const warn = inCycle && !paidStatus[e.id] && days !== null && days <= 3
                 return (
@@ -625,7 +626,7 @@ const categoryDistribution = (() => {
                 <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder={t('finance.name')} style={inputStyle} />
                 <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
                 <button onClick={() => saveEdit('variable')} style={buttonStyle}>Kaydet</button>
-                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+                <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
               </div>
             </div>
           ) : (
@@ -685,7 +686,7 @@ const categoryDistribution = (() => {
                       {LOCATIONS.map(l => <option key={l}>{l}</option>)}
                     </select>
                     <button onClick={() => saveEdit('investment')} style={buttonStyle}>Kaydet</button>
-                    <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>İptal</button>
+                    <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -704,13 +705,13 @@ const categoryDistribution = (() => {
 
           {investments.length === 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-              <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Henüz yatırım eklenmedi.</p>
+              <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('finance.noInvestment')}</p>
             </div>
           )}
 
           {investments.length > 0 && (
             <div style={{ marginTop: '14px', padding: '14px', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '600' }}>Toplam Portföy</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '600' }}>{t('finance.totalPortfolio')}</span>
               <span style={{ color: 'var(--text)', fontWeight: '700', fontSize: '18px' }}>{fmt(Math.round(investTotal))}</span>
             </div>
           )}
@@ -729,7 +730,7 @@ const categoryDistribution = (() => {
                 onChange={e => savePayday(e.target.value)}
                 style={{ ...inputStyle, flex: 0, width: '60px', padding: '5px 8px', fontSize: '13px', textAlign: 'center' }}
               />
-              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>her ayın</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>{t('finance.everyMonth')}</span>
             </div>
             <input value={incomeInput} onChange={e => setIncomeInput(e.target.value)} placeholder={t('finance.monthlySalaryPlaceholder')} type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -762,7 +763,7 @@ const categoryDistribution = (() => {
 
           {totalIncome > 0 && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>3 Aylık Projeksiyon</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>{t('finance.projection3m')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                 {projection.map((p, i) => (
                   <div key={i} style={{ background: i === 0 ? 'var(--accent-soft)' : 'var(--bg-card)', border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
@@ -784,7 +785,7 @@ const categoryDistribution = (() => {
       {/* Yatırım ekleme modal */}
       {showAddInv && (
         <Modal onClose={() => { setShowAddInv(false); setInvAssetType(null); setInvSelectedSymbol(null); setInvManualCode(''); setInvManualPreview(null) }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>Yatırım Ekle</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{t('finance.addInvestment')}</h3>
 
           {!invAssetType ? (
             <>
@@ -807,7 +808,7 @@ const categoryDistribution = (() => {
                 <div style={{ fontSize: '13px', fontWeight: '600' }}>{assetName(invAssetType.key)}</div>
                 <button onClick={() => setInvAssetType(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Geri</button>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '10px' }}>Fon kodunu yaz (örn. BID, AAK, GO9):</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '10px' }}>{t('finance.fundCodePrompt')}</p>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <input
                   value={invManualCode}
@@ -846,7 +847,7 @@ const categoryDistribution = (() => {
                     <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{r.instrument_name}</div>
                   </div>
                 ))}
-                {invResults.length === 0 && !invSearching && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Aramak için yukarıya yazın.</p>}
+                {invResults.length === 0 && !invSearching && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('finance.typeToSearchInvest')}</p>}
               </div>
             </>
           ) : (
@@ -867,7 +868,7 @@ const categoryDistribution = (() => {
                   if (invAssetType.manualCode) { setInvManualPreview(null); setInvManualCode('') }
                   else if (invAssetType.needsSymbol) setInvSelectedSymbol(null)
                   else setInvAssetType(null)
-                }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>← Değiştir</button>
+                }} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer', padding: '4px 0 0' }}>{t('finance.change')}</button>
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>
@@ -890,7 +891,7 @@ const categoryDistribution = (() => {
                   {LOCATIONS.map(l => <option key={l}>{l}</option>)}
                 </select>
               </div>
-              <button onClick={addInvestment} style={{ ...buttonStyle, width: '100%' }}>Portföye Ekle</button>
+              <button onClick={addInvestment} style={{ ...buttonStyle, width: '100%' }}>{t('finance.addToPortfolio')}</button>
             </>
           )}
         </Modal>

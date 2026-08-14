@@ -139,7 +139,17 @@
     "shareQty": "Share count",
     "qty": "Qty",
     "salaryDay": "salary day:",
-    "useBalance": "Use my current balance instead of salary"
+    "useBalance": "Use my current balance instead of salary",
+    "noInvestment": "No investments added yet.",
+    "totalPortfolio": "Total Portfolio",
+    "everyMonth": "day of month",
+    "projection3m": "3-Month Projection",
+    "addInvestment": "Add Investment",
+    "fundCodePrompt": "Enter fund code (e.g. BID, AAK, GO9):",
+    "typeToSearchInvest": "Type above to search.",
+    "change": "← Change",
+    "addToPortfolio": "Add to Portfolio",
+    "total": "Total"
   },
   "categories": {
     "groceries": "Groceries",

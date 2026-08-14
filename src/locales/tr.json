@@ -139,7 +139,17 @@
     "shareQty": "Pay adedi",
     "qty": "Adet",
     "salaryDay": "maaş günü:",
-    "useBalance": "Maaş yerine mevcut bakiyemi kullan"
+    "useBalance": "Maaş yerine mevcut bakiyemi kullan",
+    "noInvestment": "Henüz yatırım eklenmedi.",
+    "totalPortfolio": "Toplam Portföy",
+    "everyMonth": "her ayın",
+    "projection3m": "3 Aylık Projeksiyon",
+    "addInvestment": "Yatırım Ekle",
+    "fundCodePrompt": "Fon kodunu yaz (örn. BID, AAK, GO9):",
+    "typeToSearchInvest": "Aramak için yukarıya yazın.",
+    "change": "← Değiştir",
+    "addToPortfolio": "Portföye Ekle",
+    "total": "Toplam"
   },
   "categories": {
     "groceries": "Market",
