@@ -149,7 +149,13 @@
     "typeToSearchInvest": "Type above to search.",
     "change": "← Change",
     "addToPortfolio": "Add to Portfolio",
-    "total": "Total"
+    "total": "Total",
+    "amountPlaceholder": "Amount",
+    "totalQty": "Total",
+    "assetDistribution": "Asset Distribution",
+    "whatToAdd": "What would you like to add?",
+    "physical": "Physical",
+    "current": "Current"
   },
   "categories": {
     "groceries": "Groceries",

@@ -149,7 +149,13 @@
     "typeToSearchInvest": "Aramak için yukarıya yazın.",
     "change": "← Değiştir",
     "addToPortfolio": "Portföye Ekle",
-    "total": "Toplam"
+    "total": "Toplam",
+    "amountPlaceholder": "₺ Tutar",
+    "totalQty": "Toplam",
+    "assetDistribution": "Varlık Dağılımı",
+    "whatToAdd": "Ne eklemek istiyorsun?",
+    "physical": "Fiziksel",
+    "current": "Güncel"
   },
   "categories": {
     "groceries": "Market",

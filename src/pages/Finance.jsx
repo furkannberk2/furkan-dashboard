@@ -370,17 +370,20 @@ async function fetchPrices(forceRefresh = false) {
 const categoryDistribution = (() => {
   const map = {}
   investments.forEach(i => {
-    let label
+    let colorKey, label
     if (i.type?.startsWith('GOLD_')) {
-      label = assetCatT('Altın')
+      colorKey = 'Altın'          // renk için sabit anahtar (Türkçe)
+      label = assetCatT('Altın')  // gösterim için çevrili
     } else {
       const at = ASSET_TYPES.find(a => a.key === i.type)
+      colorKey = at ? at.name : i.type   // sabit Türkçe isim (CATEGORY_COLORS anahtarı)
       label = at ? assetName(at.key) : i.type
     }
-    map[label] = (map[label] || 0) + getTRYValue(i)
+    if (!map[colorKey]) map[colorKey] = { value: 0, label }
+    map[colorKey].value += getTRYValue(i)
   })
   return Object.entries(map)
-    .map(([name, value]) => ({ name, value: Math.round(value) }))
+    .map(([colorKey, o]) => ({ name: o.label, colorKey, value: Math.round(o.value) }))
     .filter(d => d.value > 0)
     .sort((a, b) => b.value - a.value)
 })()
@@ -449,14 +452,14 @@ const categoryDistribution = (() => {
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
               <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder={t('finance.descriptionPlaceholder')} style={inputStyle} />
-              <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
+              <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder={`₺ ${t('finance.amountPlaceholder')}`} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={selectStyle}>
                 {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
               </select>
               <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }} />
-              <button onClick={addDailyExpense} style={buttonStyle}>Ekle</button>
+              <button onClick={addDailyExpense} style={buttonStyle}>{t('common.add')}</button>
             </div>
           </div>
           {(() => {
@@ -472,7 +475,7 @@ const categoryDistribution = (() => {
                     {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
                   </select>
                   <input type="date" value={editData.date} onChange={ev => setEditData(d => ({ ...d, date: ev.target.value }))} style={{ ...inputStyle, flex: 0, width: '160px' }} />
-                  <button onClick={() => saveEdit('daily')} style={buttonStyle}>Kaydet</button>
+                  <button onClick={() => saveEdit('daily')} style={buttonStyle}>{t('common.save')}</button>
                   <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
                 </div>
               </div>
@@ -542,14 +545,14 @@ const categoryDistribution = (() => {
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
               <input value={rName} onChange={e => setRName(e.target.value)} placeholder={t('finance.namePlaceholderBill')} style={inputStyle} />
-              <input value={rAmount} onChange={e => setRAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
+              <input value={rAmount} onChange={e => setRAmount(e.target.value)} placeholder={`₺ ${t('finance.amountPlaceholder')}`} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select value={rCategory} onChange={e => setRCategory(e.target.value)} style={selectStyle}>
                 {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
               </select>
               <input value={rDueDay} onChange={e => setRDueDay(e.target.value)} placeholder={t('finance.dueDay')} type="number" min="1" max="31" style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '120px', fontSize: '13px' }} />
-              <button onClick={addRecurring} style={buttonStyle}>Ekle</button>
+              <button onClick={addRecurring} style={buttonStyle}>{t('common.add')}</button>
             </div>
           </div>
           {[...unpaidRecurring, ...paidRecurring].map(e => editingId === e.id ? (
@@ -563,7 +566,7 @@ const categoryDistribution = (() => {
                   {RECURRING_CATEGORIES.map(c => <option key={c.key} value={c.key}>{catLabelT(c.key)}</option>)}
                 </select>
                 <input value={editData.due_day} onChange={ev => setEditData(d => ({ ...d, due_day: ev.target.value }))} placeholder={t('finance.dueDay')} type="number" min="1" max="31" style={{ ...inputStyle, flex: 0, width: '150px' }} />
-                <button onClick={() => saveEdit('recurring')} style={buttonStyle}>Kaydet</button>
+                <button onClick={() => saveEdit('recurring')} style={buttonStyle}>{t('common.save')}</button>
                 <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
               </div>
             </div>
@@ -602,8 +605,8 @@ const categoryDistribution = (() => {
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
               <input value={vName} onChange={e => setVName(e.target.value)} placeholder={t('finance.namePlaceholderInvest')} style={inputStyle} />
-              <input value={vAmount} onChange={e => setVAmount(e.target.value)} placeholder="₺ Tutar" type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
-              <button onClick={addVariableBudget} style={buttonStyle}>Ekle</button>
+              <input value={vAmount} onChange={e => setVAmount(e.target.value)} placeholder={`₺ ${t('finance.amountPlaceholder')}`} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
+              <button onClick={addVariableBudget} style={buttonStyle}>{t('common.add')}</button>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setVRecurring(true)} style={{
@@ -625,7 +628,7 @@ const categoryDistribution = (() => {
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <input value={editData.name} onChange={ev => setEditData(d => ({ ...d, name: ev.target.value }))} placeholder={t('finance.name')} style={inputStyle} />
                 <input value={editData.amount} onChange={ev => setEditData(d => ({ ...d, amount: ev.target.value }))} type="number" style={{ ...inputStyle, flex: 0, width: '120px' }} />
-                <button onClick={() => saveEdit('variable')} style={buttonStyle}>Kaydet</button>
+                <button onClick={() => saveEdit('variable')} style={buttonStyle}>{t('common.save')}</button>
                 <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
               </div>
             </div>
@@ -658,16 +661,16 @@ const categoryDistribution = (() => {
               {usdTry ? `1$ = ${usdTry.toFixed(2)}₺ · 1€ = ${rates.EUR ? (usdTry / rates.EUR).toFixed(2) : '...'}₺` : t('finance.ratesLoading')}
             </div>
             <button onClick={() => fetchPrices(true)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '12px', padding: '5px 12px' }}>↻ Yenile</button>
-            <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ Ekle</button>
+            <button onClick={() => setShowAddInv(true)} style={{ ...buttonStyle, fontSize: '13px' }}>+ {t('common.add')}</button>
           </div>
-          <PortfolioPie data={categoryDistribution} total={investTotal} isMobile={isMobile} baseCurrency={baseCurrency} />
+          <PortfolioPie data={categoryDistribution} total={investTotal} isMobile={isMobile} baseCurrency={baseCurrency} t={t} />
           {Object.values(grouped).map(g => (
             <div key={g.key} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px', gap: '8px' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: '15px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.displayName}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                    Toplam {g.totalQty.toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {g.unit}
+                    {t('finance.totalQty')} {g.totalQty.toLocaleString(locale, { maximumFractionDigits: 6 })} {g.unit}
                     {g.dailyChange !== null && !isNaN(g.dailyChange) && (
                       <span style={{ marginLeft: '8px', color: g.dailyChange >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                         {g.dailyChange >= 0 ? '+' : ''}{g.dailyChange.toFixed(2)}%
@@ -683,15 +686,15 @@ const categoryDistribution = (() => {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input value={editData.quantity} onChange={ev => setEditData(d => ({ ...d, quantity: ev.target.value }))} type="number" step="0.000001" style={{ ...inputStyle, flex: 1, minWidth: '120px' }} />
                     <select value={editData.location} onChange={ev => setEditData(d => ({ ...d, location: ev.target.value }))} style={selectStyle}>
-                      {LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                      {LOCATIONS.map(l => <option key={l} value={l}>{l === 'Fiziksel' ? t('finance.physical') : l}</option>)}
                     </select>
-                    <button onClick={() => saveEdit('investment')} style={buttonStyle}>Kaydet</button>
+                    <button onClick={() => saveEdit('investment')} style={buttonStyle}>{t('common.save')}</button>
                     <button onClick={() => setEditingId(null)} style={{ ...buttonStyle, background: 'var(--bg-item)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
                   </div>
                 </div>
               ) : (
                 <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{i.location}</span>
+                  <span style={{ fontSize: '11px', background: 'var(--bg-card)', borderRadius: '6px', padding: '3px 8px', color: 'var(--text-muted)', flexShrink: 0 }}>{i.location === 'Fiziksel' ? t('finance.physical') : i.location}</span>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {Number(i.quantity).toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {g.unit}
                   </span>
@@ -742,7 +745,7 @@ const categoryDistribution = (() => {
             {useBalance && (
               <input value={balanceInput} onChange={e => setBalanceInput(e.target.value)} placeholder="₺ Mevcut bakiye" type="number" style={{ ...inputStyle, width: '100%', marginBottom: '8px' }} />
             )}
-            <button onClick={saveIncome} style={buttonStyle}>Kaydet</button>
+            <button onClick={saveIncome} style={buttonStyle}>{t('common.save')}</button>
           </div>
 
           {totalIncome > 0 && (
@@ -789,7 +792,7 @@ const categoryDistribution = (() => {
 
           {!invAssetType ? (
             <>
-              <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>Ne eklemek istiyorsun?</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>{t('finance.whatToAdd')}</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 {ASSET_TYPES.map(at => (
                   <button key={at.key} onClick={() => setInvAssetType(at)} style={{
@@ -862,7 +865,7 @@ const categoryDistribution = (() => {
                    `Birim: ${invAssetType.unit}`}
                 </div>
                 {invAssetType.manualCode && invManualPreview?.price && (
-                  <div style={{ fontSize: '12px', color: 'var(--success)', marginTop: '4px' }}>Güncel: ₺{invManualPreview.price.toFixed(4)}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--success)', marginTop: '4px' }}>{t('finance.current')}: ₺{invManualPreview.price.toFixed(4)}</div>
                 )}
                 <button onClick={() => {
                   if (invAssetType.manualCode) { setInvManualPreview(null); setInvManualCode('') }
@@ -888,7 +891,7 @@ const categoryDistribution = (() => {
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>Konum</label>
                 <select value={invLocation} onChange={e => setInvLocation(e.target.value)} style={{ ...selectStyle, width: '100%' }}>
-                  {LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                  {LOCATIONS.map(l => <option key={l} value={l}>{l === 'Fiziksel' ? t('finance.physical') : l}</option>)}
                 </select>
               </div>
               <button onClick={addInvestment} style={{ ...buttonStyle, width: '100%' }}>{t('finance.addToPortfolio')}</button>
@@ -935,12 +938,12 @@ function SummaryCard({ title, value, sub, percent, color }) {
   )
 }
 
-function PortfolioPie({ data, total, isMobile, baseCurrency = 'TRY' }) {
+function PortfolioPie({ data, total, isMobile, baseCurrency = 'TRY', t }) {
   if (data.length === 0) return null
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
       <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
-        Varlık Dağılımı
+        {t('finance.assetDistribution')}
       </div>
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: '16px' }}>
         <div style={{ width: isMobile ? '100%' : '200px', height: '200px', flexShrink: 0 }}>
@@ -957,7 +960,7 @@ function PortfolioPie({ data, total, isMobile, baseCurrency = 'TRY' }) {
                 paddingAngle={2}
               >
                 {data.map((entry, i) => (
-                  <Cell key={i} fill={CATEGORY_COLORS[entry.name] || '#888'} stroke="none" />
+                  <Cell key={i} fill={CATEGORY_COLORS[entry.colorKey] || '#888'} stroke="none" />
                 ))}
               </Pie>
               <RTooltip
@@ -973,7 +976,7 @@ function PortfolioPie({ data, total, isMobile, baseCurrency = 'TRY' }) {
             const percent = total > 0 ? ((d.value / total) * 100).toFixed(1) : 0
             return (
               <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: CATEGORY_COLORS[d.name] || '#888', flexShrink: 0 }} />
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: CATEGORY_COLORS[d.colorKey] || '#888', flexShrink: 0 }} />
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>{d.name}</span>
                 <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{percent}%</span>
                 <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '600', minWidth: '90px', textAlign: 'right' }}>
