@@ -1,5 +1,6 @@
 import { useAuth } from '../components/AuthProvider'
 import { usePreferences } from '../components/PreferencesProvider'
+import { useTranslation } from 'react-i18next'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -95,6 +96,9 @@ function useIsMobile() {
 function Tasks() {
   const { user } = useAuth()
   const { weekStart } = usePreferences()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR'
+  const priorityLabel = (key) => t('tasks.' + key, { defaultValue: key })
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
   const [projectTasks, setProjectTasks] = useState([])
@@ -259,7 +263,7 @@ function Tasks() {
   function formatDate(dateStr) {
     if (!dateStr) return ''
     const d = new Date(dateStr + 'T00:00:00')
-    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' })
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', weekday: 'short' })
   }
 
   function isOverdue(dateStr) { return dateStr < today }
@@ -373,7 +377,7 @@ function Tasks() {
   return (
     <div style={{ color: 'var(--text)', display: 'flex', gap: '20px', alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
       <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
-        <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Görevler</h2>
+        <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>{t('tasks.title')}</h2>
 
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -381,7 +385,7 @@ function Tasks() {
               value={newTask}
               onChange={e => setNewTask(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addTask()}
-              placeholder="Görev ekle..."
+              placeholder={t('tasks.addTask')}
               style={inputStyle}
             />
             <button onClick={addTask} style={buttonStyle}>Ekle</button>
@@ -420,7 +424,7 @@ function Tasks() {
               background: filter === f ? 'var(--accent)' : 'transparent',
               color: filter === f ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
             }}>
-              {f === 'today' ? 'Bugün' : f === 'week' ? 'Bu Hafta' : f === 'month' ? 'Bu Ay' : 'Tümü'}
+              {f === 'today' ? t('tasks.today') : f === 'week' ? t('tasks.thisWeek') : f === 'month' ? t('tasks.thisMonth') : t('tasks.all')}
             </button>
           ))}
         </div>
@@ -431,7 +435,7 @@ function Tasks() {
               <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
             ))}
             {activeItems.length === 0 && doneItems.length === 0 && (
-              <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>
+              <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('tasks.noTask')}</p>
             )}
             {doneItems.length > 0 && (
               <div style={{ marginTop: '20px' }}>
@@ -439,7 +443,7 @@ function Tasks() {
                   onClick={() => setShowDone(!showDone)}
                   style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}
                 >
-                  {showDone ? '▲' : '▼'} Tamamlananlar ({doneItems.length})
+                  {showDone ? '▲' : '▼'} {t('tasks.done')} ({doneItems.length})
                 </button>
                 {showDone && sortItems(doneItems).map(t => (
                   <TaskItem key={`${t.source}-${t.id}`} task={t} {...sharedItemProps} />
@@ -471,7 +475,7 @@ function Tasks() {
                 ))}
               </div>
             ))}
-            {Object.keys(grouped).length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Görev yok.</p>}
+            {Object.keys(grouped).length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('tasks.noTask')}</p>}
           </div>
         )}
       </div>
@@ -504,7 +508,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
                 <div style={{ width: `${p.progress}%`, height: '4px', borderRadius: '99px', background: p.color }} />
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
-                {p.openPhases > 0 ? `${p.openPhases} açık aşama` : 'Aşama yok'}
+                {p.openPhases > 0 ? `${p.openPhases} ${t('tasks.openPhases')}` : t('tasks.noStage')}
                 {p.routineCount > 0 ? ` · ${p.routineCount} rutin` : ''}
               </div>
             </div>
@@ -515,7 +519,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
       {overdueTasks.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--danger)', borderRadius: '12px', padding: '16px' }}>
           <div style={{ fontSize: '11px', color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>
-            Gecikmiş ({overdueTasks.length})
+            {t('tasks.overdue')} ({overdueTasks.length})
           </div>
           {overdueTasks.slice(0, 6).map(t => (
             <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
@@ -530,7 +534,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
       {upcomingTasks.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>
-            Yaklaşan (7 gün)
+            {t('tasks.upcoming')}
           </div>
           {upcomingTasks.slice(0, 6).map(t => (
             <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
@@ -544,7 +548,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
 
       {overdueTasks.length === 0 && upcomingTasks.length === 0 && projectSummaries.length === 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>Henüz özet yok</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-faint)' }}>{t('tasks.noSummary')}</span>
         </div>
       )}
     </div>
@@ -565,9 +569,9 @@ function PrioritySelect({ value, onChange }) {
         onChange={e => onChange(e.target.value)}
         style={{ ...selectStyle, fontSize: '13px', paddingLeft: '26px' }}
       >
-        <option value="high">Yüksek</option>
-        <option value="medium">Orta</option>
-        <option value="low">Düşük</option>
+        <option value="high">{t('tasks.high')}</option>
+        <option value="medium">{t('tasks.medium')}</option>
+        <option value="low">{t('tasks.low')}</option>
       </select>
     </div>
   )
@@ -615,7 +619,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
           />
         )}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          <button onClick={cancelEdit} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}>İptal</button>
+          <button onClick={cancelEdit} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}>{t('common.cancel')}</button>
           <button onClick={saveEdit} style={{ ...buttonStyle, fontSize: '13px', padding: '7px 14px' }}>Kaydet</button>
         </div>
       </div>
@@ -681,7 +685,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
           <span style={{ fontSize: '10px', color: 'var(--text-faint)', flexShrink: 0 }}>🔁</span>
         )}
         {task.source === 'task' && (
-          <span title={p.label} style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+          <span title={priorityLabel(task.priority)} style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
         )}
         {!compact && (
           <span style={{
@@ -696,7 +700,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
           <span
             onClick={() => onEdit(task)}
             style={{ color: 'var(--text-dim)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}
-            title="Düzenle"
+            title={t('tasks.edit')}
           >✏️</span>
         )}
         {task.source !== 'routine' && (

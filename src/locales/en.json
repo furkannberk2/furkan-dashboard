@@ -213,5 +213,24 @@
     "Kripto": "Crypto",
     "Hisse": "Stocks",
     "Fon": "Funds"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "addTask": "Add task...",
+    "noTask": "No tasks.",
+    "noSummary": "No summary yet",
+    "high": "High",
+    "low": "Low",
+    "today": "Today",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "all": "All",
+    "done": "Completed",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming (7 days)",
+    "noStage": "No stage",
+    "edit": "Edit",
+    "medium": "Medium",
+    "openPhases": "open stages"
   }
 }

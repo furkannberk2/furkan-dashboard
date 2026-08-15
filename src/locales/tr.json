@@ -213,5 +213,24 @@
     "Kripto": "Kripto",
     "Hisse": "Hisse",
     "Fon": "Fon"
+  },
+  "tasks": {
+    "title": "Görevler",
+    "addTask": "Görev ekle...",
+    "noTask": "Görev yok.",
+    "noSummary": "Henüz özet yok",
+    "high": "Yüksek",
+    "low": "Düşük",
+    "today": "Bugün",
+    "thisWeek": "Bu Hafta",
+    "thisMonth": "Bu Ay",
+    "all": "Tümü",
+    "done": "Tamamlananlar",
+    "overdue": "Gecikmiş",
+    "upcoming": "Yaklaşan (7 gün)",
+    "noStage": "Aşama yok",
+    "edit": "Düzenle",
+    "medium": "Orta",
+    "openPhases": "açık aşama"
   }
 }
