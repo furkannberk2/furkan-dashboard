@@ -501,6 +501,7 @@ async function moveMeal(id, direction) {
 }
 
 function FoodResult({ food, onAdd }) {
+  const { t } = useTranslation()
   const [qty, setQty] = useState(100)
   return (
     <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
