@@ -98,7 +98,6 @@ function Tasks() {
   const { weekStart } = usePreferences()
   const { t, i18n } = useTranslation()
   const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR'
-  const priorityLabel = (key) => t('tasks.' + key, { defaultValue: key })
   const isMobile = useIsMobile()
   const [tasks, setTasks] = useState([])
   const [projectTasks, setProjectTasks] = useState([])
@@ -492,6 +491,7 @@ function Tasks() {
 }
 
 function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, formatDate }) {
+  const { t } = useTranslation()
   return (
     <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {projectSummaries.length > 0 && (
@@ -556,6 +556,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
 }
 
 function PrioritySelect({ value, onChange }) {
+  const { t } = useTranslation()
   const p = PRIORITIES[value] || PRIORITIES.medium
   return (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -578,6 +579,7 @@ function PrioritySelect({ value, onChange }) {
 }
 
 function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverdue, compact, editingId, editDraft, setEditDraft, saveEdit, cancelEdit }) {
+  const { t } = useTranslation()
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
   const isEditing = editingId === task.id && task.source !== 'routine'
   const projectColor = task.project?.color
@@ -685,7 +687,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
           <span style={{ fontSize: '10px', color: 'var(--text-faint)', flexShrink: 0 }}>🔁</span>
         )}
         {task.source === 'task' && (
-          <span title={priorityLabel(task.priority)} style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+          <span title={t('tasks.' + task.priority, { defaultValue: task.priority })} style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
         )}
         {!compact && (
           <span style={{
