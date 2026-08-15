@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../components/AuthProvider'
+import { useTranslation } from 'react-i18next'
 
-const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+const MONTHS_TR = null // artık kullanılmıyor, ay isimleri locale'den (monthName)
 
 function Habits() {
   const { user } = useAuth()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR'
+  // Ay ismi locale'den (MONTHS_TR yerine)
+  const monthName = (idx, year) => new Date(year, idx, 1).toLocaleDateString(locale, { month: 'long' })
   const today = new Date()
   const [currentMonthIndex, setCurrentMonthIndex] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
@@ -55,7 +60,7 @@ function Habits() {
   }
 
   async function deleteHabit(id) {
-    if (!confirm('Bu alışkanlığı ve tüm geçmiş kayıtlarını silmek istediğine emin misin?')) return
+    if (!confirm(t('habits.deleteConfirm'))) return
     await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id)
     fetchAll()
   }
@@ -108,17 +113,17 @@ function Habits() {
   const canGoNext = !(currentYear === today.getFullYear() && currentMonthIndex === today.getMonth())
 
   if (loading && habits.length === 0) {
-    return <p style={{ color: 'var(--text-faint)' }}>Yükleniyor...</p>
+    return <p style={{ color: 'var(--text-faint)' }}>{t('common.loading')}</p>
   }
 
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Alışkanlıklar</h2>
+        <h2 style={{ fontSize: '22px', fontWeight: '700' }}>{t('habits.title')}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <button onClick={() => navMonth(-1)} style={navBtnStyle}>‹</button>
           <span style={{ fontSize: '14px', color: 'var(--text-secondary)', minWidth: '120px', textAlign: 'center' }}>
-            {MONTHS_TR[currentMonthIndex]} {currentYear}
+            {monthName(currentMonthIndex, currentYear)} {currentYear}
           </span>
           <button onClick={() => navMonth(1)} style={navBtnStyle} disabled={!canGoNext}>›</button>
           <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: '8px' }}>+ Yeni</button>
@@ -127,8 +132,8 @@ function Habits() {
 
       {habits.length === 0 ? (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '28px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-faint)', marginBottom: '16px', fontSize: '14px' }}>Henüz alışkanlık eklemedin.</p>
-          <button onClick={() => setShowAdd(true)} style={buttonStyle}>İlk alışkanlığını ekle</button>
+          <p style={{ color: 'var(--text-faint)', marginBottom: '16px', fontSize: '14px' }}>{t('habits.empty')}</p>
+          <button onClick={() => setShowAdd(true)} style={buttonStyle}>{t('habits.addFirst')}</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px', alignItems: 'flex-start', maxWidth: '900px' }}>
@@ -137,11 +142,11 @@ function Habits() {
           <div>
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
-                {MONTHS_TR[currentMonthIndex]} {currentYear}
+                {monthName(currentMonthIndex, currentYear)} {currentYear}
               </div>
               {/* Hafta günü başlıkları */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
-                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(d => (
+                {[t('weekdays.mon'), t('weekdays.tue'), t('weekdays.wed'), t('weekdays.thu'), t('weekdays.fri'), t('weekdays.sat'), t('weekdays.sun')].map(d => (
                   <div key={d} style={{ fontSize: '10px', color: 'var(--text-faded)', textAlign: 'center', fontWeight: '600', paddingBottom: '2px' }}>{d}</div>
                 ))}
               </div>
@@ -188,7 +193,7 @@ function Habits() {
             {selectedDay && (
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
-                  {selectedDay} {MONTHS_TR[currentMonthIndex]}
+                  {selectedDay} {monthName(currentMonthIndex, currentYear)}
                 </div>
                 {habits.map(h => {
                   const dateStr = getDateStr(selectedDay)
@@ -217,7 +222,7 @@ function Habits() {
           {/* Sağ: Aylık Özet */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
-              {MONTHS_TR[currentMonthIndex]} Özeti
+              {monthName(currentMonthIndex, currentYear)} {t('habits.summary')}
             </div>
             {habits.map(h => {
               const stat = getHabitMonthStats(h.id)
@@ -249,18 +254,18 @@ function Habits() {
             background: 'var(--bg-card)', border: '1px solid var(--border-strong)',
             borderRadius: '16px', padding: '20px', width: '380px', maxWidth: '95vw'
           }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>Yeni Alışkanlık</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{t('habits.new')}</h3>
             <input
               value={newHabit}
               onChange={e => setNewHabit(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addHabit()}
-              placeholder="örn. Su iç (2L), Spor yap..."
+              placeholder={t('habits.placeholder')}
               style={{ ...inputStyle, width: '100%', marginBottom: '12px' }}
               autoFocus
             />
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={addHabit} style={{ ...buttonStyle, flex: 1 }}>Ekle</button>
-              <button onClick={() => setShowAdd(false)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', flex: 1 }}>İptal</button>
+              <button onClick={addHabit} style={{ ...buttonStyle, flex: 1 }}>{t('common.add')}</button>
+              <button onClick={() => setShowAdd(false)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', flex: 1 }}>{t('common.cancel')}</button>
             </div>
           </div>
         </div>

@@ -239,5 +239,23 @@
     "detailClose": "+ Detay",
     "detailPlaceholder": "Detay ekle...",
     "detailShort": "Detay..."
+  },
+  "habits": {
+    "title": "Alışkanlıklar",
+    "empty": "Henüz alışkanlık eklemedin.",
+    "addFirst": "İlk alışkanlığını ekle",
+    "new": "Yeni Alışkanlık",
+    "placeholder": "örn. Su iç (2L), Spor yap...",
+    "deleteConfirm": "Bu alışkanlığı ve tüm geçmiş kayıtlarını silmek istediğine emin misin?",
+    "summary": "Özeti"
+  },
+  "weekdays": {
+    "mon": "Pzt",
+    "tue": "Sal",
+    "wed": "Çar",
+    "thu": "Per",
+    "fri": "Cum",
+    "sat": "Cmt",
+    "sun": "Paz"
   }
 }

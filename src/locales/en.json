@@ -239,5 +239,23 @@
     "detailClose": "+ Detail",
     "detailPlaceholder": "Add detail...",
     "detailShort": "Detail..."
+  },
+  "habits": {
+    "title": "Habits",
+    "empty": "You haven't added any habits yet.",
+    "addFirst": "Add your first habit",
+    "new": "New Habit",
+    "placeholder": "e.g. Drink water (2L), Exercise...",
+    "deleteConfirm": "Are you sure you want to delete this habit and all its history?",
+    "summary": "Summary"
+  },
+  "weekdays": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
   }
 }
