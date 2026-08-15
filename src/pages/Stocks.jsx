@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
 import { formatMoney } from '../utils/format'
+import { useTranslation } from 'react-i18next'
 
 const TYPE_LABELS = {
   'BIST': 'BIST',
@@ -12,15 +13,15 @@ const TYPE_LABELS = {
   'Common Stock': 'ABD Hisse'
 }
 
-// Ham type'ı gruplama kategorisine indirger
+// Ham type'ı gruplama anahtarına indirger (sabit key, gösterimde t() ile çevrilir)
 function getCategory(type) {
-  if (type === 'BIST') return 'BIST'
-  if (type === 'crypto' || type === 'Digital Currency' || type === 'Cryptocurrency') return 'Kripto'
-  if (type === 'forex' || type === 'Physical Currency') return 'Döviz'
-  return 'ABD Hisse'
+  if (type === 'BIST') return 'bist'
+  if (type === 'crypto' || type === 'Digital Currency' || type === 'Cryptocurrency') return 'crypto'
+  if (type === 'forex' || type === 'Physical Currency') return 'forex'
+  return 'us_stock'
 }
 
-const CATEGORY_ORDER = ['BIST', 'ABD Hisse', 'Kripto', 'Döviz']
+const CATEGORY_ORDER = ['bist', 'us_stock', 'crypto', 'forex']
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
@@ -53,6 +54,8 @@ function Sparkline({ data, color }) {
 
 function Stocks() {
   const { user } = useAuth()
+  const { t } = useTranslation()
+  const catLabelT = (key) => t('stockCategories.' + key, { defaultValue: key })
   const isMobile = useIsMobile()
   const [holdings, setHoldings] = useState([])
   const [quotes, setQuotes] = useState({})
@@ -126,7 +129,7 @@ function Stocks() {
     if (holdings.length > 0) fetchQuotes(holdings)
   }
 
-  if (loading) return <div style={{ color: 'var(--text-faint)' }}>Yükleniyor...</div>
+  if (loading) return <div style={{ color: 'var(--text-faint)' }}>{t('common.loading')}</div>
 
   // Kategorilere göre grupla
   const groupedByCategory = {}
@@ -147,20 +150,20 @@ function Stocks() {
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ marginBottom: '18px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '6px' }}>İzleme Listesi</h2>
-        <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', marginBottom: '12px' }}>Takip etmek istediğin sembolleri ekle. Portföy için Finans → Yatırımlar'ı kullan.</p>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '6px' }}>{t('stocks.title')}</h2>
+        <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', marginBottom: '12px' }}>{t('stocks.subtitle')}</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={refresh} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>↻ Yenile</button>
-          <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>+ Ekle</button>
+          <button onClick={refresh} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>↻ {t('common.refresh')}</button>
+          <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>+ {t('common.add')}</button>
         </div>
       </div>
 
       {/* Filtre */}
       {availableCategories.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveFilter('all')} style={filterBtn(activeFilter === 'all')}>Tümü</button>
+          <button onClick={() => setActiveFilter('all')} style={filterBtn(activeFilter === 'all')}>{t('common.all')}</button>
           {availableCategories.map(cat => (
-            <button key={cat} onClick={() => setActiveFilter(cat)} style={filterBtn(activeFilter === cat)}>{cat}</button>
+            <button key={cat} onClick={() => setActiveFilter(cat)} style={filterBtn(activeFilter === cat)}>{catLabelT(cat)}</button>
           ))}
         </div>
       )}
@@ -169,7 +172,7 @@ function Stocks() {
         {visibleCategories.map(cat => (
           <div key={cat} style={{ marginBottom: '22px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: '600', marginBottom: '10px' }}>
-              {cat} ({groupedByCategory[cat].length})
+              {catLabelT(cat)} ({groupedByCategory[cat].length})
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
               {groupedByCategory[cat].map(h => {
@@ -200,7 +203,7 @@ function Stocks() {
                           </span>
                           {monthChange !== null && monthChange !== undefined && (
                             <span style={{ fontSize: '11.5px', color: parseFloat(monthChange) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                              30g: {parseFloat(monthChange) >= 0 ? '+' : ''}{monthChange}%
+                              {t('stocks.day30')}: {parseFloat(monthChange) >= 0 ? '+' : ''}{monthChange}%
                             </span>
                           )}
                         </div>
@@ -216,17 +219,17 @@ function Stocks() {
 
         {holdings.length === 0 && (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Henüz hiçbir sembol eklenmedi. + Ekle ile başla.</p>
+            <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('stocks.emptyWatchlist')}</p>
           </div>
         )}
       </div>
 
       {showAdd && (
         <Modal onClose={() => setShowAdd(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>İzleme Listesine Ekle</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{t('stocks.addToWatchlist')}</h3>
 
           <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-            {[['stock', 'ABD Hisse'], ['bist', 'BIST'], ['crypto', 'Kripto'], ['forex', 'Döviz']].map(([val, label]) => (
+            {[['stock', catLabelT('us_stock')], ['bist', catLabelT('bist')], ['crypto', catLabelT('crypto')], ['forex', catLabelT('forex')]].map(([val, label]) => (
               <button key={val} onClick={() => { setSearchType(val); setResults([]) }} style={{
                 padding: '5px 12px', borderRadius: '20px', border: '1px solid',
                 borderColor: searchType === val ? 'var(--accent)' : 'var(--border-strong)',
@@ -237,9 +240,9 @@ function Stocks() {
           </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
             <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchSymbol()}
-              placeholder={searchType === 'crypto' ? 'BTC, ETH...' : searchType === 'forex' ? 'EUR, XAU (altın)...' : searchType === 'bist' ? 'THYAO, ASELS...' : 'Apple, AAPL...'}
+              placeholder={searchType === 'crypto' ? t('stocks.phCrypto') : searchType === 'forex' ? t('stocks.phForex') : searchType === 'bist' ? t('stocks.phBist') : t('stocks.phStock')}
               style={inputStyle} autoFocus />
-            <button onClick={searchSymbol} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
+            <button onClick={searchSymbol} style={buttonStyle}>{searching ? '...' : t('stocks.search')}</button>
           </div>
           <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
             {results.map((r, i) => (
@@ -253,7 +256,7 @@ function Stocks() {
             ))}
             {results.length === 0 && !searching && (
               <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>
-                {searchType === 'crypto' ? 'Kripto ara' : searchType === 'forex' ? 'Döviz/altın ara' : searchType === 'bist' ? 'BIST hissesi ara' : 'ABD hissesi ara'}
+                {searchType === 'crypto' ? t('stocks.searchCrypto') : searchType === 'forex' ? t('stocks.searchForex') : searchType === 'bist' ? t('stocks.searchBist') : t('stocks.searchStock')}
               </p>
             )}
           </div>

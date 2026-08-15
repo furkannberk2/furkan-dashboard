@@ -308,5 +308,27 @@
     "active": "Aktif",
     "paused": "Beklemede",
     "completed": "Tamamlandı"
+  },
+  "stocks": {
+    "title": "İzleme Listesi",
+    "subtitle": "Takip etmek istediğin sembolleri ekle. Portföy için Finans → Yatırımlar'ı kullan.",
+    "addToWatchlist": "İzleme Listesine Ekle",
+    "emptyWatchlist": "Henüz hiçbir sembol eklenmedi. + Ekle ile başla.",
+    "search": "Ara",
+    "searchCrypto": "Kripto ara",
+    "searchForex": "Döviz/altın ara",
+    "searchBist": "BIST hissesi ara",
+    "searchStock": "ABD hissesi ara",
+    "phCrypto": "BTC, ETH...",
+    "phForex": "EUR, XAU (altın)...",
+    "phBist": "THYAO, ASELS...",
+    "phStock": "Apple, AAPL...",
+    "day30": "30g"
+  },
+  "stockCategories": {
+    "bist": "BIST",
+    "us_stock": "ABD Hisse",
+    "crypto": "Kripto",
+    "forex": "Döviz"
   }
 }

@@ -308,5 +308,27 @@
     "active": "Active",
     "paused": "Paused",
     "completed": "Completed"
+  },
+  "stocks": {
+    "title": "Watchlist",
+    "subtitle": "Add symbols you want to track. For portfolio, use Finance → Investments.",
+    "addToWatchlist": "Add to Watchlist",
+    "emptyWatchlist": "No symbols added yet. Start with + Add.",
+    "search": "Search",
+    "searchCrypto": "Search crypto",
+    "searchForex": "Search forex/gold",
+    "searchBist": "Search BIST stock",
+    "searchStock": "Search US stock",
+    "phCrypto": "BTC, ETH...",
+    "phForex": "EUR, XAU (gold)...",
+    "phBist": "THYAO, ASELS...",
+    "phStock": "Apple, AAPL...",
+    "day30": "30d"
+  },
+  "stockCategories": {
+    "bist": "BIST",
+    "us_stock": "US Stock",
+    "crypto": "Crypto",
+    "forex": "Forex"
   }
 }
