@@ -280,7 +280,20 @@
     "doneToday": "Done today",
     "doneYesterday": "Done yesterday",
     "done": "✓ Done",
-    "routines": "Routines"
+    "routines": "Routines",
+    "projectsTitle": "Projects",
+    "newProject": "New Project",
+    "addProjectBtn": "+ New Project",
+    "delete": "Delete",
+    "autoCalc": "Auto calculate",
+    "phase": "Phase",
+    "addRoutine": "Add routine...",
+    "whichDays": "Which day(s)?",
+    "noRoutine": "No routines.",
+    "daysAgo": "days ago",
+    "autoDone": "Auto: {{done}}/{{total}} phases done",
+    "whichMonthDays": "Which day(s) of month?",
+    "monthDayOf": "Day {{days}} of month"
   },
   "frequency": {
     "daily": "Daily",

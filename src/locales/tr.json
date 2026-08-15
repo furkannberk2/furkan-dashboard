@@ -280,7 +280,20 @@
     "doneToday": "Bugün yapıldı",
     "doneYesterday": "Dün yapıldı",
     "done": "✓ Yapıldı",
-    "routines": "Rutinler"
+    "routines": "Rutinler",
+    "projectsTitle": "Projeler",
+    "newProject": "Yeni Proje",
+    "addProjectBtn": "+ Yeni Proje",
+    "delete": "Sil",
+    "autoCalc": "Otomatik hesapla",
+    "phase": "Aşama",
+    "addRoutine": "Rutin ekle...",
+    "whichDays": "Hangi gün(ler)?",
+    "noRoutine": "Rutin yok.",
+    "daysAgo": "gün önce",
+    "autoDone": "Otomatik: {{done}}/{{total}} aşama tamamlandı",
+    "whichMonthDays": "Ayın hangi gün(ler)?",
+    "monthDayOf": "Ayın {{days}}'i"
   },
   "frequency": {
     "daily": "Her gün",

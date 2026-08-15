@@ -199,7 +199,7 @@ async function addRoutine() {
     const diff = Math.floor((new Date() - d) / (1000 * 60 * 60 * 24))
     if (diff === 0) return t('projects_page.doneToday')
     if (diff === 1) return t('projects_page.doneYesterday')
-    return `${diff} gün önce`
+    return `${diff} ${t('projects_page.daysAgo')}`
   }
 
   function isRoutineOverdue(routine) {
@@ -246,8 +246,8 @@ function toggleMonthDay(v) {
   return (
     <div style={{ color: 'var(--text)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700' }}>Projeler</h2>
-        <button onClick={() => setShowAddProject(true)} style={buttonStyle}>+ Yeni Proje</button>
+        <h2 style={{ fontSize: '22px', fontWeight: '700' }}>{t('projects_page.projectsTitle')}</h2>
+        <button onClick={() => setShowAddProject(true)} style={buttonStyle}>{t('projects_page.addProjectBtn')}</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
@@ -276,7 +276,7 @@ function toggleMonthDay(v) {
       {/* Yeni Proje Modal */}
       {showAddProject && (
         <Modal onClose={() => setShowAddProject(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '18px' }}>Yeni Proje</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '18px' }}>{t('projects_page.newProject')}</h3>
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t('projects_page.projectName')} style={{ ...inputStyle, marginBottom: '10px', width: '100%' }} />
           <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder={t('projects_page.emojiPlaceholder')} style={{ ...inputStyle, marginBottom: '12px', width: '100%' }} />
           <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '8px' }}>Renk</div>
@@ -286,7 +286,7 @@ function toggleMonthDay(v) {
             ))}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addProject} style={{ ...buttonStyle, flex: 1 }}>Ekle</button>
+            <button onClick={addProject} style={{ ...buttonStyle, flex: 1 }}>{t('common.add')}</button>
             <button onClick={() => setShowAddProject(false)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', flex: 1 }}>{t('common.cancel')}</button>
           </div>
         </Modal>
@@ -299,7 +299,7 @@ function toggleMonthDay(v) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
               {selectedProject.icon && <span style={{ fontSize: '22px' }}>{selectedProject.icon}</span>}
               <h3 style={{ fontSize: '20px', fontWeight: '700', flex: 1, minWidth: 0 }}>{selectedProject.name}</h3>
-              <button onClick={() => deleteProject(selectedProject.id)} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', padding: '6px 10px' }}>Sil</button>
+              <button onClick={() => deleteProject(selectedProject.id)} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', padding: '6px 10px' }}>{t('projects_page.delete')}</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -310,7 +310,7 @@ function toggleMonthDay(v) {
               </div>
               {selectedProject.progress_manual && (
                 <button onClick={resetProgressAuto} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '12px', padding: '5px 10px' }}>
-                  Otomatik hesapla
+                  {t('projects_page.autoCalc')}
                 </button>
               )}
               <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
@@ -319,7 +319,7 @@ function toggleMonthDay(v) {
             </div>
             {!selectedProject.progress_manual && phases.length > 0 && (
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                Otomatik: {completedPhases}/{phases.length} aşama tamamlandı
+                {t('projects_page.autoDone', { done: completedPhases, total: phases.length })}
               </div>
             )}
           </div>
@@ -346,17 +346,17 @@ function toggleMonthDay(v) {
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                 <input value={newPhase} onChange={e => setNewPhase(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPhase()} placeholder={t('projects_page.addPhase')} style={{ ...inputStyle, fontSize: '13px' }} />
                 <input type="date" value={newPhaseDate} onChange={e => setNewPhaseDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
-                <button onClick={addPhase} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>Ekle</button>
+                <button onClick={addPhase} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>{t('common.add')}</button>
               </div>
-              {phases.map((t, i) => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
-                  <div onClick={() => togglePhase(t.id, t.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: t.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: t.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {t.status === 'done' && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+              {phases.map((ph, i) => (
+                <div key={ph.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
+                  <div onClick={() => togglePhase(ph.id, ph.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: ph.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: ph.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {ph.status === 'done' && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0, fontWeight: '600' }}>Aşama {i + 1}</span>
-                  <span style={{ fontSize: '13px', color: t.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>{t.title}</span>
-                  {t.date && <span style={{ fontSize: '11px', color: t.date < today && t.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.date)}</span>}
-                  <span onClick={() => deletePhase(t.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0, fontWeight: '600' }}>{t('projects_page.phase')} {i + 1}</span>
+                  <span style={{ fontSize: '13px', color: ph.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: ph.status === 'done' ? 'line-through' : 'none' }}>{ph.title}</span>
+                  {ph.date && <span style={{ fontSize: '11px', color: ph.date < today && ph.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)', flexShrink: 0 }}>{formatDate(ph.date)}</span>}
+                  <span onClick={() => deletePhase(ph.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
                 </div>
               ))}
               {phases.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('projects_page.noPhase')}</p>}
@@ -366,7 +366,7 @@ function toggleMonthDay(v) {
 {tab === 'routines' && (
   <div>
     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-      <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder="Rutin ekle..." style={{ ...inputStyle, fontSize: '13px' }} />
+      <input value={newRoutine} onChange={e => setNewRoutine(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRoutine()} placeholder={t('projects_page.addRoutine')} style={{ ...inputStyle, fontSize: '13px' }} />
       <select value={newFrequency} onChange={e => { setNewFrequency(e.target.value); setNewRoutineDays([]); setNewRoutineMonthDays([]) }} style={{ ...selectStyle, fontSize: '13px' }}>
         {FREQUENCIES.map(f => <option key={f.key} value={f.key}>{freqLabelT(f.key)}</option>)}
       </select>
@@ -376,7 +376,7 @@ function toggleMonthDay(v) {
     {(['weekly_1', 'weekly_2', 'weekly_3', 'biweekly_1'].includes(newFrequency)) && (
       <div style={{ marginBottom: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
-          Hangi gün(ler)? ({newRoutineDays.length}/{getMaxDays(newFrequency)})
+          {t('projects_page.whichDays')} ({newRoutineDays.length}/{getMaxDays(newFrequency)})
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {WEEKDAYS.map(d => (
@@ -402,7 +402,7 @@ function toggleMonthDay(v) {
     {['monthly_1', 'monthly_2'].includes(newFrequency) && (
       <div style={{ marginBottom: '8px' }}>
         <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>
-          Ayın hangi gün(ler)? ({newRoutineMonthDays.length}/{getMaxDays(newFrequency)})
+          {t('projects_page.whichMonthDays')} ({newRoutineMonthDays.length}/{getMaxDays(newFrequency)})
         </div>
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
@@ -421,7 +421,7 @@ function toggleMonthDay(v) {
     <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
       <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{t('projects_page.endOptional')}</span>
       <input type="date" value={newRoutineEnd} onChange={e => setNewRoutineEnd(e.target.value)} style={{ ...inputStyle, flex: 0, width: '150px', fontSize: '13px' }} />
-      <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}>Ekle</button>
+      <button onClick={addRoutine} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}>{t('common.add')}</button>
     </div>
 
     {routines.map(r => {
@@ -440,7 +440,7 @@ function toggleMonthDay(v) {
               )}
               {r.days_of_month?.length > 0 && (
                 <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
-                  Ayın {r.days_of_month.join(', ')}'i
+                  {t('projects_page.monthDayOf', { days: r.days_of_month.join(', ') })}
                 </span>
               )}
               {r.end_date && <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>→ {formatDate(r.end_date)}</span>}
@@ -455,7 +455,7 @@ function toggleMonthDay(v) {
         </div>
       )
     })}
-    {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>Rutin yok.</p>}
+    {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('projects_page.noRoutine')}</p>}
   </div>
 )}
         </Modal>
