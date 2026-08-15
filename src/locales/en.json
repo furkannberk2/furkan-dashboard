@@ -330,5 +330,19 @@
     "us_stock": "US Stock",
     "crypto": "Crypto",
     "forex": "Forex"
+  },
+  "mail": {
+    "title": "Mail Digest",
+    "connectAccount": "+ Connect Account",
+    "summarizing": "Summarizing...",
+    "summarizeToday": "Summarize Today",
+    "getStarted": "First connect your Gmail account, then click \"Summarize Today\".",
+    "noAccount": "No Gmail account connected yet.",
+    "connectGmail": "Connect Gmail",
+    "error": "An error occurred.",
+    "todaySummary": "Today's Summary",
+    "mailCount": "{{count}} emails",
+    "hideMails": "▲ Hide emails",
+    "showMails": "▼ Show all emails"
   }
 }

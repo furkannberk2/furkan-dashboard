@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
+import { useTranslation } from 'react-i18next'
 
 function Mail() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const userId = user?.id
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -19,7 +21,7 @@ async function fetchSummary(force = false) {
     setData(json)
   } catch (err) {
     console.error(err)
-    setData({ error: 'Bir hata oluştu.' })
+    setData({ error: t('mail.error') })
   } finally {
     setLoading(false)
   }
@@ -37,25 +39,25 @@ useEffect(() => {
   return (
     <div style={{ color: 'var(--text)', maxWidth: '720px' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Mail Özeti</h2>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>{t('mail.title')}</h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button onClick={connectGmail} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>+ Hesap Bağla</button>
+          <button onClick={connectGmail} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '13px' }}>{t('mail.connectAccount')}</button>
           <button onClick={() => fetchSummary(true)} disabled={loading} style={{ ...buttonStyle, fontSize: '13px', marginLeft: 'auto' }}>
-          {loading ? 'Özetleniyor...' : 'Bugünü Özetle'}
+          {loading ? t('mail.summarizing') : t('mail.summarizeToday')}
           </button>
         </div>
       </div>
 
       {!data && !loading && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Önce Gmail hesabını bağla, sonra "Bugünü Özetle" butonuna bas.</p>
+          <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('mail.getStarted')}</p>
         </div>
       )}
 
       {data?.connected === false && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '14px' }}>Henüz bağlı bir Gmail hesabı yok.</p>
-          <button onClick={connectGmail} style={buttonStyle}>Gmail Bağla</button>
+          <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginBottom: '14px' }}>{t('mail.noAccount')}</p>
+          <button onClick={connectGmail} style={buttonStyle}>{t('mail.connectGmail')}</button>
         </div>
       )}
 
@@ -77,7 +79,7 @@ useEffect(() => {
 
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>
-              Bugünün Özeti {data.mails?.length > 0 && `· ${data.mails.length} mail`}
+              {t('mail.todaySummary')} {data.mails?.length > 0 && `· ${t('mail.mailCount', { count: data.mails.length })}`}
             </div>
             <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{data.summary}</div>
           </div>
@@ -85,7 +87,7 @@ useEffect(() => {
           {data.mails?.length > 0 && (
             <div>
               <button onClick={() => setShowMails(!showMails)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', marginBottom: '10px' }}>
-                {showMails ? '▲ Mailleri gizle' : '▼ Tüm mailleri göster'}
+                {showMails ? t('mail.hideMails') : t('mail.showMails')}
               </button>
               {showMails && data.mails.map((m, i) => (
                 <div key={i} style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '11px 14px', marginBottom: '8px' }}>

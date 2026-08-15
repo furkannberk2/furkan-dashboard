@@ -330,5 +330,19 @@
     "us_stock": "ABD Hisse",
     "crypto": "Kripto",
     "forex": "Döviz"
+  },
+  "mail": {
+    "title": "Mail Özeti",
+    "connectAccount": "+ Hesap Bağla",
+    "summarizing": "Özetleniyor...",
+    "summarizeToday": "Bugünü Özetle",
+    "getStarted": "Önce Gmail hesabını bağla, sonra \"Bugünü Özetle\" butonuna bas.",
+    "noAccount": "Henüz bağlı bir Gmail hesabı yok.",
+    "connectGmail": "Gmail Bağla",
+    "error": "Bir hata oluştu.",
+    "todaySummary": "Bugünün Özeti",
+    "mailCount": "{{count}} mail",
+    "hideMails": "▲ Mailleri gizle",
+    "showMails": "▼ Tüm mailleri göster"
   }
 }
