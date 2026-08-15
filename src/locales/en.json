@@ -231,6 +231,13 @@
     "noStage": "No stage",
     "edit": "Edit",
     "medium": "Medium",
-    "openPhases": "open stages"
+    "openPhases": "open stages",
+    "projects": "Projects",
+    "routine": "routine",
+    "detail": "Detail",
+    "detailOpen": "− Detail",
+    "detailClose": "+ Detail",
+    "detailPlaceholder": "Add detail...",
+    "detailShort": "Detail..."
   }
 }

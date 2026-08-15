@@ -387,11 +387,11 @@ function Tasks() {
               placeholder={t('tasks.addTask')}
               style={inputStyle}
             />
-            <button onClick={addTask} style={buttonStyle}>Ekle</button>
+            <button onClick={addTask} style={buttonStyle}>{t('common.add')}</button>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
-              type="date"
+              type="date" lang={i18n.language}
               value={newDeadline}
               onChange={e => setNewDeadline(e.target.value)}
               style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
@@ -401,14 +401,14 @@ function Tasks() {
               onClick={() => setShowDetail(!showDetail)}
               style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '13px', padding: '7px 12px' }}
             >
-              {showDetail ? '− Detay' : '+ Detay'}
+              {showDetail ? t('tasks.detailOpen') : t('tasks.detailClose')}
             </button>
           </div>
           {showDetail && (
             <textarea
               value={newDetail}
               onChange={e => setNewDetail(e.target.value)}
-              placeholder="Detay ekle..."
+              placeholder={t('tasks.detailPlaceholder')}
               rows={2}
               style={{ ...inputStyle, width: '100%', resize: 'vertical', marginTop: '8px', fontSize: '13px' }}
             />
@@ -496,7 +496,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
     <div style={{ width: isMobile ? '100%' : '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {projectSummaries.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>Projeler</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', fontWeight: '600' }}>{t('tasks.projects')}</div>
           {projectSummaries.map(p => (
             <div key={p.id} style={{ marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
@@ -509,7 +509,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
                 {p.openPhases > 0 ? `${p.openPhases} ${t('tasks.openPhases')}` : t('tasks.noStage')}
-                {p.routineCount > 0 ? ` · ${p.routineCount} rutin` : ''}
+                {p.routineCount > 0 ? ` · ${p.routineCount} ${t('tasks.routine')}` : ''}
               </div>
             </div>
           ))}
@@ -579,7 +579,7 @@ function PrioritySelect({ value, onChange }) {
 }
 
 function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverdue, compact, editingId, editDraft, setEditDraft, saveEdit, cancelEdit }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
   const isEditing = editingId === task.id && task.source !== 'routine'
   const projectColor = task.project?.color
@@ -602,7 +602,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
         />
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
           <input
-            type="date"
+            type="date" lang={i18n.language}
             value={editDraft.day}
             onChange={e => setEditDraft({ ...editDraft, day: e.target.value })}
             style={{ ...inputStyle, fontSize: '13px', minWidth: '140px', flex: 0 }}
@@ -615,7 +615,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
           <textarea
             value={editDraft.note}
             onChange={e => setEditDraft({ ...editDraft, note: e.target.value })}
-            placeholder="Detay..."
+            placeholder={t('tasks.detailShort')}
             rows={2}
             style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: '13px', marginBottom: '8px' }}
           />

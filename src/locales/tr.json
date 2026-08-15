@@ -231,6 +231,13 @@
     "noStage": "Aşama yok",
     "edit": "Düzenle",
     "medium": "Orta",
-    "openPhases": "açık aşama"
+    "openPhases": "açık aşama",
+    "projects": "Projeler",
+    "routine": "rutin",
+    "detail": "Detay",
+    "detailOpen": "− Detay",
+    "detailClose": "+ Detay",
+    "detailPlaceholder": "Detay ekle...",
+    "detailShort": "Detay..."
   }
 }
