@@ -155,7 +155,18 @@
     "assetDistribution": "Varlık Dağılımı",
     "whatToAdd": "Ne eklemek istiyorsun?",
     "physical": "Fiziksel",
-    "current": "Güncel"
+    "current": "Güncel",
+    "thisMonthSpending": "Bu Ay Harcama",
+    "incomePrefix": "Gelir",
+    "positions": "pozisyon",
+    "thisMonth": "Bu Ay",
+    "thisMonthSuffix": "(bu ay)",
+    "incomeRow": "Gelir",
+    "fixedExpenseRow": "Sabit Gider",
+    "freeRow": "Serbest",
+    "noExpense": "Harcama yok.",
+    "noRecurring": "Sabit gider yok.",
+    "fundCode": "Fon kodu"
   },
   "categories": {
     "groceries": "Market",

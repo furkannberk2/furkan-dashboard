@@ -429,8 +429,8 @@ const categoryDistribution = (() => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         <SummaryCard title={t('finance.todaySpending')} value={`${fmt(todayTotal)}`} sub={dailyBudget > 0 ? (todayTotal <= dailyBudget ? `${fmt(dailyBudget - todayTotal)} ${t('finance.remaining')} · ${t('finance.daysLeft', { days: remainingDays })}` : `${fmt(todayTotal - dailyBudget)} ${t('finance.over')}`) : `Limit: ${fmt(dailyBudget)}`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />
-        <SummaryCard title="Bu Ay Harcama" value={`${fmt(monthTotal)}`} sub={`Gelir: ${fmt(totalIncome)}`} />
-        <SummaryCard title={t('finance.investPortfolio')} value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} pozisyon${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
+        <SummaryCard title={t('finance.thisMonthSpending')} value={`${fmt(monthTotal)}`} sub={`${t('finance.incomePrefix')}: ${fmt(totalIncome)}`} />
+        <SummaryCard title={t('finance.investPortfolio')} value={`${fmt(Math.round(investTotal))}`} sub={`${investments.length} ${t('finance.positions')}${usdTry ? ` · 1$ = ${usdTry.toFixed(2)}₺` : ''}`} />
       </div>
 
       <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -532,7 +532,7 @@ const categoryDistribution = (() => {
                   )
                 })}
 
-                {dailyExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Harcama yok.</p>}
+                {dailyExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('finance.noExpense')}</p>}
               </>
             )
           })()}
@@ -595,7 +595,7 @@ const categoryDistribution = (() => {
               <span onClick={() => deleteRecurring(e.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px' }}>✕</span>
             </div>
           ))}
-          {recurringExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>Sabit gider yok.</p>}
+          {recurringExpenses.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px' }}>{t('finance.noRecurring')}</p>}
         </div>
       )}
 
@@ -750,7 +750,7 @@ const categoryDistribution = (() => {
 
           {totalIncome > 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>Bu Ay</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px' }}>{t('finance.thisMonth')}</div>
               <Row label={t('finance.monthlySalary')} value={`${fmt(totalIncome)}`} color="var(--success)" />
               {useBalance && income?.balance && (
                 <Row label={t('finance.currentBalance')} value={`${fmt(Number(income.balance))}`} color="var(--purple)" />
@@ -770,12 +770,12 @@ const categoryDistribution = (() => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                 {projection.map((p, i) => (
                   <div key={i} style={{ background: i === 0 ? 'var(--accent-soft)' : 'var(--bg-card)', border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-                    <div style={{ fontSize: '12px', color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', fontWeight: '600', marginBottom: '10px' }}>{p.label} {i === 0 ? '(bu ay)' : ''}</div>
-                    <Row label="Gelir" value={`${fmt(p.income)}`} color="var(--success)" small />
-                    <Row label="Sabit Gider" value={`− ${fmt(p.recurring)}`} color="var(--danger)" small />
+                    <div style={{ fontSize: '12px', color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', fontWeight: '600', marginBottom: '10px' }}>{p.label} {i === 0 ? t('finance.thisMonthSuffix') : ''}</div>
+                    <Row label={t('finance.incomeRow')} value={`${fmt(p.income)}`} color="var(--success)" small />
+                    <Row label={t('finance.fixedExpenseRow')} value={`− ${fmt(p.recurring)}`} color="var(--danger)" small />
                     <Row label={t('finance.variable')} value={`− ${fmt(p.variable)}`} color="var(--warning)" small />
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '4px' }}>
-                      <Row label="Serbest" value={`${fmt(p.free)}`} color={p.free >= 0 ? 'var(--text)' : 'var(--danger)'} bold small />
+                      <Row label={t('finance.freeRow')} value={`${fmt(p.free)}`} color={p.free >= 0 ? 'var(--text)' : 'var(--danger)'} bold small />
                     </div>
                   </div>
                 ))}
@@ -817,7 +817,7 @@ const categoryDistribution = (() => {
                   value={invManualCode}
                   onChange={e => setInvManualCode(e.target.value.toUpperCase())}
                   onKeyDown={e => e.key === 'Enter' && checkTefasCode()}
-                  placeholder="Fon kodu"
+                  placeholder={t('finance.fundCode')}
                   maxLength="6"
                   style={inputStyle}
                   autoFocus

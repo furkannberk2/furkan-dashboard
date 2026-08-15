@@ -155,7 +155,18 @@
     "assetDistribution": "Asset Distribution",
     "whatToAdd": "What would you like to add?",
     "physical": "Physical",
-    "current": "Current"
+    "current": "Current",
+    "thisMonthSpending": "This Month Spending",
+    "incomePrefix": "Income",
+    "positions": "positions",
+    "thisMonth": "This Month",
+    "thisMonthSuffix": "(this month)",
+    "incomeRow": "Income",
+    "fixedExpenseRow": "Fixed Expense",
+    "freeRow": "Free",
+    "noExpense": "No expenses.",
+    "noRecurring": "No fixed expenses.",
+    "fundCode": "Fund code"
   },
   "categories": {
     "groceries": "Groceries",
