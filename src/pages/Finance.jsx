@@ -425,7 +425,7 @@ const categoryDistribution = (() => {
 
   return (
     <div style={{ color: 'var(--text)' }}>
-      <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>Finans</h2>
+      <h2 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700' }}>{t('nav.finance')}</h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         <SummaryCard title={t('finance.todaySpending')} value={`${fmt(todayTotal)}`} sub={dailyBudget > 0 ? (todayTotal <= dailyBudget ? `${fmt(dailyBudget - todayTotal)} ${t('finance.remaining')} · ${t('finance.daysLeft', { days: remainingDays })}` : `${fmt(todayTotal - dailyBudget)} ${t('finance.over')}`) : `Limit: ${fmt(dailyBudget)}`} percent={limitPercent} color={limitPercent > 80 ? 'var(--danger)' : limitPercent > 50 ? 'var(--warning)' : 'var(--success)'} />

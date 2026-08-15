@@ -52,7 +52,11 @@
     "mailCount": "Bugün {{count}} mail geldi",
     "mailLoading": "Mail durumu yükleniyor...",
     "allDone": "Hepsi tamam",
-    "calories": "Kalori"
+    "calories": "Kalori",
+    "loading": "Yükleniyor...",
+    "noOpenTasks": "Bugün için açık görev yok.",
+    "overdue": "geçti",
+    "noHabits": "Henüz alışkanlık eklenmedi."
   },
   "calories": {
     "title": "Kalori",
@@ -84,7 +88,10 @@
     "barcodeNotFound": "Bu barkod veritabanında yok",
     "cameraError": "Kameraya erişilemedi — tarayıcı izni gerekli",
     "deleteMealConfirm": "Bu öğünü silmek istediğine emin misin? İçindeki {{count}} yemek girişi de silinecek.",
-    "deleteMealConfirmEmpty": "Bu öğünü silmek istediğine emin misin?"
+    "deleteMealConfirmEmpty": "Bu öğünü silmek istediğine emin misin?",
+    "per100g": "Besin değerleri 100g içindir",
+    "name": "İsim",
+    "macrosOptional": "Makrolar (isteğe bağlı)"
   },
   "meals": {
     "breakfast": "Kahvaltı",

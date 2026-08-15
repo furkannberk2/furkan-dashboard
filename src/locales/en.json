@@ -52,7 +52,11 @@
     "mailCount": "{{count}} emails today",
     "mailLoading": "Loading mail status...",
     "allDone": "All done",
-    "calories": "Calories"
+    "calories": "Calories",
+    "loading": "Loading...",
+    "noOpenTasks": "No open tasks for today.",
+    "overdue": "overdue",
+    "noHabits": "No habits added yet."
   },
   "calories": {
     "title": "Calories",
@@ -84,7 +88,10 @@
     "barcodeNotFound": "This barcode is not in the database",
     "cameraError": "Camera not accessible — browser permission required",
     "deleteMealConfirm": "Are you sure you want to delete this meal? Its {{count}} food entries will also be deleted.",
-    "deleteMealConfirmEmpty": "Are you sure you want to delete this meal?"
+    "deleteMealConfirmEmpty": "Are you sure you want to delete this meal?",
+    "per100g": "Nutrition values per 100g",
+    "name": "Name",
+    "macrosOptional": "Macros (optional)"
   },
   "meals": {
     "breakfast": "Breakfast",

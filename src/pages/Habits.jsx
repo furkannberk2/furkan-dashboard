@@ -126,7 +126,7 @@ function Habits() {
             {monthName(currentMonthIndex, currentYear)} {currentYear}
           </span>
           <button onClick={() => navMonth(1)} style={navBtnStyle} disabled={!canGoNext}>›</button>
-          <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: '8px' }}>+ Yeni</button>
+          <button onClick={() => setShowAdd(true)} style={{ ...buttonStyle, fontSize: '13px', marginLeft: '8px' }}>+ {t('common.new')}</button>
         </div>
       </div>
 

@@ -170,7 +170,7 @@ function Home() {
   })
   const portfolioChange = totalWithPrice > 0 ? weightedChange / totalWithPrice : null
 
-  if (loading) return <p style={{ color: 'var(--text-faint)' }}>Yükleniyor...</p>
+  if (loading) return <p style={{ color: 'var(--text-faint)' }}>{t('home.loading')}</p>
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Furkan'
 
@@ -233,7 +233,7 @@ function Home() {
         <div style={cardStyle}>
           <CardHeader title={t('home.tasksToday')} to="/tasks" />
           {openTasks.length === 0 ? (
-            <p style={emptyStyle}>Bugün için açık görev yok.</p>
+            <p style={emptyStyle}>{t('home.noOpenTasks')}</p>
           ) : (
             openTasks.map(t => (
               <div key={t.id} onClick={() => toggleTask(t)} style={{
@@ -244,7 +244,7 @@ function Home() {
                 <Circle size={16} color="var(--text-faint)" strokeWidth={2} />
                 <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', flex: 1 }}>{t.title}</span>
                 {t.day && t.day < todayStr && (
-                  <span style={{ fontSize: '11px', color: 'var(--danger)' }}>geçti</span>
+                  <span style={{ fontSize: '11px', color: 'var(--danger)' }}>{t('home.overdue')}</span>
                 )}
               </div>
             ))
@@ -254,7 +254,7 @@ function Home() {
         <div style={cardStyle}>
           <CardHeader title={t('home.habitsToday')} to="/habits" />
           {habits.length === 0 ? (
-            <p style={emptyStyle}>Henüz alışkanlık eklenmedi.</p>
+            <p style={emptyStyle}>{t('home.noHabits')}</p>
           ) : (
             visibleHabits.map(h => {
               const checked = isHabitDone(h.id)

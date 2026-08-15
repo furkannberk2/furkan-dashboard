@@ -418,7 +418,7 @@ async function moveMeal(id, direction) {
           {/* ARAMA */}
           {addMode === 'search' && (
             <>
-              <p style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '12px' }}>Besin değerleri 100g içindir</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '12px' }}>{t('calories.per100g')}</p>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchFood()} placeholder="Yemek ara..." style={inputStyle} autoFocus />
                 <button onClick={searchFood} style={buttonStyle}>{searching ? '...' : 'Ara'}</button>
@@ -437,7 +437,7 @@ async function moveMeal(id, direction) {
           {addMode === 'manual' && (
             <>
               <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>İsim</label>
+                <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>{t('calories.name')}</label>
                 <input value={mName} onChange={e => setMName(e.target.value)} placeholder={t('calories.namePlaceholder')} style={{ ...inputStyle, width: '100%' }} autoFocus />
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -450,7 +450,7 @@ async function moveMeal(id, direction) {
                   <input value={mQuantity} onChange={e => setMQuantity(e.target.value)} type="number" placeholder="100" style={{ ...inputStyle, width: '100%' }} />
                 </div>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px' }}>Makrolar (isteğe bağlı)</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px' }}>{t('calories.macrosOptional')}</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
                 <input value={mProtein} onChange={e => setMProtein(e.target.value)} type="number" placeholder="Protein (g)" style={{ ...inputStyle, fontSize: '13px' }} />
                 <input value={mCarbs} onChange={e => setMCarbs(e.target.value)} type="number" placeholder="Karb (g)" style={{ ...inputStyle, fontSize: '13px' }} />
