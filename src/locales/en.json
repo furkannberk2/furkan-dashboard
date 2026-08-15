@@ -264,5 +264,36 @@
     "fri": "Fri",
     "sat": "Sat",
     "sun": "Sun"
+  },
+  "projects_page": {
+    "noPhase": "No phases.",
+    "startWeek": "Start week:",
+    "endOptional": "End (optional):",
+    "noProject": "No projects yet.",
+    "expired": "· expired",
+    "doneMararea": "✓ Done",
+    "projectName": "Project name",
+    "emojiPlaceholder": "Emoji (e.g. 🎬)",
+    "addPhase": "Add phase...",
+    "phases": "Phases",
+    "neverDone": "Never done",
+    "doneToday": "Done today",
+    "doneYesterday": "Done yesterday",
+    "done": "✓ Done",
+    "routines": "Routines"
+  },
+  "frequency": {
+    "daily": "Daily",
+    "weekly_1": "Weekly",
+    "weekly_2": "2x/week",
+    "weekly_3": "3x/week",
+    "biweekly_1": "Every 2 weeks",
+    "monthly_1": "Monthly",
+    "monthly_2": "2x/month"
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused",
+    "completed": "Completed"
   }
 }

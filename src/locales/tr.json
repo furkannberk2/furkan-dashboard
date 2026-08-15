@@ -264,5 +264,36 @@
     "fri": "Cum",
     "sat": "Cmt",
     "sun": "Paz"
+  },
+  "projects_page": {
+    "noPhase": "Aşama yok.",
+    "startWeek": "Başlangıç haftası:",
+    "endOptional": "Bitiş (opsiyonel):",
+    "noProject": "Henüz proje yok.",
+    "expired": "· süresi doldu",
+    "doneMararea": "✓ Yapıldı",
+    "projectName": "Proje adı",
+    "emojiPlaceholder": "Emoji (örn. 🎬)",
+    "addPhase": "Aşama ekle...",
+    "phases": "Aşamalar",
+    "neverDone": "Hiç yapılmadı",
+    "doneToday": "Bugün yapıldı",
+    "doneYesterday": "Dün yapıldı",
+    "done": "✓ Yapıldı",
+    "routines": "Rutinler"
+  },
+  "frequency": {
+    "daily": "Her gün",
+    "weekly_1": "Haftada 1",
+    "weekly_2": "Haftada 2",
+    "weekly_3": "Haftada 3",
+    "biweekly_1": "2 haftada 1",
+    "monthly_1": "Ayda 1",
+    "monthly_2": "Ayda 2"
+  },
+  "status": {
+    "active": "Aktif",
+    "paused": "Beklemede",
+    "completed": "Tamamlandı"
   }
 }
