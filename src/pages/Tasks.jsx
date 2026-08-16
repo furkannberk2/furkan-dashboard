@@ -668,7 +668,8 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
         >
           {task.title}
         </span>
-        {task.project && (
+        {/* Geniş modda rozet/meta aynı satırda; compact modda alta alınır */}
+        {task.project && !compact && (
           <span style={{
             fontSize: '10px',
             background: task.project.color + '22',
@@ -711,13 +712,29 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
           >✕</span>
         )}
-        {task.source !== 'routine' && (
-          <span
-            onClick={() => onDelete(task)}
-            style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
-          >✕</span>
-        )}
       </div>
+      {/* Compact modda proje rozeti + tarih, title'ın altında ayrı satırda */}
+      {compact && (task.project || task.day) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px', marginLeft: '28px', flexWrap: 'wrap' }}>
+          {task.project && (
+            <span style={{
+              fontSize: '10px',
+              background: task.project.color + '22',
+              color: task.project.color,
+              border: `1px solid ${task.project.color}55`,
+              borderRadius: '4px',
+              padding: '2px 6px',
+              whiteSpace: 'nowrap',
+              fontWeight: '600'
+            }}>
+              {task.project.icon ? task.project.icon + ' ' : ''}{task.project.name}
+            </span>
+          )}
+          {task.source === 'routine' && (
+            <span style={{ fontSize: '10px', color: 'var(--text-faint)' }}>🔁</span>
+          )}
+        </div>
+      )}
       {task.note && (
         <div style={{
           marginTop: '6px', paddingLeft: '28px',
