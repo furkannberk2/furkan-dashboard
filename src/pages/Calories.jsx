@@ -502,7 +502,7 @@ async function moveMeal(id, direction) {
 
 function FoodResult({ food, onAdd }) {
   const { t } = useTranslation()
-  const [qty, setQty] = useState(100)
+  const [qty, setQty] = useState('')
   return (
     <div style={{ background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -519,10 +519,10 @@ function FoodResult({ food, onAdd }) {
         <span style={{ color: 'var(--text-faded)' }}>(100g)</span>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input type="number" value={qty} onChange={e => setQty(e.target.value)} onFocus={e => e.target.select()} style={{ ...inputStyle, flex: 0, width: '70px', fontSize: '13px', padding: '6px 8px' }} />
+        <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="100" style={{ ...inputStyle, flex: 0, width: '70px', fontSize: '13px', padding: '6px 8px' }} />
         <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{t('calories.gram')}</span>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>= {Math.round(food.calories * (Number(qty) || 0) / 100)} kcal</span>
-        <button onClick={() => onAdd(food, Number(qty) || 0)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>{t('calories.addSuffix')}</button>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>= {Math.round(food.calories * (Number(qty) || 100) / 100)} kcal</span>
+        <button onClick={() => onAdd(food, Number(qty) || 100)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>{t('calories.addSuffix')}</button>
       </div>
     </div>
   )
