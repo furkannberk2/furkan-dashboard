@@ -344,5 +344,22 @@
     "mailCount": "{{count}} emails",
     "hideMails": "▲ Hide emails",
     "showMails": "▼ Show all emails"
+  },
+  "profile": {
+    "title": "Profile",
+    "region": "Region",
+    "regionHint": "Selecting a region auto-sets currency, language and units.",
+    "baseCurrency": "Base Currency",
+    "currencyHint": "Portfolio and finance values are shown in this currency.",
+    "language": "Language",
+    "unitSystem": "Unit System",
+    "logout": "Log out",
+    "regionTR": "🇹🇷 Turkey",
+    "regionUS": "🇺🇸 USA",
+    "regionIN": "🇮🇳 India",
+    "regionDefault": "🌍 Other / General",
+    "unitMetric": "Metric (grams, kg, kcal)",
+    "unitImperial": "Imperial (oz, lb)",
+    "preferences": "Preferences"
   }
 }

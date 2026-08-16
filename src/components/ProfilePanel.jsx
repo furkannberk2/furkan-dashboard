@@ -6,6 +6,7 @@
 import { createPortal } from 'react-dom'
 import { useAuth } from './AuthProvider'
 import { usePreferences } from './PreferencesProvider'
+import { useTranslation } from 'react-i18next'
 import { getRegionDefaults, REGIONS } from '../utils/regions'
 
 const CURRENCIES = [
@@ -43,6 +44,7 @@ const UNIT_SYSTEMS = [
 function ProfilePanel({ open, onClose }) {
   const { user, signOut } = useAuth()
   const prefs = usePreferences()
+  const { t } = useTranslation()
 
   if (!open) return null
 
@@ -78,7 +80,7 @@ function ProfilePanel({ open, onClose }) {
       >
         {/* Başlık */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>Profil</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{t('profile.title')}</h2>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-faint)', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }}>✕</button>
         </div>
 
@@ -102,36 +104,36 @@ function ProfilePanel({ open, onClose }) {
 
         {/* Tercihler */}
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: '600' }}>
-          Tercihler
+          {t('profile.preferences')}
         </div>
 
         {/* Bölge */}
-        <Field label="Bölge" hint="Bölge seçince para birimi, dil ve birim otomatik ayarlanır.">
+        <Field label={t('profile.region')} hint={t('profile.regionHint')}>
           <select value={prefs.region} onChange={e => handleRegionChange(e.target.value)} style={selectStyle}>
             {Object.keys(REGIONS).map(code => (
-              <option key={code} value={code}>{REGION_LABELS[code] || code}</option>
+              <option key={code} value={code}>{t('profile.region' + (code === '_default' ? 'Default' : code), { defaultValue: REGION_LABELS[code] || code })}</option>
             ))}
           </select>
         </Field>
 
         {/* Para birimi */}
-        <Field label="Ana Para Birimi" hint="Portföy ve finans değerleri bu birimde gösterilir.">
+        <Field label={t('profile.baseCurrency')} hint={t('profile.currencyHint')}>
           <select value={prefs.baseCurrency} onChange={e => prefs.updatePreference('baseCurrency', e.target.value)} style={selectStyle}>
             {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
         </Field>
 
         {/* Dil */}
-        <Field label="Dil">
+        <Field label={t('profile.language')}>
           <select value={prefs.language} onChange={e => prefs.updatePreference('language', e.target.value)} style={selectStyle}>
             {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
         </Field>
 
         {/* Birim sistemi */}
-        <Field label="Birim Sistemi">
+        <Field label={t('profile.unitSystem')}>
           <select value={prefs.unitSystem} onChange={e => prefs.updatePreference('unitSystem', e.target.value)} style={selectStyle}>
-            {UNIT_SYSTEMS.map(u => <option key={u.code} value={u.code}>{u.label}</option>)}
+            {UNIT_SYSTEMS.map(u => <option key={u.code} value={u.code}>{u.code === 'metric' ? t('profile.unitMetric') : t('profile.unitImperial')}</option>)}
           </select>
         </Field>
 
@@ -143,7 +145,7 @@ function ProfilePanel({ open, onClose }) {
           border: '1px solid var(--border-strong)', color: 'var(--danger)',
           fontSize: '14px', cursor: 'pointer', fontWeight: '500'
         }}>
-          Çıkış yap
+          {t('profile.logout')}
         </button>
       </div>
     </div>,

@@ -344,5 +344,22 @@
     "mailCount": "{{count}} mail",
     "hideMails": "▲ Mailleri gizle",
     "showMails": "▼ Tüm mailleri göster"
+  },
+  "profile": {
+    "title": "Profil",
+    "region": "Bölge",
+    "regionHint": "Bölge seçince para birimi, dil ve birim otomatik ayarlanır.",
+    "baseCurrency": "Ana Para Birimi",
+    "currencyHint": "Portföy ve finans değerleri bu birimde gösterilir.",
+    "language": "Dil",
+    "unitSystem": "Birim Sistemi",
+    "logout": "Çıkış yap",
+    "regionTR": "🇹🇷 Türkiye",
+    "regionUS": "🇺🇸 Amerika",
+    "regionIN": "🇮🇳 Hindistan",
+    "regionDefault": "🌍 Diğer / Genel",
+    "unitMetric": "Metrik (gram, kg, kcal)",
+    "unitImperial": "İmperial (oz, lb)",
+    "preferences": "Tercihler"
   }
 }
