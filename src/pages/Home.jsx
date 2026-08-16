@@ -235,15 +235,15 @@ function Home() {
           {openTasks.length === 0 ? (
             <p style={emptyStyle}>{t('home.noOpenTasks')}</p>
           ) : (
-            openTasks.map(t => (
-              <div key={t.id} onClick={() => toggleTask(t)} style={{
+            openTasks.map(task => (
+              <div key={task.id} onClick={() => toggleTask(task)} style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '10px 0', borderBottom: '1px solid var(--border)',
                 cursor: 'pointer'
               }}>
                 <Circle size={16} color="var(--text-faint)" strokeWidth={2} />
-                <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', flex: 1 }}>{t.title}</span>
-                {t.day && t.day < todayStr && (
+                <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', flex: 1 }}>{task.title}</span>
+                {task.day && task.day < todayStr && (
                   <span style={{ fontSize: '11px', color: 'var(--danger)' }}>{t('home.overdue')}</span>
                 )}
               </div>

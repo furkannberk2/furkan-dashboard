@@ -245,7 +245,8 @@
     "detailOpen": "− Detay",
     "detailClose": "+ Detay",
     "detailPlaceholder": "Detay ekle...",
-    "detailShort": "Detay..."
+    "detailShort": "Detay...",
+    "more": "daha"
   },
   "habits": {
     "title": "Alışkanlıklar",

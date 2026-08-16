@@ -245,7 +245,8 @@
     "detailOpen": "− Detail",
     "detailClose": "+ Detail",
     "detailPlaceholder": "Add detail...",
-    "detailShort": "Detail..."
+    "detailShort": "Detail...",
+    "more": "more"
   },
   "habits": {
     "title": "Habits",

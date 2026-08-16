@@ -391,7 +391,7 @@ function Tasks() {
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
-              type="date" lang={i18n.language}
+              type="date"
               value={newDeadline}
               onChange={e => setNewDeadline(e.target.value)}
               style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '160px', minWidth: '140px', fontSize: '13px' }}
@@ -527,7 +527,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
               <span style={{ fontSize: '11px', color: 'var(--danger)', flexShrink: 0 }}>{formatDate(t.day)}</span>
             </div>
           ))}
-          {overdueTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{overdueTasks.length - 6} daha</div>}
+          {overdueTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{overdueTasks.length - 6} {t('tasks.more')}</div>}
         </div>
       )}
 
@@ -542,7 +542,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
               <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.day)}</span>
             </div>
           ))}
-          {upcomingTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{upcomingTasks.length - 6} daha</div>}
+          {upcomingTasks.length > 6 && <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>+{upcomingTasks.length - 6} {t('tasks.more')}</div>}
         </div>
       )}
 
@@ -579,7 +579,7 @@ function PrioritySelect({ value, onChange }) {
 }
 
 function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverdue, compact, editingId, editDraft, setEditDraft, saveEdit, cancelEdit }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
   const isEditing = editingId === task.id && task.source !== 'routine'
   const projectColor = task.project?.color
@@ -602,7 +602,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
         />
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
           <input
-            type="date" lang={i18n.language}
+            type="date"
             value={editDraft.day}
             onChange={e => setEditDraft({ ...editDraft, day: e.target.value })}
             style={{ ...inputStyle, fontSize: '13px', minWidth: '140px', flex: 0 }}
