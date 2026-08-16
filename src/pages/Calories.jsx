@@ -443,11 +443,11 @@ async function moveMeal(id, direction) {
               <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>{t('calories.calorieLabel')}</label>
-                  <input value={mCalories} onChange={e => setMCalories(e.target.value)} type="number" placeholder="200" style={{ ...inputStyle, width: '100%' }} />
+                  <input value={mCalories} onChange={e => setMCalories(e.target.value)} type="number" onFocus={e => e.target.select()} placeholder="200" style={{ ...inputStyle, width: '100%' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '12px', color: 'var(--text-faint)', display: 'block', marginBottom: '4px' }}>{t('calories.amountLabel')}</label>
-                  <input value={mQuantity} onChange={e => setMQuantity(e.target.value)} type="number" placeholder="100" style={{ ...inputStyle, width: '100%' }} />
+                  <input value={mQuantity} onChange={e => setMQuantity(e.target.value)} type="number" onFocus={e => e.target.select()} placeholder="100" style={{ ...inputStyle, width: '100%' }} />
                 </div>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px' }}>{t('calories.macrosOptional')}</div>
@@ -519,10 +519,10 @@ function FoodResult({ food, onAdd }) {
         <span style={{ color: 'var(--text-faded)' }}>(100g)</span>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} style={{ ...inputStyle, flex: 0, width: '70px', fontSize: '13px', padding: '6px 8px' }} />
+        <input type="number" value={qty} onChange={e => setQty(e.target.value)} onFocus={e => e.target.select()} style={{ ...inputStyle, flex: 0, width: '70px', fontSize: '13px', padding: '6px 8px' }} />
         <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{t('calories.gram')}</span>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>= {Math.round(food.calories * qty / 100)} kcal</span>
-        <button onClick={() => onAdd(food, qty)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>{t('calories.addSuffix')}</button>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto' }}>= {Math.round(food.calories * (Number(qty) || 0) / 100)} kcal</span>
+        <button onClick={() => onAdd(food, Number(qty) || 0)} style={{ ...buttonStyle, padding: '6px 14px', fontSize: '13px' }}>{t('calories.addSuffix')}</button>
       </div>
     </div>
   )

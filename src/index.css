@@ -2,6 +2,28 @@
   color-scheme: light dark;
 }
 
+/* Tema ile color-scheme'i senkronla — date input'un native takvim ikonu doğru renk alsın */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Date/time input takvim ikonu: aydınlık temada koyu görünsün (beyazda kaybolmasın) */
+:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+  opacity: 0.7;
+}
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.9);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -21,5 +43,11 @@ body {
 @media (max-width: 768px) {
   input, textarea, select {
     font-size: 16px !important;
+  }
+
+  /* Alt menü çubuğu + yüzen Koç butonu fixed olduğundan, sayfa içeriğinin
+     son kısmı onların arkasında kalmasın diye alt boşluk bırak (B4 fix). */
+  main, [data-page], .page-content {
+    padding-bottom: 92px !important;
   }
 }
