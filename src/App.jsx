@@ -37,7 +37,7 @@ function App() {
       <Sidebar />
       <main style={{
         flex: 1, minWidth: 0,
-        padding: isMobile ? '20px 16px 90px' : '32px',
+        padding: isMobile ? '20px 16px 130px' : '32px',
         overflowY: 'auto'
       }}>
         <Routes>

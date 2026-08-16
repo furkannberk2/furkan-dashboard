@@ -45,9 +45,9 @@ body {
     font-size: 16px !important;
   }
 
-  /* Alt menü çubuğu + yüzen Koç butonu fixed olduğundan, sayfa içeriğinin
-     son kısmı onların arkasında kalmasın diye alt boşluk bırak (B4 fix). */
-  main, [data-page], .page-content {
-    padding-bottom: 92px !important;
+  /* Yüzen Koç butonu (FAB, sağ-alt) son içeriğin sağ köşesini örtmesin —
+     App.jsx main padding'iyle birlikte yeterli alt boşluk (B4 fix). */
+  main {
+    padding-bottom: 130px !important;
   }
 }
