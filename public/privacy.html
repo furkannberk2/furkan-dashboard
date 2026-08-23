@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Lumen Arc</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 20px 60px;
+      line-height: 1.7;
+      color: #222;
+      background: #fff;
+    }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    h2 { font-size: 18px; margin-top: 32px; }
+    .updated { color: #888; font-size: 14px; margin-bottom: 32px; }
+    a { color: #6366f1; }
+    footer { margin-top: 48px; color: #999; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Lumen Arc &middot; Last updated: <span id="date"></span></p>
+
+  <p>
+    Lumen Arc ("the app", "we", "us") is a personal life-management application
+    that helps you track tasks, habits, calories, finances, and related personal
+    data, with optional AI-assisted summaries. This Privacy Policy explains what
+    data we access, how we use it, and your choices.
+  </p>
+
+  <h2>Information We Access</h2>
+  <p>
+    When you choose to connect your Google account, and only with your explicit
+    consent, the app requests read-only access to your Gmail messages
+    (<code>gmail.readonly</code>) and your Google account email address
+    (<code>userinfo.email</code>). We use this access solely to generate a
+    summary of your recent emails inside the app, at your request.
+  </p>
+  <p>
+    You may also enter personal data directly into the app (such as tasks,
+    habits, calorie entries, and financial records). This data is stored in your
+    own account.
+  </p>
+
+  <h2>How We Use Your Information</h2>
+  <ul>
+    <li>To display and organize the information you add to the app.</li>
+    <li>To generate email summaries when you request them, by processing the
+        content of your recent emails.</li>
+    <li>To provide optional AI-generated summaries and insights.</li>
+  </ul>
+  <p>
+    We do <strong>not</strong> sell your data, share it with advertisers, or use
+    it for any purpose other than providing the app's features to you.
+  </p>
+
+  <h2>Google User Data</h2>
+  <p>
+    Lumen Arc's use of information received from Google APIs adheres to the
+    <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">
+    Google API Services User Data Policy</a>, including the Limited Use
+    requirements. Email content accessed via the Gmail API is used only to
+    produce summaries you request and is not stored beyond what is necessary to
+    display those summaries to you.
+  </p>
+
+  <h2>Data Storage &amp; Security</h2>
+  <p>
+    Your data is stored securely using industry-standard cloud infrastructure.
+    Access tokens are stored securely and used only to fetch data on your behalf.
+    We take reasonable measures to protect your information.
+  </p>
+
+  <h2>Your Choices</h2>
+  <p>
+    You can disconnect your Google account at any time from within the app, which
+    removes our stored access to your Gmail. You may also stop using the app and
+    request deletion of your data.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    For any questions about this Privacy Policy or your data, contact us at
+    <a href="mailto:furkannberk2@gmail.com">furkannberk2@gmail.com</a>.
+  </p>
+
+  <footer>
+    &copy; <span id="year"></span> Lumen Arc. All rights reserved.
+  </footer>
+
+  <script>
+    document.getElementById('date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
