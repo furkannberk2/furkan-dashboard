@@ -265,11 +265,6 @@ function Coach() {
         <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', marginBottom: '12px' }}>
           {historyLoaded && messages.length === 0 && (
             <div style={{ textAlign: 'center', padding: '20px' }}>
-              {!isMobile && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                  <CoachMascot state={mascotState} size={120} />
-                </div>
-              )}
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
                 Merhaba! Ben senin kişisel koçunum. Sana nasıl yardımcı olabilirim?
               </p>
