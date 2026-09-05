@@ -2,7 +2,6 @@ import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { BACKEND } from '../config'
-import { BrowserMultiFormatReader } from '@zxing/browser'
 import { progressSummary } from '../utils/format'
 import { useTranslation } from 'react-i18next'
 
@@ -28,7 +27,7 @@ function Calories() {
   const [editingMealId, setEditingMealId] = useState(null)
 
   const [showAdd, setShowAdd] = useState(false)
-  const [addMode, setAddMode] = useState('search') // 'search' | 'manual' | 'barcode'
+  const [addMode, setAddMode] = useState('search') // 'search' | 'manual' | 'photo'
 
   // Search
   const [search, setSearch] = useState('')
@@ -42,13 +41,6 @@ function Calories() {
   const [mProtein, setMProtein] = useState('')
   const [mCarbs, setMCarbs] = useState('')
   const [mFat, setMFat] = useState('')
-
-  // Barcode
-  const videoRef = useRef(null)
-  const readerRef = useRef(null)
-  const [scanStatus, setScanStatus] = useState('') // '', 'scanning', 'found', 'error'
-  const [scanResult, setScanResult] = useState(null)
-  const [scanQty, setScanQty] = useState(100)
 
   const [showGoal, setShowGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -80,64 +72,10 @@ function Calories() {
     return () => clearTimeout(t)
   }, [search, showAdd, addMode])
 
-  // Barkod tarayıcı kontrolü
-  useEffect(() => {
-    if (showAdd && addMode === 'barcode' && !scanResult) {
-      startScan()
-    } else {
-      stopScan()
-    }
-    return () => stopScan()
-  }, [showAdd, addMode, scanResult])
-
-async function startScan() {
-    setScanStatus('scanning')
-    try {
-      // Arka kamerayı tercih et
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices()
-      const rearCamera = devices.find(d =>
-        /back|rear|environment/i.test(d.label)
-      ) || devices[devices.length - 1]
-      const deviceId = rearCamera?.deviceId
-
-      const reader = new BrowserMultiFormatReader()
-      readerRef.current = reader
-      await reader.decodeFromVideoDevice(deviceId, videoRef.current, async (result, err) => {
-        if (result) {
-          const code = result.getText()
-          stopScan()
-          setScanStatus('found')
-          try {
-            const r = await fetch(`${BACKEND}/api/barcode?code=${code}`)
-            const data = await r.json()
-            if (data.product) {
-              setScanResult(data.product)
-            } else {
-              setScanStatus('not_found')
-            }
-          } catch {
-            setScanStatus('error')
-          }
-        }
-      })
-    } catch (err) {
-      console.error(err)
-      setScanStatus('error')
-    }
-  }
-
-  function stopScan() {
-    if (readerRef.current) {
-      try { readerRef.current.reset() } catch {}
-      readerRef.current = null
-    }
-  }
-
   function resetAdd() {
     setShowAdd(false)
     setSearch(''); setResults([])
     setMName(''); setMCalories(''); setMQuantity('100'); setMProtein(''); setMCarbs(''); setMFat('')
-    setScanResult(null); setScanStatus(''); setScanQty(100)
     setPhotoItems(null); setPhotoError(''); setPhotoAnalyzing(false)
     setAddMode('search')
   }
@@ -480,7 +418,7 @@ async function moveMeal(id, direction) {
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{mealLabel(selectedMeal)} — {t('calories.addSuffix')}</h3>
 
           <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-            {[['search', '🔍 ' + t('calories.search')], ['manual', '✏️ ' + t('calories.manual')], ['barcode', '📷 ' + t('calories.barcode')], ['photo', '🍽️ ' + t('calories.fromPhoto')]].map(([val, label]) => (
+            {[['search', '🔍 ' + t('calories.search')], ['manual', '✏️ ' + t('calories.manual')], ['photo', '🍽️ ' + t('calories.fromPhoto')]].map(([val, label]) => (
               <button key={val} onClick={() => setAddMode(val)} style={{
                 flex: 1, padding: '7px 10px', borderRadius: '8px', border: '1px solid',
                 borderColor: addMode === val ? 'var(--accent)' : 'var(--border-strong)',
@@ -532,31 +470,6 @@ async function moveMeal(id, direction) {
                 <input value={mFat} onChange={e => setMFat(e.target.value)} type="number" placeholder={t('calories.fatG')} style={{ ...inputStyle, fontSize: '13px' }} />
               </div>
               <button onClick={addManual} style={{ ...buttonStyle, width: '100%' }}>{t('calories.addSuffix')}</button>
-            </>
-          )}
-
-          {/* BARKOD */}
-          {addMode === 'barcode' && (
-            <>
-              {!scanResult ? (
-                <div>
-                  <div style={{ position: 'relative', background: '#000', borderRadius: '8px', overflow: 'hidden', marginBottom: '10px' }}>
-                    <video ref={videoRef} style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', top: '50%', left: '10%', right: '10%', height: '1px', background: 'var(--danger)', boxShadow: '0 0 8px var(--danger)' }} />
-                  </div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-faint)', textAlign: 'center', margin: 0 }}>
-                    {scanStatus === 'scanning' && '📷 ' + t('calories.barcodeScan')}
-                    {scanStatus === 'found' && '⏳ ' + t('calories.barcodeSearching')}
-                    {scanStatus === 'not_found' && '❌ ' + t('calories.barcodeNotFound')}
-                    {scanStatus === 'error' && '⚠️ ' + t('calories.cameraError')}
-                  </p>
-                  {(scanStatus === 'not_found' || scanStatus === 'error') && (
-                    <button onClick={() => { setScanStatus(''); startScan() }} style={{ ...buttonStyle, width: '100%', marginTop: '10px' }}>Tekrar Dene</button>
-                  )}
-                </div>
-              ) : (
-                <FoodResult food={scanResult} onAdd={addFood} />
-              )}
             </>
           )}
 
