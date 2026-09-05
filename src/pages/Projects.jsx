@@ -66,6 +66,19 @@ function Projects() {
   const [newRoutineDays, setNewRoutineDays] = useState([])
   const [newRoutineMonthDays, setNewRoutineMonthDays] = useState([])
   const [newBiweeklyAnchor, setNewBiweeklyAnchor] = useState('')
+  const [noteInput, setNoteInput] = useState('')
+
+  // Seçili proje değişince not alanını doldur
+  useEffect(() => { setNoteInput(selectedProject?.note || '') }, [selectedProject?.id])
+
+  async function saveNote() {
+    if (!selectedProject) return
+    await updateProject(selectedProject.id, { note: noteInput })
+  }
+  async function saveDeadline(date) {
+    if (!selectedProject) return
+    await updateProject(selectedProject.id, { deadline: date || null })
+  }
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -78,12 +91,12 @@ function Projects() {
   }
 
   async function fetchProjectDetails(projectId) {
-    const [t, r] = await Promise.all([
+    const [ph, rt] = await Promise.all([
       supabase.from('project_tasks').select('*').eq('project_id', projectId).order('created_at', { ascending: true }),
       supabase.from('project_routines').select('*').eq('project_id', projectId).order('created_at', { ascending: true })
     ])
-    if (!t.error) setPhases(t.data)
-    if (!r.error) setRoutines(r.data)
+    if (!ph.error) setPhases(ph.data)
+    if (!rt.error) setRoutines(rt.data)
   }
 
   async function addProject() {
@@ -241,127 +254,193 @@ function toggleMonthDay(v) {
     return [...prev, v]
   })
 } 
-  const completedPhases = phases.filter(t => t.status === 'done').length
+  const completedPhases = phases.filter(ph => ph.status === 'done').length
+
+  // Sıradaki aşama (ilk tamamlanmamış)
+  const nextPhase = phases.find(ph => ph.status !== 'done')
+
+  // Kalan süre (deadline'a göre)
+  function getDaysLeft(deadline) {
+    if (!deadline) return null
+    const diff = Math.ceil((new Date(deadline + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24))
+    return diff
+  }
+
+  // Tempo: son 7 günde tamamlanan aşama sayısı
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const recentlyDone = phases.filter(ph => ph.status === 'done' && ph.updated_at && new Date(ph.updated_at) >= weekAgo).length
 
   return (
     <div style={{ color: 'var(--text)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: '700' }}>{t('projects_page.projectsTitle')}</h2>
-        <button onClick={() => setShowAddProject(true)} style={buttonStyle}>{t('projects_page.addProjectBtn')}</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '600' }}>{t('projects_page.projectsTitle')}</h2>
+        <button onClick={() => setShowAddProject(true)} style={primaryBtn}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          {t('projects_page.newProject')}
+        </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
-        {projects.map(p => (
-          <div key={p.id} onClick={() => { setSelectedProject(p); setTab('phases') }} style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderTop: `3px solid ${p.color}`,
-            borderRadius: '12px', padding: '14px', cursor: 'pointer'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              {p.icon && <span style={{ fontSize: '18px' }}>{p.icon}</span>}
-              <span style={{ fontSize: '14.5px', fontWeight: '600', color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-              <span style={{ fontSize: '10px', color: p.status === 'active' ? 'var(--success)' : p.status === 'completed' ? 'var(--accent)' : 'var(--text-faint)', background: 'var(--bg-item)', padding: '2px 6px', borderRadius: '4px' }}>{statusLabelT(p.status)}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ flex: 1, background: 'var(--bg-item)', borderRadius: '99px', height: '4px' }}>
-                <div style={{ width: `${p.progress}%`, height: '4px', borderRadius: '99px', background: p.color }} />
-              </div>
-              <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{p.progress}%</span>
-            </div>
-          </div>
-        ))}
-      </div>
       {projects.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '14px', marginTop: '16px' }}>{t('projects_page.noProject')}</p>}
 
-      {/* Yeni Proje Modal */}
-      {showAddProject && (
-        <Modal onClose={() => setShowAddProject(false)}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '18px' }}>{t('projects_page.newProject')}</h3>
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t('projects_page.projectName')} style={{ ...inputStyle, marginBottom: '10px', width: '100%' }} />
-          <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder={t('projects_page.emojiPlaceholder')} style={{ ...inputStyle, marginBottom: '12px', width: '100%' }} />
-          <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '8px' }}>Renk</div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
-            {COLORS.map(c => (
-              <div key={c} onClick={() => setNewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, cursor: 'pointer', border: newColor === c ? '3px solid var(--text)' : '3px solid transparent' }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addProject} style={{ ...buttonStyle, flex: 1 }}>{t('common.add')}</button>
-            <button onClick={() => setShowAddProject(false)} style={{ ...buttonStyle, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)', flex: 1 }}>{t('common.cancel')}</button>
-          </div>
-        </Modal>
-      )}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '240px 1fr', gap: '16px', alignItems: 'start' }}>
 
-      {/* Proje Detay Modal */}
-      {selectedProject && (
-        <Modal onClose={() => setSelectedProject(null)} wide>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-              {selectedProject.icon && <span style={{ fontSize: '22px' }}>{selectedProject.icon}</span>}
-              <h3 style={{ fontSize: '20px', fontWeight: '700', flex: 1, minWidth: 0 }}>{selectedProject.name}</h3>
-              <button onClick={() => deleteProject(selectedProject.id)} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', padding: '6px 10px' }}>{t('projects_page.delete')}</button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input type="number" min="0" max="100" value={selectedProject.progress}
-                  onChange={e => setProgressManual(Number(e.target.value))}
-                  style={{ ...inputStyle, width: '60px', flex: 0, fontSize: '13px', textAlign: 'center', padding: '5px 8px' }} />
-                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>%</span>
-              </div>
-              {selectedProject.progress_manual && (
-                <button onClick={resetProgressAuto} style={{ ...buttonStyle, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-dim)', fontSize: '12px', padding: '5px 10px' }}>
-                  {t('projects_page.autoCalc')}
-                </button>
-              )}
-              <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '13px', padding: '6px 10px' }}>
-                {STATUSES.map(s => <option key={s.key} value={s.key}>{statusLabelT(s.key)}</option>)}
-              </select>
-            </div>
-            {!selectedProject.progress_manual && phases.length > 0 && (
-              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                {t('projects_page.autoDone', { done: completedPhases, total: phases.length })}
-              </div>
-            )}
-          </div>
-
-          <div style={{ background: 'var(--bg-item)', borderRadius: '99px', height: '5px', marginBottom: '18px' }}>
-            <div style={{ width: `${selectedProject.progress}%`, height: '5px', borderRadius: '99px', background: selectedProject.color, transition: 'width 0.3s' }} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
-            {['phases', 'routines'].map(tabKey => (
-              <button key={tabKey} onClick={() => setTab(tabKey)} style={{
-                padding: '6px 14px', borderRadius: '20px', border: '1px solid',
-                borderColor: tab === tabKey ? selectedProject.color : 'var(--border-strong)',
-                background: tab === tabKey ? selectedProject.color : 'transparent',
-                color: tab === tabKey ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer'
+        {/* SOL: Proje listesi */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {projects.map(p => {
+            const isSel = selectedProject?.id === p.id
+            return (
+              <div key={p.id} onClick={() => { setSelectedProject(p); setTab('phases') }} style={{
+                background: isSel ? 'var(--bg-card)' : 'var(--bg-item)',
+                border: isSel ? `2px solid ${p.color}` : '1px solid var(--border)',
+                borderRadius: '12px', padding: '12px 13px', cursor: 'pointer', transition: 'border-color 0.15s'
               }}>
-                {tabKey === 'phases' ? `${t('projects_page.phases')} ${phases.length > 0 ? `(${completedPhases}/${phases.length})` : ''}` : t('projects_page.routines')}
-              </button>
-            ))}
-          </div>
-
-          {tab === 'phases' && (
-            <div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                <input value={newPhase} onChange={e => setNewPhase(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPhase()} placeholder={t('projects_page.addPhase')} style={{ ...inputStyle, fontSize: '13px' }} />
-                <input type="date" value={newPhaseDate} onChange={e => setNewPhaseDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
-                <button onClick={addPhase} style={{ ...buttonStyle, padding: '8px 14px', fontSize: '13px' }}>{t('common.add')}</button>
-              </div>
-              {phases.map((ph, i) => (
-                <div key={ph.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', marginBottom: '6px' }}>
-                  <div onClick={() => togglePhase(ph.id, ph.status)} style={{ width: '16px', height: '16px', borderRadius: '4px', border: '2px solid', borderColor: ph.status === 'done' ? selectedProject.color : 'var(--text-faint)', background: ph.status === 'done' ? selectedProject.color : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {ph.status === 'done' && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0, fontWeight: '600' }}>{t('projects_page.phase')} {i + 1}</span>
-                  <span style={{ fontSize: '13px', color: ph.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: ph.status === 'done' ? 'line-through' : 'none' }}>{ph.title}</span>
-                  {ph.date && <span style={{ fontSize: '11px', color: ph.date < today && ph.status !== 'done' ? 'var(--danger)' : 'var(--text-faint)', flexShrink: 0 }}>{formatDate(ph.date)}</span>}
-                  <span onClick={() => deletePhase(ph.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}>✕</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '9px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  {p.icon && <span style={{ fontSize: '14px' }}>{p.icon}</span>}
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                 </div>
-              ))}
-              {phases.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('projects_page.noPhase')}</p>}
+                <div style={{ background: 'var(--bg-soft)', borderRadius: '99px', height: '5px', marginBottom: '6px' }}>
+                  <div style={{ width: `${p.progress}%`, height: '5px', borderRadius: '99px', background: p.color }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span>{statusLabelT(p.status)}</span>
+                  <span>{p.progress}%</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* SAĞ: Seçili proje detayı */}
+        {!selectedProject ? (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '48px 24px', textAlign: 'center', color: 'var(--text-faint)', fontSize: '14px' }}>
+            {t('projects_page.selectProject')}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+            {/* Başlık + durum + sil */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: selectedProject.color, flexShrink: 0 }} />
+                {selectedProject.icon && <span style={{ fontSize: '20px' }}>{selectedProject.icon}</span>}
+                <h3 style={{ fontSize: '17px', fontWeight: '600', flex: 1, minWidth: 0 }}>{selectedProject.name}</h3>
+                <select value={selectedProject.status} onChange={e => updateProject(selectedProject.id, { status: e.target.value })} style={{ ...selectStyle, fontSize: '12px', padding: '5px 9px' }}>
+                  {STATUSES.map(s => <option key={s.key} value={s.key}>{statusLabelT(s.key)}</option>)}
+                </select>
+                <button onClick={() => deleteProject(selectedProject.id)} style={ghostDangerBtn}>{t('projects_page.delete')}</button>
+              </div>
+
+              {/* İstatistik kartları */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '9px' }}>
+                <div style={statCard}>
+                  <div style={statLabel}>{t('projects_page.progress')}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="number" min="0" max="100" value={selectedProject.progress}
+                      onChange={e => setProgressManual(Number(e.target.value))}
+                      onFocus={e => e.target.select()}
+                      style={{ ...statValue, width: '48px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', padding: 0 }} />
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>%</span>
+                  </div>
+                  {selectedProject.progress_manual && (
+                    <button onClick={resetProgressAuto} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '10px', cursor: 'pointer', padding: '2px 0 0', textAlign: 'left' }}>{t('projects_page.autoCalc')}</button>
+                  )}
+                </div>
+                <div style={statCard}>
+                  <div style={statLabel}>{t('projects_page.phasesStat')}</div>
+                  <div style={statValue}>{completedPhases}<span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>/{phases.length}</span></div>
+                </div>
+                <div style={statCard}>
+                  <div style={statLabel}>{t('projects_page.tempo')}</div>
+                  <div style={statValue}>{recentlyDone}<span style={{ color: 'var(--text-muted)', fontSize: '12px' }}> {t('projects_page.tempoUnit')}</span></div>
+                </div>
+                <div style={statCard}>
+                  <div style={statLabel}>{t('projects_page.daysLeft')}</div>
+                  {(() => {
+                    const dl = getDaysLeft(selectedProject.deadline)
+                    if (dl === null) return <div style={{ ...statValue, fontSize: '13px', color: 'var(--text-faint)' }}>{t('projects_page.noDeadline')}</div>
+                    if (dl < 0) return <div style={{ ...statValue, color: 'var(--danger)', fontSize: '15px' }}>{Math.abs(dl)} {t('projects_page.daysLeftUnit')} {t('projects_page.overdueDeadline')}</div>
+                    return <div style={statValue}>{dl}<span style={{ color: 'var(--text-muted)', fontSize: '12px' }}> {t('projects_page.daysLeftUnit')}</span></div>
+                  })()}
+                </div>
+              </div>
+
+              {/* Ana ilerleme çubuğu */}
+              <div style={{ background: 'var(--bg-soft)', borderRadius: '99px', height: '6px', marginTop: '12px' }}>
+                <div style={{ width: `${selectedProject.progress}%`, height: '6px', borderRadius: '99px', background: selectedProject.color, transition: 'width 0.3s' }} />
+              </div>
+
+              {/* Sıradaki aşama vurgusu */}
+              {nextPhase && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--accent)', fontWeight: '600' }}>{t('projects_page.nextUp')}:</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{nextPhase.title}</span>
+                </div>
+              )}
+              {!nextPhase && phases.length > 0 && (
+                <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--success)' }}>{t('projects_page.allDone')}</div>
+              )}
             </div>
-          )}
+
+            {/* Sekmeler */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['phases', 'routines'].map(tabKey => (
+                <button key={tabKey} onClick={() => setTab(tabKey)} style={{
+                  padding: '7px 15px', borderRadius: '8px', border: '1px solid',
+                  borderColor: tab === tabKey ? selectedProject.color : 'var(--border)',
+                  background: tab === tabKey ? selectedProject.color : 'transparent',
+                  color: tab === tabKey ? '#fff' : 'var(--text-dim)', fontSize: '13px', cursor: 'pointer', fontWeight: '500'
+                }}>
+                  {tabKey === 'phases' ? `${t('projects_page.phases')} ${phases.length > 0 ? `(${completedPhases}/${phases.length})` : ''}` : t('projects_page.routines')}
+                </button>
+              ))}
+            </div>
+
+            {/* İçerik kartı */}
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px' }}>
+              {tab === 'phases' && (
+                <div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                    <input value={newPhase} onChange={e => setNewPhase(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPhase()} placeholder={t('projects_page.addPhase')} style={{ ...inputStyle, fontSize: '13px' }} />
+                    <input type="date" value={newPhaseDate} onChange={e => setNewPhaseDate(e.target.value)} style={{ ...inputStyle, flex: isMobile ? 1 : 0, width: isMobile ? 'auto' : '150px', minWidth: '130px', fontSize: '13px' }} />
+                    <button onClick={addPhase} style={secondaryBtn}>{t('common.add')}</button>
+                  </div>
+                  {/* Mini timeline */}
+                  {phases.map((ph, i) => {
+                    const isDone = ph.status === 'done'
+                    const isNext = nextPhase && ph.id === nextPhase.id
+                    const isLast = i === phases.length - 1
+                    return (
+                      <div key={ph.id} style={{ display: 'flex', gap: '11px', alignItems: 'stretch' }}>
+                        {/* Timeline çizgisi + nokta */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <div onClick={() => togglePhase(ph.id, ph.status)} style={{
+                            width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer',
+                            border: `2px solid ${isDone ? selectedProject.color : isNext ? 'var(--accent)' : 'var(--text-faint)'}`,
+                            background: isDone ? selectedProject.color : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                          }}>
+                            {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          </div>
+                          {!isLast && <div style={{ width: '2px', flex: 1, minHeight: '14px', background: isDone ? selectedProject.color : 'var(--border)' }} />}
+                        </div>
+                        {/* İçerik */}
+                        <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? '0' : '14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: '600', flexShrink: 0 }}>{t('projects_page.phase')} {i + 1}</span>
+                            {isNext && <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: '600' }}>{t('projects_page.nextUp')}</span>}
+                            {ph.date && <span style={{ fontSize: '10px', color: ph.date < today && !isDone ? 'var(--danger)' : 'var(--text-faint)', marginLeft: 'auto', flexShrink: 0 }}>{formatDate(ph.date)}</span>}
+                            <span onClick={() => deletePhase(ph.id)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '13px', flexShrink: 0, marginLeft: ph.date ? '0' : 'auto' }}>✕</span>
+                          </div>
+                          <div style={{ fontSize: '13.5px', color: isDone ? 'var(--text-faint)' : 'var(--text-secondary)', textDecoration: isDone ? 'line-through' : 'none', marginTop: '2px' }}>{ph.title}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {phases.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('projects_page.noPhase')}</p>}
+                </div>
+              )}
+
 
 {tab === 'routines' && (
   <div>
@@ -458,6 +537,45 @@ function toggleMonthDay(v) {
     {routines.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: '13px' }}>{t('projects_page.noRoutine')}</p>}
   </div>
 )}
+            </div>
+
+            {/* Hedef + Not panelleri */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '10px' }}>{t('projects_page.goal')}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '6px' }}>{t('projects_page.goalDate')}</div>
+                <input type="date" value={selectedProject.deadline || ''} onChange={e => saveDeadline(e.target.value)} style={{ ...inputStyle, width: '100%', fontSize: '13px' }} />
+              </div>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '10px' }}>{t('projects_page.note')}</div>
+                <textarea value={noteInput} onChange={e => setNoteInput(e.target.value)} placeholder={t('projects_page.notePlaceholder')} rows={3}
+                  style={{ ...inputStyle, width: '100%', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit' }} />
+                {noteInput !== (selectedProject.note || '') && (
+                  <button onClick={saveNote} style={{ ...secondaryBtn, marginTop: '8px' }}>{t('projects_page.saveNote')}</button>
+                )}
+              </div>
+            </div>
+
+          </div>
+        )}
+      </div>
+
+      {/* Yeni Proje Modal */}
+      {showAddProject && (
+        <Modal onClose={() => setShowAddProject(false)}>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '18px' }}>{t('projects_page.newProject')}</h3>
+          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t('projects_page.projectName')} style={{ ...inputStyle, marginBottom: '10px', width: '100%' }} />
+          <input value={newIcon} onChange={e => setNewIcon(e.target.value)} placeholder={t('projects_page.emojiPlaceholder')} style={{ ...inputStyle, marginBottom: '12px', width: '100%' }} />
+          <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '8px' }}>{t('projects_page.color')}</div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+            {COLORS.map(c => (
+              <div key={c} onClick={() => setNewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, cursor: 'pointer', border: newColor === c ? '3px solid var(--text)' : '3px solid transparent' }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setShowAddProject(false)} style={ghostBtn}>{t('common.cancel')}</button>
+            <button onClick={addProject} style={primaryBtn}>{t('common.add')}</button>
+          </div>
         </Modal>
       )}
     </div>
@@ -502,5 +620,32 @@ const buttonStyle = {
   border: 'none', borderRadius: '8px',
   color: '#fff', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap'
 }
+
+// Yeni sofistike buton dili (U2 kararları: 6px köşe, hiyerarşi)
+const primaryBtn = {
+  padding: '9px 15px', background: 'var(--text)', color: 'var(--bg)',
+  border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
+  cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px'
+}
+const secondaryBtn = {
+  padding: '9px 14px', background: 'transparent', color: 'var(--text)',
+  border: '1px solid var(--border-strong)', borderRadius: '6px', fontSize: '13px',
+  cursor: 'pointer', whiteSpace: 'nowrap'
+}
+const ghostBtn = {
+  padding: '9px 14px', background: 'transparent', color: 'var(--text-secondary)',
+  border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap'
+}
+const ghostDangerBtn = {
+  padding: '5px 11px', background: 'transparent', color: 'var(--danger)',
+  border: '1px solid var(--danger)', borderRadius: '6px', fontSize: '12px',
+  cursor: 'pointer', whiteSpace: 'nowrap'
+}
+const statCard = {
+  background: 'var(--bg-item)', borderRadius: '9px', padding: '10px 12px',
+  display: 'flex', flexDirection: 'column', gap: '2px'
+}
+const statLabel = { fontSize: '11px', color: 'var(--text-muted)' }
+const statValue = { fontSize: '18px', fontWeight: '600', color: 'var(--text)' }
 
 export default Projects
