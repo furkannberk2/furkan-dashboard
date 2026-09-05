@@ -1,7 +1,18 @@
 import axios from 'axios'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
+
+  // === FOTOĞRAFTAN KALORİ (POST) ===
+  // food-search?action=photo  +  body: { image: base64, mimeType, lang }
+  if (req.method === 'POST' && req.query.action === 'photo') {
+    return handlePhoto(req, res)
+  }
+
+  // === METİN ARAMASI (GET, mevcut davranış) ===
   const { q } = req.query
   if (!q) return res.status(400).json({ error: 'q gerekli' })
 
@@ -13,7 +24,6 @@ export default async function handler(req, res) {
         action: 'process',
         json: 1,
         page_size: 40,
-        // Popülerliğe göre sırala (daha alakalı/bilinen ürünler öne)
         sort_by: 'unique_scans_n',
         lc: 'tr',
         fields: 'product_name,product_name_tr,brands,nutriments,code'
@@ -26,7 +36,6 @@ export default async function handler(req, res) {
 
     const list = r.data.products || []
     const products = list
-      // İsmi olan her ürünü al (kalorisi olmayanı da göster, sadece 0 yazılır)
       .filter(p => (p.product_name_tr || p.product_name))
       .map(p => ({
         name: p.product_name_tr || p.product_name || 'İsimsiz',
@@ -36,12 +45,81 @@ export default async function handler(req, res) {
         carbs: Math.round((p.nutriments?.['carbohydrates_100g'] || 0) * 10) / 10,
         fat: Math.round((p.nutriments?.['fat_100g'] || 0) * 10) / 10
       }))
-      // Kalorisi olanları öne al (0 olanlar sona)
       .sort((a, b) => (b.calories > 0 ? 1 : 0) - (a.calories > 0 ? 1 : 0))
       .slice(0, 25)
 
     res.status(200).json({ products })
   } catch (err) {
     res.status(500).json({ error: err.response?.status ? `Status ${err.response.status}` : err.message })
+  }
+}
+
+// === Fotoğraf analiz fonksiyonu ===
+async function handlePhoto(req, res) {
+  try {
+    const { image, mimeType = 'image/jpeg', lang = 'tr' } = req.body || {}
+    if (!image) return res.status(400).json({ error: 'image gerekli' })
+
+    // base64 başlığını temizle (data:image/jpeg;base64,... gelebilir)
+    const base64 = image.includes(',') ? image.split(',')[1] : image
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+    const promptTR = `Bu bir yemek fotoğrafı. Fotoğraftaki yiyecek ve içecekleri analiz et.
+
+KURALLAR:
+- Tabakta tek bir yemek varsa tek öğe döndür.
+- Birden fazla ayrı yiyecek varsa (örn. pilav + tavuk + salata) her birini AYRI öğe olarak döndür.
+- Her öğe için: isim (Türkçe, kısa), tahmini porsiyon miktarı (gram), ve o porsiyonun toplam kalorisi.
+- Kalori tahminini gördüğün porsiyon büyüklüğüne göre yap (100g başına değil, TABAKTAKİ gerçek miktar).
+- Emin olamadığın yerde makul bir tahmin yap, boş bırakma.
+- Yemek olmayan bir fotoğrafsa boş liste döndür.
+
+SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma (markdown, açıklama YOK):
+{"items":[{"name":"Pilav","grams":200,"calories":260},{"name":"Izgara Tavuk","grams":150,"calories":250}]}`
+
+    const promptEN = `This is a food photo. Analyze the foods and drinks in it.
+
+RULES:
+- If there is a single dish, return a single item.
+- If there are multiple separate foods (e.g. rice + chicken + salad), return each as a SEPARATE item.
+- For each item: name (English, short), estimated portion size (grams), and total calories for that portion.
+- Base the calorie estimate on the portion size you see (not per 100g, the ACTUAL amount on the plate).
+- Where unsure, make a reasonable estimate, don't leave blank.
+- If the photo is not food, return an empty list.
+
+Respond ONLY in this JSON format, nothing else (NO markdown, NO explanation):
+{"items":[{"name":"Rice","grams":200,"calories":260},{"name":"Grilled Chicken","grams":150,"calories":250}]}`
+
+    const prompt = lang === 'en' ? promptEN : promptTR
+
+    const result = await model.generateContent([
+      { text: prompt },
+      { inlineData: { mimeType, data: base64 } }
+    ])
+
+    let text = result.response.text().trim()
+    text = text.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+    let parsed
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/)
+      parsed = match ? JSON.parse(match[0]) : { items: [] }
+    }
+
+    const items = (parsed.items || [])
+      .filter(it => it && it.name)
+      .map(it => ({
+        name: String(it.name).slice(0, 60),
+        grams: Math.max(0, Math.round(Number(it.grams) || 0)),
+        calories: Math.max(0, Math.round(Number(it.calories) || 0))
+      }))
+
+    res.status(200).json({ items })
+  } catch (err) {
+    console.error('Photo analysis error:', err.message)
+    res.status(500).json({ error: err.message })
   }
 }

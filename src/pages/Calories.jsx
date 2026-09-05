@@ -17,7 +17,7 @@ const DEFAULT_MEALS = [
 
 function Calories() {
   const { user } = useAuth()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [entries, setEntries] = useState([])
   const [goal, setGoal] = useState(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -52,6 +52,12 @@ function Calories() {
 
   const [showGoal, setShowGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
+
+  // Fotoğraftan kalori
+  const photoInputRef = useRef(null)
+  const [photoAnalyzing, setPhotoAnalyzing] = useState(false)
+  const [photoItems, setPhotoItems] = useState(null) // null=henüz yok, []=bulunamadı
+  const [photoError, setPhotoError] = useState('')
 
   // Varsayılan öğünler + kullanıcının özel öğünleri
   // Tüm öğünler custom_meals'te (varsayılanlar ilk girişte seed edilir).
@@ -132,6 +138,7 @@ async function startScan() {
     setSearch(''); setResults([])
     setMName(''); setMCalories(''); setMQuantity('100'); setMProtein(''); setMCarbs(''); setMFat('')
     setScanResult(null); setScanStatus(''); setScanQty(100)
+    setPhotoItems(null); setPhotoError(''); setPhotoAnalyzing(false)
     setAddMode('search')
   }
 
@@ -257,6 +264,74 @@ async function moveMeal(id, direction) {
       user_id: user.id
     })
     resetAdd()
+    fetchEntries()
+  }
+
+  // Fotoğrafı küçült (canvas) → base64 döndür (Vercel body limiti + hız için)
+  function resizePhoto(file, maxDim = 1024) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = e => {
+        const img = new Image()
+        img.onload = () => {
+          let { width, height } = img
+          if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim }
+          else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim }
+          const canvas = document.createElement('canvas')
+          canvas.width = width; canvas.height = height
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', 0.8))
+        }
+        img.onerror = reject
+        img.src = e.target.result
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handlePhotoSelected(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // aynı dosyayı tekrar seçebilmek için sıfırla
+    if (!file) return
+    setPhotoError(''); setPhotoItems(null); setPhotoAnalyzing(true)
+    try {
+      const dataUrl = await resizePhoto(file)
+      const res = await fetch(`${BACKEND}/api/food-search?action=photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl, mimeType: 'image/jpeg', lang: i18n.language === 'en' ? 'en' : 'tr' })
+      })
+      const data = await res.json()
+      if (data.error) { setPhotoError(data.error); setPhotoItems([]) }
+      else setPhotoItems(data.items || [])
+    } catch (err) {
+      setPhotoError(err.message); setPhotoItems([])
+    } finally {
+      setPhotoAnalyzing(false)
+    }
+  }
+
+  function updatePhotoItem(idx, field, value) {
+    setPhotoItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
+  }
+  function removePhotoItem(idx) {
+    setPhotoItems(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  // Foto öğelerini kaydet (toplam kalori doğrudan, 100g ölçekleme YOK)
+  async function savePhotoItems() {
+    const valid = (photoItems || []).filter(it => it.name && (Number(it.calories) || 0) > 0)
+    if (valid.length === 0) return
+    const rows = valid.map(it => ({
+      date: selectedDate, meal: selectedMeal, name: it.name,
+      calories: Math.round(Number(it.calories) || 0),
+      protein: 0, carbs: 0, fat: 0,
+      quantity: Math.round(Number(it.grams) || 0),
+      user_id: user.id
+    }))
+    await supabase.from('food_entries').insert(rows)
+    setPhotoItems(null); setPhotoError(''); setShowAdd(false); setAddMode('search')
     fetchEntries()
   }
 
@@ -405,7 +480,7 @@ async function moveMeal(id, direction) {
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '14px' }}>{mealLabel(selectedMeal)} — {t('calories.addSuffix')}</h3>
 
           <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-            {[['search', '🔍 ' + t('calories.search')], ['manual', '✏️ ' + t('calories.manual')], ['barcode', '📷 ' + t('calories.barcode')]].map(([val, label]) => (
+            {[['search', '🔍 ' + t('calories.search')], ['manual', '✏️ ' + t('calories.manual')], ['barcode', '📷 ' + t('calories.barcode')], ['photo', '🍽️ ' + t('calories.fromPhoto')]].map(([val, label]) => (
               <button key={val} onClick={() => setAddMode(val)} style={{
                 flex: 1, padding: '7px 10px', borderRadius: '8px', border: '1px solid',
                 borderColor: addMode === val ? 'var(--accent)' : 'var(--border-strong)',
@@ -483,6 +558,75 @@ async function moveMeal(id, direction) {
                 <FoodResult food={scanResult} onAdd={addFood} />
               )}
             </>
+          )}
+
+          {addMode === 'photo' && (
+            <div>
+              {/* Gizli dosya input (kamera + galeri) */}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoSelected}
+                style={{ display: 'none' }}
+              />
+
+              {/* Henüz analiz yok: seç/çek ekranı */}
+              {photoItems === null && !photoAnalyzing && (
+                <div style={{ textAlign: 'center', padding: '20px 8px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '10px' }}>🍽️</div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-faint)', marginBottom: '16px' }}>{t('calories.photoHint')}</p>
+                  <button onClick={() => photoInputRef.current?.click()} style={{ ...buttonStyle, width: '100%' }}>
+                    📷 {t('calories.choosePhoto')}
+                  </button>
+                </div>
+              )}
+
+              {/* Analiz ediliyor */}
+              {photoAnalyzing && (
+                <div style={{ textAlign: 'center', padding: '30px 8px', color: 'var(--text-faint)', fontSize: '14px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
+                  {t('calories.analyzing')}
+                </div>
+              )}
+
+              {/* Sonuç: bulunamadı */}
+              {photoItems !== null && photoItems.length === 0 && !photoAnalyzing && (
+                <div style={{ textAlign: 'center', padding: '20px 8px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-faint)', marginBottom: '14px' }}>{t('calories.noFoodFound')}</p>
+                  <button onClick={() => photoInputRef.current?.click()} style={{ ...buttonStyle, width: '100%' }}>{t('calories.analyzeAgain')}</button>
+                </div>
+              )}
+
+              {/* Sonuç: düzenlenebilir liste */}
+              {photoItems !== null && photoItems.length > 0 && !photoAnalyzing && (
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '10px', textAlign: 'center' }}>{t('calories.estimatedNote')}</div>
+                  {photoItems.map((it, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 10px', marginBottom: '6px' }}>
+                      <input value={it.name} onChange={e => updatePhotoItem(idx, 'name', e.target.value)}
+                        style={{ ...inputStyle, flex: 1, fontSize: '13px', padding: '6px 8px', minWidth: 0 }} />
+                      <input type="number" value={it.grams} onChange={e => updatePhotoItem(idx, 'grams', e.target.value)} onFocus={e => e.target.select()}
+                        style={{ ...inputStyle, flex: 0, width: '54px', fontSize: '12px', padding: '6px 6px', textAlign: 'center' }} />
+                      <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>{t('calories.gramsShort')}</span>
+                      <input type="number" value={it.calories} onChange={e => updatePhotoItem(idx, 'calories', e.target.value)} onFocus={e => e.target.select()}
+                        style={{ ...inputStyle, flex: 0, width: '62px', fontSize: '12px', padding: '6px 6px', textAlign: 'center' }} />
+                      <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>kcal</span>
+                      <span onClick={() => removePhotoItem(idx)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}>✕</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 2px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                    <span>{t('calories.total') || 'Toplam'}</span>
+                    <span>{photoItems.reduce((s, it) => s + (Number(it.calories) || 0), 0)} kcal</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => photoInputRef.current?.click()} style={{ ...buttonStyle, flex: 1, background: 'var(--bg-item)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{t('calories.analyzeAgain')}</button>
+                    <button onClick={savePhotoItems} style={{ ...buttonStyle, flex: 1 }}>{t('calories.addAll')}</button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </Modal>
       )}

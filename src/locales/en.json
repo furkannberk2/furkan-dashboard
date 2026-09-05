@@ -91,7 +91,18 @@
     "deleteMealConfirmEmpty": "Are you sure you want to delete this meal?",
     "per100g": "Nutrition values per 100g",
     "name": "Name",
-    "macrosOptional": "Macros (optional)"
+    "macrosOptional": "Macros (optional)",
+    "fromPhoto": "From Photo",
+    "analyzing": "Analyzing photo...",
+    "photoTitle": "Calories from Photo",
+    "photoHint": "Take or pick a food photo, let AI estimate the calories.",
+    "choosePhoto": "Pick / Take Photo",
+    "noFoodFound": "No food found in the photo. Try another.",
+    "addAll": "Add All",
+    "analyzeAgain": "New Photo",
+    "estimatedNote": "AI estimate — you can edit",
+    "gramsShort": "g",
+    "total": "Total"
   },
   "meals": {
     "breakfast": "Breakfast",

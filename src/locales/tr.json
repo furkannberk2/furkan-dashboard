@@ -91,7 +91,18 @@
     "deleteMealConfirmEmpty": "Bu öğünü silmek istediğine emin misin?",
     "per100g": "Besin değerleri 100g içindir",
     "name": "İsim",
-    "macrosOptional": "Makrolar (isteğe bağlı)"
+    "macrosOptional": "Makrolar (isteğe bağlı)",
+    "fromPhoto": "Fotoğraftan",
+    "analyzing": "Fotoğraf analiz ediliyor...",
+    "photoTitle": "Fotoğraftan Kalori",
+    "photoHint": "Yemek fotoğrafı çek veya seç, AI kalorileri tahmin etsin.",
+    "choosePhoto": "Fotoğraf Seç / Çek",
+    "noFoodFound": "Fotoğrafta yemek bulunamadı. Başka bir fotoğraf dene.",
+    "addAll": "Tümünü Ekle",
+    "analyzeAgain": "Yeni Fotoğraf",
+    "estimatedNote": "AI tahmini — düzenleyebilirsin",
+    "gramsShort": "g",
+    "total": "Toplam"
   },
   "meals": {
     "breakfast": "Kahvaltı",
