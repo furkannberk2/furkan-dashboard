@@ -249,6 +249,19 @@ const toolDeclarations = [
     }
   },
   {
+    name: 'add_food',
+    description: 'Kullanıcının yediği bir yiyeceği kalori günlüğüne kaydeder. Kullanıcı "2 yumurta yedim", "öğlen tavuk döner yedim", "kahvaltıda menemen" gibi yediğini söylediğinde kullan. Kalori tahminini kendi bilgine göre yap (örn. 2 yumurta ~140 kcal). Öğünü mesajdan çıkar (kahvaltı/öğle/akşam/atıştırma), belirsizse şu anki saate göre mantıklı olanı seç.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Yiyecek adı (kısa, ör. "2 yumurta", "Tavuk döner")' },
+        calories: { type: 'number', description: 'Tahmini toplam kalori (porsiyonun tamamı için)' },
+        meal: { type: 'string', description: 'Öğün anahtarı (biri): breakfast (kahvaltı), lunch (öğle), dinner (akşam), snack (atıştırma). Kullanıcı Türkçe söylese bile İngilizce anahtarı yaz. Belirsizse şu anki saate göre seç.' }
+      },
+      required: ['name', 'calories', 'meal']
+    }
+  },
+  {
     name: 'add_daily_expense',
     description: 'Bugün için bir harcama kaydeder',
     parameters: {
@@ -330,6 +343,17 @@ async function executeAction(name, args, userId) {
       if (goal) await supabase.from('calorie_goals').update({ daily_calories: args.daily_calories, updated_at: new Date() }).eq('id', goal.id)
       else await supabase.from('calorie_goals').insert({ daily_calories: args.daily_calories, user_id: userId })
       return `Günlük kalori hedefi ${args.daily_calories} olarak ayarlandı`
+    }
+    if (name === 'add_food') {
+      const validMeals = ['breakfast', 'lunch', 'dinner', 'snack']
+      const meal = validMeals.includes(args.meal) ? args.meal : 'snack'
+      await supabase.from('food_entries').insert({
+        date: today, meal, name: args.name,
+        calories: Math.round(args.calories) || 0,
+        protein: 0, carbs: 0, fat: 0, quantity: 0,
+        user_id: userId
+      })
+      return `"${args.name}" (${Math.round(args.calories)} kcal) kalori günlüğüne eklendi`
     }
     if (name === 'add_daily_expense') {
       await supabase.from('daily_expenses').insert({
