@@ -8,6 +8,7 @@ import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrent
 import { formatMoney } from '../utils/format'
 import { usePreferences } from '../components/PreferencesProvider'
 import { useTranslation } from 'react-i18next'
+import MailExpenses from './MailExpenses'
 
 const EXPENSE_CATEGORIES = [
   { key: 'groceries', label: 'Market' },
@@ -449,6 +450,7 @@ const categoryDistribution = (() => {
       {/* Günlük */}
       {tab === 'daily' && (
         <div style={{ maxWidth: '680px' }}>
+          <MailExpenses onAdded={fetchAll} />
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
               <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder={t('finance.descriptionPlaceholder')} style={inputStyle} />

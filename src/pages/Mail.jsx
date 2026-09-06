@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BACKEND } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { useTranslation } from 'react-i18next'
+import MailExpenses from './MailExpenses'
 
 function Mail() {
   const { user } = useAuth()
@@ -47,6 +48,8 @@ useEffect(() => {
           </button>
         </div>
       </div>
+
+      <MailExpenses />
 
       {!data && !loading && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px', textAlign: 'center' }}>

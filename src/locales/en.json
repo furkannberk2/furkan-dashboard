@@ -187,7 +187,14 @@
     "freeRow": "Free",
     "noExpense": "No expenses.",
     "noRecurring": "No fixed expenses.",
-    "fundCode": "Fund code"
+    "fundCode": "Fund code",
+    "scanMailExpenses": "Scan expenses from mail",
+    "scanningMails": "Scanning mails...",
+    "noMailExpenses": "No expenses found in today's mail.",
+    "mailExpensesFound": "Expenses found in mail",
+    "addSelected": "Add selected",
+    "fromMail": "From mail",
+    "mailExpensesHint": "AI detection — review, edit, confirm"
   },
   "categories": {
     "groceries": "Groceries",

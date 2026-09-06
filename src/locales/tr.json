@@ -187,7 +187,14 @@
     "freeRow": "Serbest",
     "noExpense": "Harcama yok.",
     "noRecurring": "Sabit gider yok.",
-    "fundCode": "Fon kodu"
+    "fundCode": "Fon kodu",
+    "scanMailExpenses": "Maillerden harcama tara",
+    "scanningMails": "Mailler taranıyor...",
+    "noMailExpenses": "Bugünkü maillerde harcama bulunamadı.",
+    "mailExpensesFound": "Maillerde bulunan harcamalar",
+    "addSelected": "Seçilenleri ekle",
+    "fromMail": "Mailden",
+    "mailExpensesHint": "AI tespiti — kontrol et, düzenle, onayla"
   },
   "categories": {
     "groceries": "Market",

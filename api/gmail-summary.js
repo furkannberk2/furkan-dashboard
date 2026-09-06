@@ -102,6 +102,11 @@ export default async function handler(req, res) {
     const force = req.query.force === '1'
     if (!userId) return res.status(400).json({ error: 'user_id gerekli' })
 
+    // === MAİLLERDEN HARCAMA TESPİTİ ===
+    if (req.query.action === 'expenses') {
+      return handleExpenses(req, res, userId)
+    }
+
     const today = new Date().toISOString().split('T')[0]
 
     // Cache kontrolü — force=1 değilse bugünün özetini cache'ten dön
@@ -239,6 +244,108 @@ ${mailText}`
       accounts: accountEmails
     })
   } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+} 
+// === Maillerden harcama tespiti ===
+async function handleExpenses(req, res, userId) {
+  try {
+    const { data: accounts } = await supabase
+      .from('gmail_accounts').select('*').eq('user_id', userId)
+
+    const { data: prefs } = await supabase
+      .from('user_preferences').select('language').eq('user_id', userId).maybeSingle()
+    const lang = prefs?.language === 'en' ? 'en' : 'tr'
+
+    if (!accounts || accounts.length === 0) {
+      return res.status(200).json({ connected: false, expenses: [] })
+    }
+
+    let allMails = []
+    for (const account of accounts) {
+      try {
+        const mails = await getTodayMessages(account)
+        allMails = allMails.concat(mails)
+      } catch (err) {
+        console.error(`${account.email} hatası:`, err.message)
+      }
+    }
+
+    if (allMails.length === 0) {
+      return res.status(200).json({ connected: true, expenses: [] })
+    }
+
+    const mailText = allMails.map((m, i) =>
+      `${i + 1}. [${m.account}] Gönderen: ${m.from} | Konu: ${m.subject} | İçerik: ${m.body || m.snippet}`
+    ).join('\n\n')
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+    const promptTR = `Aşağıda bugün gelen e-postalar var. İçlerinden PARA HARCAMASI içerenleri tespit et.
+
+Şunları harcama olarak yakala: banka/kart işlem bildirimleri, alışveriş/sipariş onayları, faturalar, ödeme makbuzları, abonelik yenilemeleri, yemek/market siparişleri.
+
+ŞUNLARI YAKALAMA: reklam/kampanya mailleri (henüz harcama değil), "sepetinde ürün var" hatırlatmaları, indirim duyuruları, sadece fiyat gösteren bültenler, banka bakiye bilgilendirmeleri (harcama değilse).
+
+Her gerçek harcama için:
+- amount: tutar (sayı, TL). Farklı para birimiyse yaklaşık TL'ye çevir.
+- category: şu anahtarlardan biri: groceries (market), food (yemek/restoran), transport (ulaşım), cafe (kafe), clothing (giyim), health (sağlık), entertainment (eğlence), subscription (abonelik), bills (fatura), other (diğer).
+- description: kısa açıklama (nereden/ne, ör. "Trendyol siparişi", "Getir market").
+- source: gönderen/marka adı.
+
+SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:
+{"expenses":[{"amount":250,"category":"groceries","description":"Getir market siparişi","source":"Getir"}]}
+
+Hiç harcama yoksa: {"expenses":[]}
+
+E-postalar:
+${mailText}`
+
+    const promptEN = `Below are today's emails. Detect the ones that contain MONEY SPENT.
+
+Capture as expense: bank/card transaction alerts, shopping/order confirmations, invoices, payment receipts, subscription renewals, food/grocery orders.
+
+DO NOT capture: ads/promo emails (not a spend yet), "items in your cart" reminders, discount announcements, newsletters that only show prices, bank balance notifications (if not a spend).
+
+For each real expense:
+- amount: amount (number, in TRY). If a different currency, convert approximately to TRY.
+- category: one of these keys: groceries, food, transport, cafe, clothing, health, entertainment, subscription, bills, other.
+- description: short description (from where/what, e.g. "Trendyol order", "Getir grocery").
+- source: sender/brand name.
+
+Respond ONLY in this JSON format, nothing else:
+{"expenses":[{"amount":250,"category":"groceries","description":"Getir grocery order","source":"Getir"}]}
+
+If no expenses: {"expenses":[]}
+
+Emails:
+${mailText}`
+
+    const prompt = lang === 'en' ? promptEN : promptTR
+    const result = await model.generateContent(prompt)
+    let out = result.response.text().trim()
+    out = out.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+    let parsed
+    try {
+      parsed = JSON.parse(out)
+    } catch {
+      const match = out.match(/\{[\s\S]*\}/)
+      parsed = match ? JSON.parse(match[0]) : { expenses: [] }
+    }
+
+    const expenses = (parsed.expenses || [])
+      .filter(e => e && Number(e.amount) > 0)
+      .map(e => ({
+        amount: Math.round(Number(e.amount)),
+        category: String(e.category || 'other'),
+        description: String(e.description || '').slice(0, 80),
+        source: String(e.source || '').slice(0, 40)
+      }))
+
+    res.status(200).json({ connected: true, expenses })
+  } catch (err) {
+    console.error('Expense detection error:', err.message)
     res.status(500).json({ error: err.message })
   }
 }
