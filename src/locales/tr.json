@@ -102,7 +102,10 @@
     "analyzeAgain": "Yeni Fotoğraf",
     "estimatedNote": "AI tahmini — düzenleyebilirsin",
     "gramsShort": "g",
-    "total": "Toplam"
+    "total": "Toplam",
+    "aiAdd": "AI ile ekle",
+    "aiAddPlaceholder": "Ne yedin? (ör. 2 yumurta ve tost)",
+    "aiThinking": "Düşünüyor..."
   },
   "meals": {
     "breakfast": "Kahvaltı",

@@ -51,6 +51,12 @@ function Calories() {
   const [photoItems, setPhotoItems] = useState(null) // null=henüz yok, []=bulunamadı
   const [photoError, setPhotoError] = useState('')
 
+  // AI ile ekle (sayfa üstü hızlı giriş)
+  const [aiText, setAiText] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiItems, setAiItems] = useState(null)
+  const [aiMeal, setAiMeal] = useState('')
+
   // Varsayılan öğünler + kullanıcının özel öğünleri
   // Tüm öğünler custom_meals'te (varsayılanlar ilk girişte seed edilir).
   // Hepsi eşit: silinebilir, adı değişir, sıralanır.
@@ -257,6 +263,47 @@ async function moveMeal(id, direction) {
     setPhotoItems(prev => prev.filter((_, i) => i !== idx))
   }
 
+  // ---- AI ile ekle (sayfa üstü) ----
+  async function analyzeAiText() {
+    if (!aiText.trim()) return
+    setAiLoading(true); setAiItems(null)
+    try {
+      const res = await fetch(`${BACKEND}/api/food-search?action=text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: aiText, lang: i18n.language === 'en' ? 'en' : 'tr' })
+      })
+      const data = await res.json()
+      setAiItems(data.items || [])
+      if (!aiMeal && MEALS[0]) setAiMeal(MEALS[0].key)
+    } catch {
+      setAiItems([])
+    } finally {
+      setAiLoading(false)
+    }
+  }
+  function updateAiItem(idx, field, value) {
+    setAiItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
+  }
+  function removeAiItem(idx) {
+    setAiItems(prev => prev.filter((_, i) => i !== idx))
+  }
+  async function saveAiItems() {
+    const meal = aiMeal || MEALS[0]?.key || 'breakfast'
+    const valid = (aiItems || []).filter(it => it.name && (Number(it.calories) || 0) > 0)
+    if (valid.length === 0) return
+    const rows = valid.map(it => ({
+      date: selectedDate, meal, name: it.name,
+      calories: Math.round(Number(it.calories) || 0),
+      protein: 0, carbs: 0, fat: 0,
+      quantity: Math.round(Number(it.grams) || 0),
+      user_id: user.id
+    }))
+    await supabase.from('food_entries').insert(rows)
+    setAiText(''); setAiItems(null)
+    fetchEntries()
+  }
+
   // Foto öğelerini kaydet (toplam kalori doğrudan, 100g ölçekleme YOK)
   async function savePhotoItems() {
     const valid = (photoItems || []).filter(it => it.name && (Number(it.calories) || 0) > 0)
@@ -338,6 +385,50 @@ async function moveMeal(id, direction) {
           <MacroBox label="Karb" value={totalCarbs} color="var(--warning)" />
           <MacroBox label={t('calories.fat')} value={totalFat} color="var(--pink)" />
         </div>
+      </div>
+
+      {/* AI ile ekle — sayfa üstü hızlı giriş */}
+      <div style={{ maxWidth: '680px', marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }}>
+          <span style={{ fontSize: '15px' }}>✨</span>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{t('calories.aiAdd')}</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            value={aiText}
+            onChange={e => setAiText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && analyzeAiText()}
+            placeholder={t('calories.aiAddPlaceholder')}
+            style={{ ...inputStyle, flex: 1, fontSize: '13px' }}
+          />
+          <button onClick={analyzeAiText} disabled={aiLoading || !aiText.trim()} style={{ ...buttonStyle, padding: '8px 16px', fontSize: '13px', opacity: (aiLoading || !aiText.trim()) ? 0.6 : 1 }}>
+            {aiLoading ? t('calories.aiThinking') : '→'}
+          </button>
+        </div>
+
+        {/* AI sonuç: düzenlenebilir */}
+        {aiItems !== null && aiItems.length > 0 && (
+          <div style={{ marginTop: '12px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '8px' }}>{t('calories.estimatedNote')}</div>
+            {aiItems.map((it, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '7px', alignItems: 'center', background: 'var(--bg-item)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 10px', marginBottom: '6px' }}>
+                <input value={it.name} onChange={e => updateAiItem(idx, 'name', e.target.value)} style={{ ...inputStyle, flex: 1, fontSize: '13px', padding: '5px 8px', minWidth: 0 }} />
+                <input type="number" value={it.calories} onChange={e => updateAiItem(idx, 'calories', e.target.value)} onFocus={e => e.target.select()} style={{ ...inputStyle, flex: 0, width: '62px', fontSize: '12px', padding: '5px 6px', textAlign: 'center' }} />
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>kcal</span>
+                <span onClick={() => removeAiItem(idx)} style={{ color: 'var(--text-faded)', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}>✕</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px' }}>
+              <select value={aiMeal} onChange={e => setAiMeal(e.target.value)} style={{ ...inputStyle, flex: 0, width: 'auto', fontSize: '13px', padding: '7px 10px', cursor: 'pointer' }}>
+                {MEALS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+              </select>
+              <button onClick={saveAiItems} style={{ ...buttonStyle, flex: 1, fontSize: '13px' }}>{t('calories.addAll')}</button>
+            </div>
+          </div>
+        )}
+        {aiItems !== null && aiItems.length === 0 && !aiLoading && (
+          <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-faint)' }}>{t('calories.noFoodFound')}</div>
+        )}
       </div>
 
       <div style={{ maxWidth: '680px' }}>

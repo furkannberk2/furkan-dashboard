@@ -102,7 +102,10 @@
     "analyzeAgain": "New Photo",
     "estimatedNote": "AI estimate — you can edit",
     "gramsShort": "g",
-    "total": "Total"
+    "total": "Total",
+    "aiAdd": "Add with AI",
+    "aiAddPlaceholder": "What did you eat? (e.g. 2 eggs and toast)",
+    "aiThinking": "Thinking..."
   },
   "meals": {
     "breakfast": "Breakfast",

@@ -12,6 +12,12 @@ export default async function handler(req, res) {
     return handlePhoto(req, res)
   }
 
+  // === METİNDEN KALORİ (POST) ===
+  // food-search?action=text  +  body: { text, lang }
+  if (req.method === 'POST' && req.query.action === 'text') {
+    return handleText(req, res)
+  }
+
   // === METİN ARAMASI (GET, mevcut davranış) ===
   const { q } = req.query
   if (!q) return res.status(400).json({ error: 'q gerekli' })
@@ -120,6 +126,71 @@ Respond ONLY in this JSON format, nothing else (NO markdown, NO explanation):
     res.status(200).json({ items })
   } catch (err) {
     console.error('Photo analysis error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+}
+
+// === Metinden kalori analiz fonksiyonu ===
+async function handleText(req, res) {
+  try {
+    const { text, lang = 'tr' } = req.body || {}
+    if (!text || !text.trim()) return res.status(400).json({ error: 'text gerekli' })
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+    const promptTR = `Kullanıcı ne yediğini yazdı: "${text}"
+
+Bu metindeki yiyecek ve içecekleri analiz et.
+
+KURALLAR:
+- Birden fazla ayrı yiyecek varsa (örn. "2 yumurta ve bir dilim ekmek") her birini AYRI öğe olarak döndür.
+- Her öğe için: isim (Türkçe, kısa), tahmini miktar (gram), ve o miktarın toplam kalorisi.
+- Kalori tahminini kendi beslenme bilgine göre yap.
+- Kullanıcı miktar belirtmişse (2 yumurta, yarım tabak) ona göre hesapla; belirtmemişse makul bir porsiyon varsay.
+- Yiyecek/içecek olmayan bir metinse boş liste döndür.
+
+SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma (markdown, açıklama YOK):
+{"items":[{"name":"Yumurta (2 adet)","grams":100,"calories":140},{"name":"Ekmek (1 dilim)","grams":30,"calories":80}]}`
+
+    const promptEN = `The user wrote what they ate: "${text}"
+
+Analyze the foods and drinks in this text.
+
+RULES:
+- If there are multiple separate foods (e.g. "2 eggs and a slice of bread") return each as a SEPARATE item.
+- For each item: name (English, short), estimated amount (grams), and total calories for that amount.
+- Base the calorie estimate on your nutrition knowledge.
+- If the user gave a quantity (2 eggs, half a plate) calculate accordingly; if not, assume a reasonable portion.
+- If the text is not about food/drink, return an empty list.
+
+Respond ONLY in this JSON format, nothing else (NO markdown, NO explanation):
+{"items":[{"name":"Eggs (2)","grams":100,"calories":140},{"name":"Bread (1 slice)","grams":30,"calories":80}]}`
+
+    const prompt = lang === 'en' ? promptEN : promptTR
+
+    const result = await model.generateContent(prompt)
+    let out = result.response.text().trim()
+    out = out.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+    let parsed
+    try {
+      parsed = JSON.parse(out)
+    } catch {
+      const match = out.match(/\{[\s\S]*\}/)
+      parsed = match ? JSON.parse(match[0]) : { items: [] }
+    }
+
+    const items = (parsed.items || [])
+      .filter(it => it && it.name)
+      .map(it => ({
+        name: String(it.name).slice(0, 60),
+        grams: Math.max(0, Math.round(Number(it.grams) || 0)),
+        calories: Math.max(0, Math.round(Number(it.calories) || 0))
+      }))
+
+    res.status(200).json({ items })
+  } catch (err) {
+    console.error('Text analysis error:', err.message)
     res.status(500).json({ error: err.message })
   }
 }
