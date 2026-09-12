@@ -396,12 +396,23 @@ async function executeAction(name, args, userId) {
 }
 
 // ---------- SİSTEM PROMPTU ----------
-function buildSystemPrompt(tone, context) {
+function buildSystemPrompt(tone, context, ctx = 'general') {
   const toneDesc = {
     motive: 'Enerjik, motive edici bir antrenör gibisin. Kullanıcıyı harekete geçir, başarılarını kutla, cesaretlendir.',
     sakin: 'Sakin, bilge bir mentor gibisin. Yargılamadan, sabırla ve derinlemesine yaklaş.',
     direkt: 'Direkt ve nettsin. Laf kalabalığı yapmazsın, veriye dayalı net tavsiyeler verirsin.'
   }
+  const ctxFocus = {
+    general: '',
+    calories: 'Kullanıcı şu an KALORİ/BESLENME sayfasında. Öncelikle beslenme, kalori, öğünler ve besin hedefleri üzerine odaklan. Kullanıcı yediğini söylerse add_food ile kaydet.',
+    finance: 'Kullanıcı şu an FİNANS sayfasında. Öncelikle harcama, bütçe, gelir-gider dengesi ve tasarruf üzerine odaklan. Harcama söylerse ilgili aracı kullan.',
+    tasks: 'Kullanıcı şu an GÖREVLER sayfasında. Öncelikle görevler, öncelikler ve zaman yönetimi üzerine odaklan. Görev söylerse add_task ile ekle.',
+    projects: 'Kullanıcı şu an PROJELER sayfasında. Öncelikle projeler, aşamalar, ilerleme ve hedef tarihler üzerine odaklan.',
+    habits: 'Kullanıcı şu an ALIŞKANLIKLAR sayfasında. Öncelikle alışkanlıklar, süreklilik ve rutinler üzerine odaklan. Alışkanlık söylerse add_habit ile ekle.',
+    stocks: 'Kullanıcı şu an BORSA/İZLEME sayfasında. Öncelikle takip ettiği semboller ve piyasa üzerine odaklan.',
+    mail: 'Kullanıcı şu an MAİL ÖZETİ sayfasında. Öncelikle mail özeti ve mailden çıkan aksiyonlar üzerine odaklan.'
+  }
+  const focusLine = ctxFocus[ctx] ? `\n\nODAK: ${ctxFocus[ctx]}` : ''
   return `Sen kullanıcının kişisel yaşam koçusun. Elinde onun gerçek verileri var.
 
 KİŞİLİK: ${toneDesc[tone] || toneDesc.motive}
@@ -412,7 +423,7 @@ KURALLAR:
 - Kullanıcı hangi dilde yazıyorsa o dilde yanıt ver (Türkçe yazana Türkçe, İngilizce yazana İngilizce). Samimi ama saygılı bir üslup kullan. Kısa ve doğal, madde madde değil.
 - Kullanıcı bir şey eklemek/ayarlamak isterse ilgili aracı (function) kullan. Aracı kullandıktan sonra ne yaptığını doğal dille kısaca söyle.
 - Emin olmadığın durumda kullanıcıya sor, tahminle aksiyon alma.
-- Aylık verileri kıyaslarken içinde bulunulan ay henüz bitmemişse onu tamamlanmış aylarla ham sayı olarak kıyaslama. Bunun yerine mevcut ayın gidişatını (tempo, projeksiyon) değerlendir ve ayın kalan günlerinde önceki ayların seviyesini yakalamak için nelere odaklanılması gerektiğini söyle.
+- Aylık verileri kıyaslarken içinde bulunulan ay henüz bitmemişse onu tamamlanmış aylarla ham sayı olarak kıyaslama. Bunun yerine mevcut ayın gidişatını (tempo, projeksiyon) değerlendir ve ayın kalan günlerinde önceki ayların seviyesini yakalamak için nelere odaklanılması gerektiğini söyle.${focusLine}
 
 KULLANICININ GÜNCEL DURUMU:
 ${context}`
@@ -426,6 +437,8 @@ export default async function handler(req, res) {
 
   const { action, user_id, message } = req.body || {}
   if (!user_id) return res.status(400).json({ error: 'user_id gerekli' })
+  // Sohbet bağlamı (general, calories, finance, tasks, projects, habits, stocks, mail)
+  const ctx = (req.body?.context || 'general').toString().slice(0, 20)
 
   try {
     // Ayarları çek (tone)
@@ -436,15 +449,15 @@ export default async function handler(req, res) {
     if (action === 'chat') {
       if (!message) return res.status(400).json({ error: 'message gerekli' })
 
-      // Son 10 mesajı çek (konuşma geçmişi)
+      // Son 10 mesajı çek (SADECE bu bağlamdan)
       const { data: history } = await supabase.from('coach_messages')
-        .select('*').eq('user_id', user_id)
+        .select('*').eq('user_id', user_id).eq('context', ctx)
         .order('created_at', { ascending: false }).limit(10)
       const orderedHistory = (history || []).reverse()
 
       // Context oluştur
       const context = await buildFullContext(user_id)
-      const systemPrompt = buildSystemPrompt(tone, context)
+      const systemPrompt = buildSystemPrompt(tone, context, ctx)
 
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
@@ -461,7 +474,7 @@ export default async function handler(req, res) {
       const chat = model.startChat({ history: chatHistory })
 
       // Kullanıcı mesajını kaydet
-      await supabase.from('coach_messages').insert({ user_id, role: 'user', content: message })
+      await supabase.from('coach_messages').insert({ user_id, role: 'user', content: message, context: ctx })
 
       let result = await chat.sendMessage(message)
       let actionsTaken = []
@@ -488,17 +501,17 @@ export default async function handler(req, res) {
 
       // Koç cevabını kaydet
       await supabase.from('coach_messages').insert({
-        user_id, role: 'assistant', content: replyText,
+        user_id, role: 'assistant', content: replyText, context: ctx,
         action_taken: actionsTaken.length > 0 ? actionsTaken : null
       })
 
       return res.status(200).json({ reply: replyText, actions: actionsTaken })
     }
 
-    // === GEÇMİŞ ÇEKME ===
+    // === GEÇMİŞ ÇEKME (bağlama göre) ===
     if (action === 'history') {
       const { data } = await supabase.from('coach_messages')
-        .select('*').eq('user_id', user_id)
+        .select('*').eq('user_id', user_id).eq('context', ctx)
         .order('created_at', { ascending: true }).limit(50)
       return res.status(200).json({ messages: data || [] })
     }
@@ -510,9 +523,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true })
     }
 
-    // === GEÇMİŞ TEMİZLEME ===
+    // === GEÇMİŞ TEMİZLEME (SADECE bu bağlam) ===
     if (action === 'clear') {
-      await supabase.from('coach_messages').delete().eq('user_id', user_id)
+      await supabase.from('coach_messages').delete().eq('user_id', user_id).eq('context', ctx)
       return res.status(200).json({ ok: true })
     }
 
