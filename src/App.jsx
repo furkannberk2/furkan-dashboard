@@ -1,7 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from './components/AuthProvider'
 import Sidebar from './components/Sidebar'
+import CoachPanel from './pages/CoachPanel'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Tasks from './pages/Tasks'
@@ -13,14 +14,39 @@ import Mail from './pages/Mail'
 import Stocks from './pages/Stocks'
 import Coach from './pages/Coach'
 
+// Route → koç bağlamı eşlemesi
+const PATH_TO_CONTEXT = {
+  '/': 'general',
+  '/calories': 'calories',
+  '/finance': 'finance',
+  '/tasks': 'tasks',
+  '/projects': 'projects',
+  '/habits': 'habits',
+  '/stocks': 'stocks',
+  '/mail': 'mail'
+}
+
 function App() {
   const { user, loading } = useAuth()
+  const location = useLocation()
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+  const [coachOpen, setCoachOpen] = useState(false)
+
   useEffect(() => {
     function handle() { setIsMobile(window.innerWidth <= 768) }
     window.addEventListener('resize', handle)
     return () => window.removeEventListener('resize', handle)
   }, [])
+
+  // FAB'dan gelen "paneli aç" sinyalini dinle
+  useEffect(() => {
+    const open = () => setCoachOpen(true)
+    window.addEventListener('open-coach-panel', open)
+    return () => window.removeEventListener('open-coach-panel', open)
+  }, [])
+
+  // Sayfa değişince panel kapansın (temiz)
+  useEffect(() => { setCoachOpen(false) }, [location.pathname])
 
   if (loading) {
     return (
@@ -31,6 +57,9 @@ function App() {
   }
 
   if (!user) return <Login />
+
+  const coachContext = PATH_TO_CONTEXT[location.pathname] || 'general'
+  const onCoachPage = location.pathname === '/coach'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
@@ -52,6 +81,11 @@ function App() {
           <Route path="/coach" element={<Coach />} />
         </Routes>
       </main>
+
+      {/* Bağlam-farkında koç paneli (Koç sayfasında gösterme, orada zaten tam koç var) */}
+      {coachOpen && !onCoachPage && (
+        <CoachPanel context={coachContext} onClose={() => setCoachOpen(false)} />
+      )}
     </div>
   )
 }

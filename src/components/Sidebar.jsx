@@ -80,7 +80,7 @@ function Sidebar() {
         {!coachActive && (
           <button
             className="coach-fab"
-            onClick={() => navigate('/coach')}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-coach-panel'))}
             style={{
               position: 'fixed', bottom: '82px', right: '18px', zIndex: 60,
               width: '56px', height: '56px', borderRadius: '50%',
@@ -287,6 +287,24 @@ function Sidebar() {
       </button>
 
       <ProfilePanel open={showProfile} onClose={() => setShowProfile(false)} />
+
+      {/* Masaüstü sağ-alt panel FAB (sayfa-bağlamlı koç) — Koç sayfasında gizle */}
+      {!coachActive && (
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-coach-panel'))}
+          style={{
+            position: 'fixed', bottom: '24px', right: '24px', zIndex: 60,
+            width: '52px', height: '52px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)'
+          }}
+          aria-label="Koç paneli"
+        >
+          <Sparkles size={22} strokeWidth={2} />
+        </button>
+      )}
     </nav>
   )
 }
