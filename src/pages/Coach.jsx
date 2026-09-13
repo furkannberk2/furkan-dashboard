@@ -1,19 +1,10 @@
 import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BACKEND } from '../config'
 
-const TONES = [
-  { key: 'motive', label: '💪 Motive Edici', desc: 'Enerjik antrenör' },
-  { key: 'sakin', label: '🧘 Sakin', desc: 'Bilge mentor' },
-  { key: 'direkt', label: '🎯 Direkt', desc: 'Net ve veri odaklı' }
-]
-
-const SUGGESTIONS = [
-  'Bugün nasıl gidiyorum?',
-  'Bu ay finansal durumum nasıl?',
-  'Bana bugün için bir plan yap',
-  'Hangi alışkanlıkları kaçırdım?'
-]
+const TONE_KEYS = ['motive', 'sakin', 'direkt']
+const SUGGESTION_KEYS = ['sugg1', 'sugg2', 'sugg3', 'sugg4']
 
 function useIsMobile() {
   const [m, setM] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
@@ -132,6 +123,7 @@ function CoachMascot({ state, size = 180 }) {
 
 function Coach() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const isMobile = useIsMobile()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -223,7 +215,7 @@ function Coach() {
     } catch (e) { console.error(e) }
   }
 
-  const mascotStatusText = { idle: 'Hazır', thinking: 'Düşünüyor…', happy: 'İşte bu!' }
+  const mascotStatusText = { idle: t('coach.statusIdle'), thinking: t('coach.statusThinking'), happy: t('coach.statusHappy') }
 
   return (
     <div style={{ color: 'var(--text)', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -232,32 +224,36 @@ function Coach() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isMobile && <CoachMascot state={mascotState} size={52} />}
             <div>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>Koç</h2>
-              <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', margin: '4px 0 0' }}>Kişisel yaşam koçun</p>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', margin: 0 }}>{t('coach.pageTitle')}</h2>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', margin: '4px 0 0' }}>{t('coach.pageSubtitle')}</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => setShowSettings(!showSettings)} style={btnGhost}>⚙ Kişilik</button>
-            {messages.length > 0 && <button onClick={clearHistory} style={btnGhost}>🗑 Temizle</button>}
+            <button onClick={() => setShowSettings(!showSettings)} style={btnGhost}>{t('coach.personality')}</button>
+            {messages.length > 0 && <button onClick={clearHistory} style={btnGhost}>{t('coach.clear')}</button>}
           </div>
         </div>
 
         {showSettings && (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '10px' }}>Koçun kişiliği:</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginBottom: '10px' }}>{t('coach.personalityLabel')}</div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {TONES.map(t => (
-                <button key={t.key} onClick={() => changeTone(t.key)} style={{
+              {TONE_KEYS.map(toneKey => {
+                const labelMap = { motive: 'toneMotive', sakin: 'toneSakin', direkt: 'toneDirekt' }
+                const descMap = { motive: 'toneMotiveDesc', sakin: 'toneSakinDesc', direkt: 'toneDirektDesc' }
+                return (
+                <button key={toneKey} onClick={() => changeTone(toneKey)} style={{
                   padding: '8px 14px', borderRadius: '8px', border: '1px solid',
-                  borderColor: tone === t.key ? 'var(--accent)' : 'var(--border-strong)',
-                  background: tone === t.key ? 'var(--accent)' : 'transparent',
-                  color: tone === t.key ? '#fff' : 'var(--text-dim)', cursor: 'pointer',
+                  borderColor: tone === toneKey ? 'var(--accent)' : 'var(--border-strong)',
+                  background: tone === toneKey ? 'var(--accent)' : 'transparent',
+                  color: tone === toneKey ? '#fff' : 'var(--text-dim)', cursor: 'pointer',
                   fontSize: '13px', textAlign: 'left'
                 }}>
-                  <div style={{ fontWeight: '600' }}>{t.label}</div>
-                  <div style={{ fontSize: '11px', opacity: 0.8 }}>{t.desc}</div>
+                  <div style={{ fontWeight: '600' }}>{t('coach.' + labelMap[toneKey])}</div>
+                  <div style={{ fontSize: '11px', opacity: 0.8 }}>{t('coach.' + descMap[toneKey])}</div>
                 </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -266,15 +262,18 @@ function Coach() {
           {historyLoaded && messages.length === 0 && (
             <div style={{ textAlign: 'center', padding: '20px' }}>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Merhaba! Ben senin kişisel koçunum. Sana nasıl yardımcı olabilirim?
+                {t('coach.welcome')}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '360px', margin: '0 auto' }}>
-                {SUGGESTIONS.map(s => (
-                  <button key={s} onClick={() => send(s)} style={{
+                {SUGGESTION_KEYS.map(sKey => {
+                  const label = t('coach.' + sKey)
+                  return (
+                  <button key={sKey} onClick={() => send(label)} style={{
                     padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)',
                     borderRadius: '10px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', textAlign: 'left'
-                  }}>{s}</button>
-                ))}
+                  }}>{label}</button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -309,7 +308,7 @@ function Coach() {
           {loading && (
             <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '11px 16px', color: 'var(--text-faint)', fontSize: '14px' }}>
-                düşünüyor…
+                {t('coach.thinkingDot')}
               </div>
             </div>
           )}
@@ -320,7 +319,7 @@ function Coach() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder="Koçuna bir şey sor..."
+            placeholder={t('coach.placeholder')}
             disabled={loading}
             style={{
               flex: 1, padding: '12px 14px', background: 'var(--bg-item)',
@@ -332,7 +331,7 @@ function Coach() {
             padding: '12px 20px', background: 'var(--accent)', border: 'none',
             borderRadius: '10px', color: '#fff', fontSize: '14px', cursor: 'pointer',
             opacity: loading || !input.trim() ? 0.5 : 1
-          }}>Gönder</button>
+          }}>{t('coach.send')}</button>
         </div>
       </div>
 
@@ -351,10 +350,10 @@ function Coach() {
             border: '1px solid var(--border)', borderRadius: '12px', width: '100%'
           }}>
             <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px', fontWeight: '600' }}>
-              İpucu
+              {t('coach.tip')}
             </div>
             <div style={{ fontSize: '12.5px', color: 'var(--text-dim)', lineHeight: '1.6' }}>
-              Bana "yarın spora git görevi ekle" ya da "kalori hedefimi 2200 yap" gibi şeyler söyleyebilirsin. Senin için hallederim.
+              {t('coach.tipText')}
             </div>
           </div>
         </div>
