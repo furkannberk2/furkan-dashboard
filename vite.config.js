@@ -12,9 +12,9 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024
       },
       manifest: {
-        name: "Furkan's Dashboard",
-        short_name: 'Dashboard',
-        description: 'Kişisel takip dashboardu',
+        name: 'Lumen Arc',
+        short_name: 'Lumen Arc',
+        description: 'Kişisel yaşam koçun — görevler, alışkanlıklar, kalori ve finans tek yerde.',
         theme_color: '#0f0f0f',
         background_color: '#0f0f0f',
         display: 'standalone',
