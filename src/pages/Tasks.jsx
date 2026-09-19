@@ -523,7 +523,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
           </div>
           {overdueTasks.slice(0, 6).map(t => (
             <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
               <span style={{ fontSize: '11px', color: 'var(--danger)', flexShrink: 0 }}>{formatDate(t.day)}</span>
             </div>
           ))}
@@ -538,7 +538,7 @@ function TaskSidebar({ isMobile, overdueTasks, upcomingTasks, projectSummaries, 
           </div>
           {upcomingTasks.slice(0, 6).map(t => (
             <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
               <span style={{ fontSize: '11px', color: 'var(--text-faint)', flexShrink: 0 }}>{formatDate(t.day)}</span>
             </div>
           ))}
@@ -662,7 +662,7 @@ function TaskItem({ task, today, onToggle, onDelete, onEdit, formatDate, isOverd
             fontSize: '13px',
             color: task.status === 'done' ? 'var(--text-faint)' : 'var(--text-secondary)',
             textDecoration: task.status === 'done' ? 'line-through' : 'none',
-            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+            flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             cursor: task.source === 'routine' ? 'default' : 'pointer'
           }}
         >
