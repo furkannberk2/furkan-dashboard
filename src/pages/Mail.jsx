@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { useTranslation } from 'react-i18next'
 import MailExpenses from './MailExpenses'
@@ -16,8 +16,7 @@ async function fetchSummary(force = false) {
   if (!userId) return
   setLoading(true)
   try {
-    const url = `${BACKEND}/api/gmail-summary?user_id=${userId}${force ? '&force=1' : ''}`
-    const res = await fetch(url)
+    const res = await apiFetch(`/api/gmail-summary?user_id=${userId}${force ? '&force=1' : ''}`)
     const json = await res.json()
     setData(json)
   } catch (err) {

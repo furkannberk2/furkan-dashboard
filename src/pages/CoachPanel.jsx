@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../components/AuthProvider'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 
 // Her bağlam için sayfaya özel hızlı öneriler (çeviri anahtarları)
 const SUGGESTIONS = {
@@ -54,7 +54,7 @@ export default function CoachPanel({ context = 'general', onClose }) {
   async function loadHistory() {
     setHistoryLoaded(false)
     try {
-      const res = await fetch(`${BACKEND}/api/coach`, {
+      const res = await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'history', user_id: user.id, context })
@@ -72,7 +72,7 @@ export default function CoachPanel({ context = 'general', onClose }) {
     setMessages(prev => [...prev, { role: 'user', content: msg, id: 'temp-' + Date.now() }])
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND}/api/coach`, {
+      const res = await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'chat', user_id: user.id, message: msg, context })
@@ -93,7 +93,7 @@ export default function CoachPanel({ context = 'general', onClose }) {
   async function clearHistory() {
     if (!confirm(t('coach.clearConfirm'))) return
     try {
-      await fetch(`${BACKEND}/api/coach`, {
+      await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear', user_id: user.id, context })

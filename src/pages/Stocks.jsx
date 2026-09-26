@@ -1,7 +1,7 @@
 import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 import { formatMoney } from '../utils/format'
 import { useTranslation } from 'react-i18next'
 
@@ -85,7 +85,7 @@ function Stocks() {
     const symbols = uniqueItems.map(h => h.symbol).join(',')
     const hints = uniqueItems.map(h => h.type === 'BIST' ? 'BIST' : '').join(',')
     try {
-      const res = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent(symbols)}&hints=${encodeURIComponent(hints)}&history=1`)
+      const res = await apiFetch(`/api/quote?symbols=${encodeURIComponent(symbols)}&hints=${encodeURIComponent(hints)}&history=1`)
       const data = await res.json()
       setQuotes(data)
       const monthlyData = {}
@@ -100,7 +100,7 @@ function Stocks() {
     if (!search.trim()) return
     setSearching(true)
     try {
-      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(search)}&type=${searchType}`)
+      const res = await apiFetch(`/api/symbol-search?q=${encodeURIComponent(search)}&type=${searchType}`)
       const data = await res.json()
       setResults(data.results || [])
     } catch (err) { console.error(err) }

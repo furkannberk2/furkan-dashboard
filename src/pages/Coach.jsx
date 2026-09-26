@@ -1,7 +1,7 @@
 import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 
 const TONE_KEYS = ['motive', 'sakin', 'direkt']
 const SUGGESTION_KEYS = ['sugg1', 'sugg2', 'sugg3', 'sugg4']
@@ -149,7 +149,7 @@ function Coach() {
 
   async function loadHistory() {
     try {
-      const res = await fetch(`${BACKEND}/api/coach`, {
+      const res = await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'history', user_id: user.id })
@@ -167,7 +167,7 @@ function Coach() {
     setMessages(prev => [...prev, { role: 'user', content: msg, id: 'temp-' + Date.now() }])
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND}/api/coach`, {
+      const res = await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'chat', user_id: user.id, message: msg })
@@ -195,7 +195,7 @@ function Coach() {
   async function changeTone(newTone) {
     setTone(newTone)
     try {
-      await fetch(`${BACKEND}/api/coach`, {
+      await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'set_tone', user_id: user.id, tone: newTone })
@@ -206,7 +206,7 @@ function Coach() {
   async function clearHistory() {
     if (!confirm('Tüm sohbet geçmişi silinecek. Emin misin?')) return
     try {
-      await fetch(`${BACKEND}/api/coach`, {
+      await apiFetch(`/api/coach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear', user_id: user.id })

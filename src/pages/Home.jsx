@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 import { useAuth } from '../components/AuthProvider'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, getCurrentPeriod, isDueInCurrentCycle as isDue } from '../utils/finance'
@@ -70,7 +70,7 @@ function Home() {
 
   async function fetchPrices() {
     try {
-      const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
+      const r1 = await apiFetch(`/api/exchange-rates`)
       const d1 = await r1.json()
       setRates(d1.rates || {})
 
@@ -79,7 +79,7 @@ function Home() {
       if (investments.some(i => i.type === 'SILVER_GRAM')) symbols.add('XAG/USD')
       investments.filter(i => i.type === 'CRYPTO' || i.type === 'STOCK' || i.type === 'BIST').forEach(i => i.symbol && symbols.add(i.symbol))
       if (symbols.size > 0) {
-        const r2 = await fetch(`${BACKEND}/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
+        const r2 = await apiFetch(`/api/quote?symbols=${encodeURIComponent([...symbols].join(','))}`)
         const d2 = await r2.json()
         setQuotes(d2)
       }
@@ -106,7 +106,7 @@ function Home() {
   async function fetchMail() {
   if (!user) return
   try {
-    const r = await fetch(`${BACKEND}/api/gmail-summary?user_id=${user.id}`)
+    const r = await apiFetch(`/api/gmail-summary?user_id=${user.id}`)
     const d = await r.json()
     setMailData(d)
   } catch (e) { console.error(e) }

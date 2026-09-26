@@ -2,7 +2,7 @@ import { useAuth } from '../components/AuthProvider'
 import { readCachedQuotes, fetchMissingQuotes, staleAllQuotes } from '../lib/quoteCache'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { getBaseCurrencyValue, getDailyChange as calcDailyChange, isDueInCurrentCycle as isDue, getRemainingDays as calcRemainingDays, getCurrentPeriod, getNextDueDate, daysUntilDue } from '../utils/finance'
 import { formatMoney } from '../utils/format'
@@ -162,7 +162,7 @@ async function fetchAll() {
 
 async function fetchPrices(forceRefresh = false) {
     try {
-      const r1 = await fetch(`${BACKEND}/api/exchange-rates`)
+      const r1 = await apiFetch(`/api/exchange-rates`)
       const d1 = await r1.json()
       setRates(d1.rates || {})
 
@@ -186,7 +186,7 @@ async function fetchPrices(forceRefresh = false) {
 
       const tefasCodes = investments.filter(i => i.type === 'TEFAS_FUND').map(i => i.symbol).filter(Boolean)
       if (tefasCodes.length > 0) {
-        const r2 = await fetch(`${BACKEND}/api/tefas-fund?codes=${encodeURIComponent(tefasCodes.join(','))}`)
+        const r2 = await apiFetch(`/api/tefas-fund?codes=${encodeURIComponent(tefasCodes.join(','))}`)
         const d2 = await r2.json()
         setTefasQuotes(d2)
       }
@@ -216,7 +216,7 @@ async function fetchPrices(forceRefresh = false) {
     setInvSearching(true)
     try {
       const apiType = invAssetType.key === 'CRYPTO' ? 'crypto' : invAssetType.key === 'BIST' ? 'bist' : 'stock'
-      const res = await fetch(`${BACKEND}/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${apiType}`)
+      const res = await apiFetch(`/api/symbol-search?q=${encodeURIComponent(invSearch)}&type=${apiType}`)
       const data = await res.json()
       setInvResults(data.results || [])
     } catch (err) { console.error(err) }
@@ -229,7 +229,7 @@ async function fetchPrices(forceRefresh = false) {
     setInvManualPreview(null)
     try {
       const code = invManualCode.trim().toUpperCase()
-      const res = await fetch(`${BACKEND}/api/tefas-fund?codes=${encodeURIComponent(code)}`)
+      const res = await apiFetch(`/api/tefas-fund?codes=${encodeURIComponent(code)}`)
       const data = await res.json()
       const entry = data[code]
       if (entry && entry.close > 0) {

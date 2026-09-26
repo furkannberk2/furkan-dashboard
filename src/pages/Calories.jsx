@@ -1,7 +1,7 @@
 import { useAuth } from '../components/AuthProvider'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 import { progressSummary } from '../utils/format'
 import { useTranslation } from 'react-i18next'
 
@@ -183,7 +183,7 @@ async function moveMeal(id, direction) {
     const seq = ++searchSeq.current
     setSearching(true)
     try {
-      const res = await fetch(`${BACKEND}/api/food-search?q=${encodeURIComponent(search)}`)
+      const res = await apiFetch(`/api/food-search?q=${encodeURIComponent(search)}`)
       const data = await res.json()
       // Sadece en son aramanın sonucunu göster (eski/geç gelenleri yok say)
       if (seq === searchSeq.current) {
@@ -241,7 +241,7 @@ async function moveMeal(id, direction) {
     setPhotoError(''); setPhotoItems(null); setPhotoAnalyzing(true)
     try {
       const dataUrl = await resizePhoto(file)
-      const res = await fetch(`${BACKEND}/api/food-search?action=photo`, {
+      const res = await apiFetch(`/api/food-search?action=photo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: dataUrl, mimeType: 'image/jpeg', lang: i18n.language === 'en' ? 'en' : 'tr' })
@@ -268,7 +268,7 @@ async function moveMeal(id, direction) {
     if (!aiText.trim()) return
     setAiLoading(true); setAiItems(null)
     try {
-      const res = await fetch(`${BACKEND}/api/food-search?action=text`, {
+      const res = await apiFetch(`/api/food-search?action=text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: aiText, lang: i18n.language === 'en' ? 'en' : 'tr' })

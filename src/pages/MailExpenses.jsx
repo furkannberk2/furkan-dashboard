@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../components/AuthProvider'
 import { supabase } from '../lib/supabase'
-import { BACKEND } from '../config'
+import { BACKEND, apiFetch } from '../config'
 
 const CATEGORY_KEYS = ['groceries', 'food', 'transport', 'cafe', 'clothing', 'health', 'entertainment', 'subscription', 'bills', 'other']
 
@@ -17,7 +17,7 @@ export default function MailExpenses({ onAdded }) {
   async function scan() {
     setLoading(true); setItems(null)
     try {
-      const res = await fetch(`${BACKEND}/api/gmail-summary?action=expenses&user_id=${user.id}`)
+      const res = await apiFetch(`/api/gmail-summary?action=expenses&user_id=${user.id}`)
       const data = await res.json()
       if (data.connected === false) {
         setItems([])
@@ -105,7 +105,7 @@ export default function MailExpenses({ onAdded }) {
             </button>
           </div>
         </div>
-      )}    
+      )}
     </div>
   )
 }
